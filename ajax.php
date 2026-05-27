@@ -243,6 +243,24 @@ elseif ($action == 'send_contact') {
     }
 }
 
+// 4.3 ระบบสืบค้นด่วน (Live Search Suggestion)
+elseif ($action == 'search_suggest') {
+    $q = isset($_GET['q']) ? mysqli_real_escape_string($conn, $_GET['q']) : '';
+    $products = [];
+    if (strlen($q) >= 2) {
+        $res = mysqli_query($conn, "SELECT id, name, price, image FROM products WHERE name LIKE '%$q%' LIMIT 5");
+        while ($row = mysqli_fetch_assoc($res)) {
+            $products[] = [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'price' => number_format($row['price']),
+                'image' => $row['image']
+            ];
+        }
+    }
+    $response = ['status' => 'success', 'data' => $products];
+}
+
 // ==========================================
 // 5. ปิดการส่งออกข้อมูลและส่ง JSON ตอบกลับ
 // ==========================================

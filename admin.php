@@ -23,10 +23,12 @@ function sync_product_stock($conn, $product_id) {
 // --- Logic: เพิ่มล็อตสินค้าใหม่ ---
 if (isset($_POST['add_lot'])) {
     $pid = mysqli_real_escape_string($conn, $_POST['lot_product_id']);
+    $lot_num = mysqli_real_escape_string($conn, $_POST['lot_number'] ?? '');
+    $lot_cost = !empty($_POST['lot_cost']) ? floatval($_POST['lot_cost']) : 0.00;
     $lot_price = $_POST['lot_price'];
     $lot_stock = $_POST['lot_stock'];
     
-    mysqli_query($conn, "INSERT INTO product_lots (product_id, price, stock, imported_at) VALUES ('$pid', '$lot_price', '$lot_stock', NOW())");
+    mysqli_query($conn, "INSERT INTO product_lots (product_id, lot_number, import_cost, price, stock, imported_at) VALUES ('$pid', '$lot_num', '$lot_cost', '$lot_price', '$lot_stock', NOW())");
     sync_product_stock($conn, $pid); 
     
     $_SESSION['swal'] = ['title' => 'สำเร็จ', 'text' => 'นำเข้าล็อตสินค้าเรียบร้อย', 'icon' => 'success'];
@@ -58,11 +60,14 @@ if (isset($_POST['save_product'])) {
     } else {
         $price = $_POST['price'];
         $stock = $_POST['stock'];
+        $lot_num = mysqli_real_escape_string($conn, $_POST['lot_number'] ?? '');
+        $cost = !empty($_POST['import_cost']) ? floatval($_POST['import_cost']) : 0.00;
+        
         $sql = "INSERT INTO products (name, price, stock, category_id, image, description, options) VALUES ('$name', '$price', '$stock', $cat_val, '$image_path', '$desc', '$options')";
         mysqli_query($conn, $sql);
         $new_id = mysqli_insert_id($conn);
         
-        mysqli_query($conn, "INSERT INTO product_lots (product_id, price, stock, imported_at) VALUES ('$new_id', '$price', '$stock', NOW())");
+        mysqli_query($conn, "INSERT INTO product_lots (product_id, lot_number, import_cost, price, stock, imported_at) VALUES ('$new_id', '$lot_num', '$cost', '$price', '$stock', NOW())");
         $action_text = "เพิ่มสินค้า";
     }
     
@@ -205,6 +210,10 @@ if($res) {
                                     <div class="col-6"><label class="fw-bold small text-muted">ราคาขาย (ล็อตแรก)</label><input type="number" name="price" class="form-control" required></div>
                                     <div class="col-6"><label class="fw-bold small text-muted">จำนวน (ล็อตแรก)</label><input type="number" name="stock" class="form-control" required></div>
                                 </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6"><label class="fw-bold small text-muted">เลขล็อตสินค้า (ล็อตแรก)</label><input type="text" name="lot_number" class="form-control" placeholder="เช่น LOT-001"></div>
+                                    <div class="col-6"><label class="fw-bold small text-muted">ต้นทุนนำเข้า (บาท/ชิ้น)</label><input type="number" step="0.01" name="import_cost" class="form-control" placeholder="เช่น 100"></div>
+                                </div>
                                 <?php else: ?>
                                 <div class="alert alert-info py-2 small mb-3 border-0 rounded-3" style="background-color: #F0F8FF; color: #444;">
                                     <i class="bi bi-info-circle-fill text-primary"></i> การอัปเดตราคาและสต๊อก ให้กดที่ปุ่ม <b>"ประวัติรับเข้า"</b> หรือ <b>"นำเข้าล็อต"</b>
@@ -303,8 +312,11 @@ if($res) {
                         <thead class="bg-light">
                             <tr>
                                 <th># ล็อตที่</th>
+                                <th>เลขล็อต</th>
                                 <th>วันที่นำเข้า</th>
+                                <th>ต้นทุนนำเข้า</th>
                                 <th>ราคาขายตั้งไว้</th>
+                                <th>กำไร/ชิ้น</th>
                                 <th>คงเหลือ</th>
                                 <th>จัดการ</th>
                             </tr>
@@ -319,8 +331,17 @@ if($res) {
                             ?>
                             <tr class="<?= $is_empty ? 'table-secondary text-muted' : '' ?>">
                                 <td><?= $lot_num++ ?></td>
-                                <td class="fw-bold"><?= date('d/m/Y', strtotime($lot['imported_at'])) ?> <br class="d-lg-none"><span class="text-primary ms-lg-1"><?= date('H:i', strtotime($lot['imported_at'])) ?> น.</span></td>
-                                <td>฿<?= number_format($lot['price']) ?></td>
+                                <td class="fw-bold text-dark"><?= htmlspecialchars($lot['lot_number'] ?: '-') ?></td>
+                                <td class="small"><?= date('d/m/Y H:i', strtotime($lot['imported_at'])) ?> น.</td>
+                                <td class="text-danger">฿<?= number_format($lot['import_cost'], 2) ?></td>
+                                <td class="text-success fw-bold">฿<?= number_format($lot['price'], 2) ?></td>
+                                <td class="fw-bold">
+                                    <?php 
+                                    $profit = $lot['price'] - $lot['import_cost'];
+                                    $prof_color = $profit >= 0 ? 'text-primary' : 'text-danger';
+                                    echo "<span class='{$prof_color}'>" . ($profit >= 0 ? '+' : '') . '฿' . number_format($profit, 2) . "</span>";
+                                    ?>
+                                </td>
                                 <td>
                                     <?php if($is_empty): ?>
                                         <span class="badge bg-secondary">หมดแล้ว</span>
@@ -358,14 +379,24 @@ if($res) {
                         <h6 class="fw-bold text-primary mb-1" id="lot_product_name">ชื่อสินค้า</h6>
                         <small class="text-muted"><i class="bi bi-info-circle me-1"></i> ระบบจะบันทึกเวลาที่นำเข้าให้อัตโนมัติ</small>
                     </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="small text-muted fw-bold mb-1">เลขล็อตสินค้า</label>
+                            <input type="text" name="lot_number" class="form-control bg-light" placeholder="เช่น LOT-002" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted fw-bold mb-1">ต้นทุนนำเข้า (บาท/ชิ้น)</label>
+                            <input type="number" step="0.01" name="lot_cost" class="form-control bg-light" placeholder="เช่น 100" required>
+                        </div>
+                    </div>
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="small text-muted fw-bold mb-1">ราคาขายล็อตนี้ (บาท)</label>
-                            <input type="number" name="lot_price" class="form-control form-control-lg bg-light" placeholder="เช่น 150" required>
+                            <input type="number" name="lot_price" class="form-control bg-light" placeholder="เช่น 150" required>
                         </div>
                         <div class="col-6">
                             <label class="small text-muted fw-bold mb-1">จำนวนที่นำเข้า (ชิ้น)</label>
-                            <input type="number" name="lot_stock" class="form-control form-control-lg bg-light" placeholder="เช่น 50" required>
+                            <input type="number" name="lot_stock" class="form-control bg-light" placeholder="เช่น 50" required>
                         </div>
                     </div>
                 </div>

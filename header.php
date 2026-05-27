@@ -130,6 +130,75 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     }, 300);
                 });
             });
+
+            // --- Live Auto-suggest Search ---
+            const searchInput = document.getElementById('globalSearchInput');
+            const suggestBox = document.getElementById('search-suggest');
+            let debounceTimeout;
+
+            if (searchInput && suggestBox) {
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(debounceTimeout);
+                    const query = searchInput.value.trim();
+
+                    if (query.length < 2) {
+                        suggestBox.innerHTML = '';
+                        suggestBox.classList.add('hidden');
+                        return;
+                    }
+
+                    // รอหน่วงเวลา 200ms เพื่อไม่ให้ถล่มเซิร์ฟเวอร์ด้วยคิวรี่จำนวนมาก
+                    debounceTimeout = setTimeout(() => {
+                        fetch(`ajax.php?action=search_suggest&q=${encodeURIComponent(query)}`)
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res.status === 'success') {
+                                renderSuggestions(res.data);
+                            }
+                        })
+                        .catch(err => console.error(err));
+                    }, 200);
+                });
+
+                // แสดงกล่องข้อแนะนำอีกครั้งเมื่อรับโฟกัส
+                searchInput.addEventListener('focus', () => {
+                    const query = searchInput.value.trim();
+                    if (query.length >= 2 && suggestBox.children.length > 0) {
+                        suggestBox.classList.remove('hidden');
+                    }
+                });
+
+                // ซ่อนเมื่ออยู่นอกโฟกัส (หน่วงเวลา 150ms เพื่อให้คลิกที่รายการสินค้าทำงานสำเร็จก่อน)
+                searchInput.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        suggestBox.classList.add('hidden');
+                    }, 150);
+                });
+            }
+
+            function renderSuggestions(data) {
+                if (data.length === 0) {
+                    suggestBox.innerHTML = '<div class="suggest-no-result text-muted">ไม่พบข้อมูลสินค้า</div>';
+                    suggestBox.classList.remove('hidden');
+                    return;
+                }
+
+                let html = '';
+                data.forEach(item => {
+                    html += `
+                        <a href="product_detail.php?id=${item.id}" class="suggest-item">
+                            <img src="${item.image}" class="suggest-img" alt="${item.name}">
+                            <div class="suggest-details">
+                                <div class="suggest-name">${item.name}</div>
+                                <div class="suggest-price">฿${item.price}</div>
+                            </div>
+                        </a>
+                    `;
+                });
+
+                suggestBox.innerHTML = html;
+                suggestBox.classList.remove('hidden');
+            }
         });
 
         // หากกด Back/Forward จากเบราว์เซอร์ ให้ลบคลาสออกเพื่อให้หน้าเว็บกลับมาแสดงผลปกติ
@@ -157,9 +226,10 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         <div class="collapse navbar-collapse" id="navItems">
             
             <div class="mx-auto flex-grow-1 text-center d-flex justify-content-center px-lg-4">
-                <form action="index.php" method="GET" class="search-form">
-                    <input class="form-control rounded-pill search-input" type="search" name="q" placeholder="ค้นหาสินค้าที่ต้องการ..." value="<?= isset($_GET['q']) ? $_GET['q'] : '' ?>">
+                <form action="index.php" method="GET" class="search-form" id="globalSearchForm" autocomplete="off">
+                    <input class="form-control rounded-pill search-input" type="search" name="q" id="globalSearchInput" placeholder="ค้นหาสินค้าที่ต้องการ..." value="<?= isset($_GET['q']) ? $_GET['q'] : '' ?>">
                     <button type="submit" class="btn-search"><i class="bi bi-search"></i></button>
+                    <div id="search-suggest" class="search-suggest-box hidden"></div>
                 </form>
             </div>
 
