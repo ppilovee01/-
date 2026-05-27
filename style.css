@@ -243,3 +243,13 @@ input:checked + .option-card .check-icon {
 .btn-search {
     right: 12px !important;
 }
+
+/* Page Transition Fade-Out */
+body.fade-out {
+    animation: pageFadeOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes pageFadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-15px); }
+}

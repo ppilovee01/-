@@ -93,6 +93,52 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     
     <?php if(isset($extra_css)) echo $extra_css; ?>
     <link rel="stylesheet" href="style.css">
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ดักจับการคลิกลิงก์เพื่อทำอนิเมชันตอนย้ายหน้า
+            const links = document.querySelectorAll('a');
+            links.forEach(link => {
+                const href = link.getAttribute('href');
+                const target = link.getAttribute('target');
+                
+                // ข้ามลิงก์ที่ไม่ใช่การย้ายหน้าปกติ (เช่น ลิงก์สมอ #, ปุ่มเปิด modal, ลิงก์ภายนอก, ฯลฯ)
+                if (!href || 
+                    href.startsWith('#') || 
+                    href.startsWith('javascript:') || 
+                    target === '_blank' || 
+                    link.classList.contains('dropdown-toggle') ||
+                    link.hasAttribute('data-bs-toggle') ||
+                    link.getAttribute('role') === 'button') {
+                    return;
+                }
+
+                // เช็คว่าลิงก์นำไปยังโฮสต์เดียวกันหรือไม่
+                const isInternal = link.hostname === window.location.hostname || !link.hostname;
+                if (!isInternal) return;
+
+                link.addEventListener('click', (e) => {
+                    // ป้องกันการย้ายหน้าทันที
+                    e.preventDefault();
+                    const targetUrl = link.href;
+
+                    // เริ่มการทำอนิเมชัน Fade-Out
+                    document.body.classList.add('fade-out');
+
+                    // ย้ายหน้าหลังจากอนิเมชันจบ (300ms)
+                    setTimeout(() => {
+                        window.location.href = targetUrl;
+                    }, 300);
+                });
+            });
+        });
+
+        // หากกด Back/Forward จากเบราว์เซอร์ ให้ลบคลาสออกเพื่อให้หน้าเว็บกลับมาแสดงผลปกติ
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                document.body.classList.remove('fade-out');
+            }
+        });
+    </script>
 </head>
 <body>
 
