@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 session_destroy();
 header("Location: index.php");
@@ -8,7 +8,7 @@ header("Location: index.php");
 </div>
 
 <script>
-    // เธัเนเธ Fix: ถเนาเธอเธาวเธาเธเเธิเธ 1 วิเธาที เนหเนเธัเธเธัเธเนเธวเนเเธืเนอหาทัเธที
+    // บัเนŠกFix: ถ้าจอขาวนานแิน 1 วินาที ให้บังคับโชว์เนื้อหาทันที
     setTimeout(function() {
         document.body.style.opacity = '1';
         const loader = document.getElementById('loader');

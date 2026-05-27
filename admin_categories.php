@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
@@ -56,16 +56,16 @@ if (isset($_POST['edit_cat'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐“ จัดการหมวดหมู่สินค้า</h2>
+            <h2 class="fw-bold mb-4">๐Ÿ“‚ จัดการหมวดหมู่สินค้า</h2>
 
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 p-4">
-                        <h5 class="fw-bold mb-3">สรเนาเธหมวดหมู่เนหมเน</h5>
+                        <h5 class="fw-bold mb-3">สรเน‰างหมวดหมู่ใหม่</h5>
                         <form method="POST">
                             <div class="mb-3">
                                 <label class="text-muted small">ชื่อหมวดหมู่</label>
-                                <input type="text" name="cat_name" class="form-control" placeholder="เเธเนเธ อุปกรณ์เวท" required>
+                                <input type="text" name="cat_name" class="form-control" placeholder="แŠเนˆน อุปกรณ์เวท" required>
                             </div>
                             <button type="submit" name="add_cat" class="btn btn-gradient w-100 rounded-pill">บันทึก</button>
                         </form>
@@ -93,11 +93,11 @@ if (isset($_POST['edit_cat'])) {
                                         <td><span class="badge bg-light text-dark border"><?= $row['prod_count'] ?> ชิ้น</span></td>
                                         <td class="text-end pe-4">
                                             <button onclick="editCat(<?= $row['id'] ?>, '<?= $row['name'] ?>')" class="btn btn-light text-primary btn-sm rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill"></i></button>
-                                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm" onclick="return confirm('ยืเธยัเธลเธ?');"><i class="bi bi-trash-fill"></i></a>
+                                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm" onclick="return confirm('ยืนยันลบ?');"><i class="bi bi-trash-fill"></i></a>
                                         </td>
                                     </tr>
                                     <?php endwhile; else: ?>
-                                        <tr><td colspan="3" class="text-center py-4 text-muted">ยัเธเนมเนมีหมวดหมู่</td></tr>
+                                        <tr><td colspan="3" class="text-center py-4 text-muted">ยังไม่มีหมวดหมู่</td></tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
@@ -112,14 +112,14 @@ if (isset($_POST['edit_cat'])) {
 <div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0">
-            <div class="modal-header border-0"><h5 class="modal-title fw-bold">เนเธเนเนเธชื่อหมวดหมู่</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header border-0"><h5 class="modal-title fw-bold">เนเเน‰เน„ขชื่อหมวดหมู่</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <form method="POST">
                 <div class="modal-body">
                     <input type="hidden" name="edit_id" id="edit_id">
                     <input type="text" name="edit_name" id="edit_name" class="form-control" required>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="submit" name="edit_cat" class="btn btn-warning w-100 rounded-pill text-white">บันทึกการเนเธเนเนเธ</button>
+                    <button type="submit" name="edit_cat" class="btn btn-warning w-100 rounded-pill text-white">บันทึกการเนเเน‰เน„ข</button>
                 </div>
             </form>
         </div>

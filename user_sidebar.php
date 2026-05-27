@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">

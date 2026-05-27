@@ -1,15 +1,15 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-if (!isset($_GET['id'])) { die("เนมเนเธเธ Order ID"); }
+if (!isset($_GET['id'])) { die("ไม่เžบ Order ID"); }
 $order_id = $_GET['id'];
 
-// 1. เธเนอมูลรเนาเธเธเนา
+// 1. ขเน‰อมูลรเน‰านคเน‰า
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 
-// 2. เธเนอมูลออเดอรเน
+// 2. ขเน‰อมูลออเดอรเนŒ
 $order = mysqli_fetch_assoc(mysqli_query($conn, "SELECT orders.*, users.email FROM orders JOIN users ON orders.user_id = users.id WHERE orders.id = '$order_id'"));
 
 // 3. รายการสินค้า
@@ -25,7 +25,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
     <style>
-        /* --- ตั้งค่าหน้าเธระดาษ A4 --- */
+        /* --- ตั้งค่าหน้าเระดาษ A4 --- */
         @page { size: A4; margin: 0; }
         
         body { 
@@ -49,7 +49,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
 
-        /* Responsive Fix สำหรับดูเธเธมือถือ */
+        /* Responsive Fix สำหรับดูบนมือถือ */
         @media screen and (max-width: 768px) {
             body { padding: 10px; display: block; background: #fff; }
             .page { 
@@ -100,16 +100,16 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
 </head>
 <body>
     
-    <button onclick="window.print()" class="btn-print" title="สั่งเธิมเธเน">๐–จ๏ธ</button>
+    <button onclick="window.print()" class="btn-print" title="สั่งเžิมเžเนŒ">๐Ÿ–จ๏ธ</button>
 
     <div class="page">
         <div class="header">
             <div class="sender-section">
-                <div class="sender-title">เธูเนสเนเธ (Sender)</div>
+                <div class="sender-title">ผู้ส่ง (Sender)</div>
                 <div class="shop-name"><?= $shop['shop_name'] ?></div>
                 <div class="sender-info">
                     <?= nl2br($shop['address']) ?><br>
-                    <b>เนทร:</b> <?= $shop['phone'] ?>
+                    <b>เน‚ทร:</b> <?= $shop['phone'] ?>
                     <?php if($shop['shop_email']) echo "<br><b>Contact:</b> {$shop['shop_email']}"; ?>
                 </div>
             </div>
@@ -121,7 +121,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
         </div>
 
         <div class="receiver-box">
-            <div class="receiver-title">เธูเนรัเธ (Receiver)</div>
+            <div class="receiver-title">ผู้รับ (Receiver)</div>
             <div class="receiver-name"><?= explode("\n", $order['address'])[0] ?></div> 
             <div class="receiver-address">
                 <?php 
@@ -136,16 +136,16 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
         </div>
 
         <div class="info-section">
-            <?php if(strpos($order['payment_method'], 'COD') !== false || $order['payment_method'] == 'เก็บเเธิเธเธลายทาเธ (COD)'): ?>
+            <?php if(strpos($order['payment_method'], 'COD') !== false || $order['payment_method'] == 'เก็บแ‡ินปลายทาง (COD)'): ?>
                 <div class="cod-box">
-                    <div class="cod-title">ยอดเก็บเเธิเธเธลายทาเธ (COD)</div>
+                    <div class="cod-title">ยอดเก็บแ‡ินปลายทาง (COD)</div>
                     <div class="cod-price">฿<?= number_format($order['final_price'], 2) ?></div>
                 </div>
             <?php endif; ?>
 
             <?php if(!empty($order['admin_note'])): ?>
                 <div class="note-box">
-                    โ ๏ธ หมายเหตุ: <?= $order['admin_note'] ?>
+                    โš ๏ธ หมายเหตุ: <?= $order['admin_note'] ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -171,7 +171,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
         <?php endif; ?>
 
         <div class="footer">
-            ขอบคุณที่อุดหเธุเธ <?= $shop['shop_name'] ?> | Por Mae Bet Taled System
+            ขอบคุณที่อุดหนุน <?= $shop['shop_name'] ?> | Por Mae Bet Taled System
         </div>
     </div>
 

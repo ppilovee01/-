@@ -1,12 +1,12 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
 
-// เเธเนเธ Admin
+// แŠเน‡ค Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-// Logic: ลเธ Feedback
+// Logic: ลบ Feedback
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
     mysqli_query($conn, "DELETE FROM feedback WHERE id=$id");
@@ -47,7 +47,7 @@ if (isset($_GET['delete'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐’ฌ ความคิดเห็นจากลูกค้า</h2>
+            <h2 class="fw-bold mb-4">๐Ÿ’ฌ ความคิดเห็นจากลูกค้า</h2>
 
             <div class="row g-4">
                 <?php 
@@ -68,7 +68,7 @@ if (isset($_GET['delete'])) {
                                 <h6 class="fw-bold m-0 text-truncate"><?= $row['fullname'] ?></h6>
                                 <small class="text-muted text-truncate d-block"><?= $row['email'] ?></small>
                             </div>
-                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-light text-danger btn-sm rounded-circle ms-auto" onclick="return confirm('ลเธเธเนอความนี้?')">
+                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-light text-danger btn-sm rounded-circle ms-auto" onclick="return confirm('ลบข้อความนี้?')">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </div>
@@ -86,7 +86,7 @@ if (isset($_GET['delete'])) {
                 <?php endwhile; else: ?>
                     <div class="col-12 text-center py-5 text-muted">
                         <i class="bi bi-chat-square-dots display-1 d-block mb-3 opacity-25"></i>
-                        ยัเธเนมเนมีความคิดเห็นจากลูกค้า
+                        ยังไม่มีความคิดเห็นจากลูกค้า
                     </div>
                 <?php endif; ?>
             </div>

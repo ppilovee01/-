@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
@@ -12,12 +12,12 @@ if (isset($_POST['upload_banner'])) {
         if (move_uploaded_file($_FILES['banner_img']['tmp_name'], "uploads/" . $new_name)) {
             $path = "uploads/" . $new_name;
             mysqli_query($conn, "INSERT INTO banners (image) VALUES ('$path')");
-            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัเธเนหลดเนเธเธเเธอรเนเรียเธรเนอย!', 'icon'=>'success'];
+            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปเน‚หลดเนบนแ™อรเนŒเรียบร้อย!', 'icon'=>'success'];
         } else { 
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัเธเนหลดไฟล์ลเนมเหŧ', 'icon'=>'error'];
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัปเน‚หลดไฟล์ลเน‰มเหŧ', 'icon'=>'error'];
         }
     } else { 
-        $_SESSION['swal'] = ['title'=>'เนเธเนเธเตือเธ', 'text'=>'เธรุณาเลือกไฟล์รูเธภาเธ', 'icon'=>'warning'];
+        $_SESSION['swal'] = ['title'=>'เนจเน‰งเตือน', 'text'=>'เรุณาเลือกไฟล์รูปภาเž', 'icon'=>'warning'];
     }
     header("Location: admin_banners.php"); exit();
 }
@@ -37,7 +37,7 @@ if (isset($_GET['delete'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการเนเธเธเเธอรเน | Por Mae Bet Taled Admin</title>
+    <title>จัดการเนบนแ™อรเนŒ | Por Mae Bet Taled Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -65,16 +65,16 @@ if (isset($_GET['delete'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐–ผ๏ธ จัดการเนเธเธเเธอรเน</h2>
+            <h2 class="fw-bold mb-4">๐Ÿ–ผ๏ธ จัดการเนบนแ™อรเนŒ</h2>
 
             <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                 <form method="POST" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-3 align-items-end">
                     <div class="flex-grow-1 w-100">
-                        <label class="form-label fw-bold">อัเธเนหลดรูเธเนหมเน</label>
+                        <label class="form-label fw-bold">อัปเน‚หลดรูปใหม่</label>
                         <input type="file" name="banner_img" class="form-control" accept="image/*" required>
-                        <div class="form-text">แนะนำเธเธาด 1200 x 400 pixel</div>
+                        <div class="form-text">แนะนำขนาด 1200 x 400 pixel</div>
                         <button type="submit" name="upload_banner" class="btn btn-gradient px-4 rounded-3 w-100 w-md-auto">
-                        <i class="bi bi-cloud-upload-fill me-2"></i> อัเธเนหลด
+                        <i class="bi bi-cloud-upload-fill me-2"></i> อัปเน‚หลด
                     </button>
                     </div>
                 </form>
@@ -90,7 +90,7 @@ if (isset($_GET['delete'])) {
                         <img src="<?= $row['image'] ?>" class="banner-preview">
                         <div class="card-body p-3 d-flex justify-content-between align-items-center">
                             <small class="text-muted">ID: <?= $row['id'] ?></small>
-                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('ลเธรูเธนี้?')">
+                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('ลบรูปนี้?')">
                                 <i class="bi bi-trash-fill"></i>
                             </a>
                         </div>
@@ -99,7 +99,7 @@ if (isset($_GET['delete'])) {
                 <?php endwhile; else: ?>
                 <div class="col-12 text-center py-5 text-muted border rounded-4 bg-white">
                     <i class="bi bi-images display-1 opacity-25 d-block mb-3"></i>
-                    ยัเธเนมเนมีเนเธเธเเธอรเน
+                    ยังไม่มีเนบนแ™อรเนŒ
                 </div>
                 <?php endif; ?>
             </div>

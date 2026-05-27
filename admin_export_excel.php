@@ -1,15 +1,15 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
 
-// เเธเนเธวเนาเเธเนเธ Admin เนหม
+// แŠเน‡ควเนˆาเป็น Admin เน„หม
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-// ตัเนเธชื่อไฟล์
+// ตั้งชื่อไฟล์
 $filename = "Por Mae Bet Taled_Sales_Report_" . date('Y-m-d') . ".xls";
 
-// สเนเธ Header เธอเธ Browser วเนาเธีเนเธือไฟล์ Excel เธะ
+// ส่ง Header บอกBrowser วเนˆานีเนˆคือไฟล์ Excel นะ
 header("Content-Type: application/vnd.ms-excel");
 header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Pragma: no-cache");
@@ -26,8 +26,8 @@ xmlns="http://www.w3.org/TR/REC-html40">
 </style>
 </head>
 <body>
-    <h2 style="text-align:center;">รายเธาเธยอดเธาย Por Mae Bet Taled</h2>
-    <p>วันที่เธเนอมูล: <?= date('d/m/Y H:i') ?></p>
+    <h2 style="text-align:center;">รายงานยอดขาย Por Mae Bet Taled</h2>
+    <p>วันที่ขเน‰อมูล: <?= date('d/m/Y H:i') ?></p>
     
     <table>
         <thead>
@@ -36,12 +36,12 @@ xmlns="http://www.w3.org/TR/REC-html40">
                 <th>วันที่สั觫ื้อ</th>
                 <th>ชื่อลูกค้า</th>
                 <th>สินค้าที่สั่ง</th>
-                <th>ยอดรวม (เธาท)</th>
-                <th>สเนวเธลด</th>
-                <th>ยอดสุทเธิ (เธาท)</th>
-                <th>วิเธีการเธำระเเธิเธ</th>
+                <th>ยอดรวม (บาท)</th>
+                <th>สเนˆวนลด</th>
+                <th>ยอดสุทธิ (บาท)</th>
+                <th>วิธีการชำระแ‡ิน</th>
                 <th>สถานะ</th>
-                <th>ที่อยูเนเธัดสเนเธ</th>
+                <th>ที่อยูเนˆจัดส่ง</th>
             </tr>
         </thead>
         <tbody>

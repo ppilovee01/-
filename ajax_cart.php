@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // เริ่มเก็บ Buffer (ป้องกัน Error หน้าขาว)
 ob_start();
 

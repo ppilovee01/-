@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 
@@ -9,7 +9,7 @@ if (isset($_POST['update_status'])) {
     $oid = $_POST['order_id'];
     $status = $_POST['status'];
     
-    // คืนสตเนอเธถเนาเธดยกเลิก
+    // คืนสตเน‡อเถ้าดยกเลิก
     if ($status == 'cancelled') {
         $chk = mysqli_fetch_assoc(mysqli_query($conn, "SELECT status FROM orders WHERE id='$oid'"));
         if ($chk['status'] != 'cancelled') {
@@ -20,16 +20,16 @@ if (isset($_POST['update_status'])) {
         }
     }
     mysqli_query($conn, "UPDATE orders SET status = '$status' WHERE id = '$oid'");
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปവสถานะเรียเธรเนอย', 'icon'=>'success'];
+    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปവสถานะเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
 
-// --- Logic: บันทึกเลเธเธัสดุ ---
+// --- Logic: บันทึกเลขเžัสดุ ---
 if (isset($_POST['save_tracking'])) {
     $oid = $_POST['order_id'];
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
     mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', status = 'shipping' WHERE id = '$oid'");
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกเลเธเธัสดุเรียเธรเนอย', 'icon'=>'success'];
+    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกเลขเžัสดุเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
 
@@ -38,7 +38,7 @@ if (isset($_POST['save_note'])) {
     $oid = $_POST['order_id'];
     $note = mysqli_real_escape_string($conn, $_POST['admin_note']);
     mysqli_query($conn, "UPDATE orders SET admin_note = '$note' WHERE id = '$oid'");
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกหมายเหตุเรียเธรเนอย', 'icon'=>'success'];
+    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกหมายเหตุเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
 ?>
@@ -48,7 +48,7 @@ if (isset($_POST['save_note'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการออเดอรเน | Admin</title>
+    <title>จัดการออเดอรเนŒ | Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -56,7 +56,7 @@ if (isset($_POST['save_note'])) {
     <style>
         body { font-family: 'Kanit'; background: #f8f9fa; }
         .order-card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 20px; background: white; }
-        /* เธรัเธเสเนเธเธอเธในมือถือ */
+        /* ปรับเสเน‰นขอบในมือถือ */
         @media (max-width: 767px) {
             .border-end-md { border-right: none !important; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
             .border-top-md { border-top: 1px solid #eee; padding-top: 15px; }
@@ -82,7 +82,7 @@ if (isset($_POST['save_note'])) {
         </div>
 
         <div class="col-md-10 p-4">
-            <h3 class="fw-bold mb-4">๐“ฆ จัดการคำสั觫ื้อ</h3>
+            <h3 class="fw-bold mb-4">๐Ÿ“ฆ จัดการคำสั觫ื้อ</h3>
 
             <?php 
             $res = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o JOIN users u ON o.user_id = u.id ORDER BY o.id DESC");
@@ -112,7 +112,7 @@ if (isset($_POST['save_note'])) {
                     </div>
 
                     <div class="col-6 col-md-3 border-end-md text-center">
-                        <div class="text-muted small">ยอดสุทเธิ</div>
+                        <div class="text-muted small">ยอดสุทธิ</div>
                         <h4 class="fw-bold text-danger m-0">฿<?= number_format($row['final_price'], 2) ?></h4>
                         <div class="small text-muted mt-1"><?= $row['payment_method'] ?></div>
                         
@@ -125,7 +125,7 @@ if (isset($_POST['save_note'])) {
                         <div class="d-flex justify-content-between mb-3 align-items-center">
                             <div>สถานะ: <span class="badge rounded-pill bg-secondary"><?= $st ?></span></div>
                             <?php if($row['payment_slip']): ?>
-                                <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill">๐“ท สลิป</button>
+                                <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill">๐Ÿ“ท สลิป</button>
                             <?php endif; ?>
                         </div>
 
@@ -134,9 +134,9 @@ if (isset($_POST['save_note'])) {
                                 <input type="hidden" name="order_id" value="<?= $oid ?>">
                                 <div class="col-6">
                                     <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                        <option value="pending" <?=$st=='pending'?'selected':''?>>รอตรวเธ</option>
-                                        <option value="approved" <?=$st=='approved'?'selected':''?>>อเธุมัติ</option>
-                                        <option value="shipping" <?=$st=='shipping'?'selected':''?>>สเนเธแล้ว</option>
+                                        <option value="pending" <?=$st=='pending'?'selected':''?>>รอตรวจ</option>
+                                        <option value="approved" <?=$st=='approved'?'selected':''?>>อนุมัติ</option>
+                                        <option value="shipping" <?=$st=='shipping'?'selected':''?>>ส่งแล้ว</option>
                                         <option value="completed" <?=$st=='completed'?'selected':''?>>สำเร็จ</option>
                                         <option value="cancelled" <?=$st=='cancelled'?'selected':''?>>ยกเลิก</option>
                                     </select>
@@ -145,7 +145,7 @@ if (isset($_POST['save_note'])) {
                                 <div class="col-6">
                                     <?php if($st != 'cancelled'): ?>
                                         <button type="button" class="btn btn-sm btn-dark w-100" data-bs-toggle="modal" data-bs-target="#trackingModal<?= $oid ?>">
-                                            <i class="bi bi-truck"></i> เลเธเธัสดุ
+                                            <i class="bi bi-truck"></i> เลขเžัสดุ
                                         </button>
                                     <?php endif; ?>
                                 </div>
@@ -158,8 +158,8 @@ if (isset($_POST['save_note'])) {
                 </div>
             </div>
 
-            <div class="modal fade" id="noteModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">๐“ หมายเหตุ</h6></div><form method="POST"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><textarea name="admin_note" class="form-control" rows="3"><?= $row['admin_note'] ?></textarea></div><div class="modal-footer border-0 pt-0"><button type="submit" name="save_note" class="btn btn-primary w-100 btn-sm">บันทึก</button></div></form></div></div></div>
-            <div class="modal fade" id="trackingModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title">๐ เลเธเธัสดุ</h6></div><form method="POST"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><input type="text" name="tracking_no" class="form-control" value="<?= $row['tracking_no'] ?>" required></div><div class="modal-footer border-0 pt-0"><button name="save_tracking" class="btn btn-success w-100 btn-sm">บันทึก</button></div></form></div></div></div>
+            <div class="modal fade" id="noteModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">หมายเหตุ</h6></div><form method="POST"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><textarea name="admin_note" class="form-control" rows="3"><?= $row['admin_note'] ?></textarea></div><div class="modal-footer border-0 pt-0"><button type="submit" name="save_note" class="btn btn-primary w-100 btn-sm">บันทึก</button></div></form></div></div></div>
+            <div class="modal fade" id="trackingModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title">หมายเลขพัสดุ</h6></div><form method="POST"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><input type="text" name="tracking_no" class="form-control" value="<?= $row['tracking_no'] ?>" required></div><div class="modal-footer border-0 pt-0"><button name="save_tracking" class="btn btn-success w-100 btn-sm">บันทึก</button></div></form></div></div></div>
             <div class="modal fade" id="detailModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header bg-light"><h5 class="modal-title fw-bold">รายการสินค้า #<?= $oid ?></h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-3"><?php $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id=p.id WHERE oi.order_id='$oid'"); while($i = mysqli_fetch_assoc($items)): ?><div class="d-flex justify-content-between mb-2 small"><span><?= $i['name'] ?> (x<?= $i['quantity'] ?>)</span><span class="fw-bold">฿<?= number_format($i['price'] * $i['quantity']) ?></span></div><?php endwhile; ?></div></div></div></div>
 
             <?php endwhile; ?>

@@ -1,7 +1,7 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
-include 'header.php'; // ใน header.php ตเนอเธมี bootstrap.bundle.min.js เธะเธรัเธ
+include 'header.php'; // ใน header.php ต้องมี bootstrap.bundle.min.js นะครับ
 
 if (!isset($_SESSION['user_id'])) { echo "<script>window.location='login.php';</script>"; exit(); }
 $uid = $_SESSION['user_id'];
@@ -15,7 +15,7 @@ $result = mysqli_query($conn, $sql);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>รายการเนเธรด | Por Mae Bet Taled</title>
+    <title>รายการโปรด | Por Mae Bet Taled</title>
     <style>
         body { background-color: #f8f9fa; font-family: 'Kanit', sans-serif; }
         .wishlist-card { background: white; border: none; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); transition: all 0.3s ease; position: relative; overflow: hidden; height: 100%; }
@@ -41,7 +41,7 @@ $result = mysqli_query($conn, $sql);
                role="button" 
                aria-expanded="false" 
                aria-controls="userSidebar">
-                <i class="bi bi-list me-2"></i> เมนูสมาชิก (เธดเเธืเนอเเธิด)
+                <i class="bi bi-list me-2"></i> เมนูสมาชิก (ดเพื่อเปิด)
             </a>
             
             <div class="collapse d-lg-block" id="userSidebar">
@@ -50,7 +50,7 @@ $result = mysqli_query($conn, $sql);
         </div>
 
         <div class="col-lg-9">
-            <h3 class="fw-bold mb-4" style="color: #333;">๐’– รายการที่เธัเธชอบ</h3>
+            <h3 class="fw-bold mb-4" style="color: #333;">💖 รายการที่ชื่นชอบ</h3>
 
             <?php if (mysqli_num_rows($result) > 0): ?>
                 <div class="row g-3">
@@ -64,7 +64,7 @@ $result = mysqli_query($conn, $sql);
                             <div class="card-body-custom">
                                 <div class="product-title"><?= $p['name'] ?></div>
                                 <div class="product-price">฿<?= number_format($p['price']) ?></div>
-                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn-action-main"><i class="bi bi-bag"></i> 价ี่สินค้า</a>
+                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn-action-main"><i class="bi bi-bag"></i> ดูรายละเอียดสินค้า</a>
                             </div>
                         </div>
                     </div>
@@ -72,8 +72,8 @@ $result = mysqli_query($conn, $sql);
                 </div>
             <?php else: ?>
                 <div class="text-center py-5 bg-white rounded-4 shadow-sm">
-                    <h5 class="text-dark fw-bold">ยัเธเนมเนมีสินค้าที่ถูเธเนเธ</h5>
-                    <a href="index.php" class="btn btn-dark rounded-pill px-4 mt-3">ไปเธเนอเธเลย</a>
+                    <h5 class="text-dark fw-bold">ยังไม่มีสินค้าที่ถูเเนƒจ</h5>
+                    <a href="index.php" class="btn btn-dark rounded-pill px-4 mt-3">ไปช้อปเลย</a>
                 </div>
             <?php endif; ?>
         </div>
@@ -86,7 +86,7 @@ function toggleFeature(action, pid) {
     let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid);
     fetch('ajax_features.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => {
         const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1000});
-        Toast.fire({icon: 'success', title: 'ลเธเรียเธรเนอย'});
+        Toast.fire({icon: 'success', title: 'ลบเรียบร้อย'});
     });
 }
 </script>

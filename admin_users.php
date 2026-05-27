@@ -1,14 +1,14 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 
 // 1. ตั้งค่า Timezone
 date_default_timezone_set('Asia/Bangkok');
 
-// 2. เเธเนเธสิทเธิเน Admin
+// 2. แŠเน‡คสิทธิเนŒ Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-// --- Logic 1: เเธิเนมสมาชิกเนหมเน (Anti-F5 Fixed) ---
+// --- Logic 1: เพิ่มสมาชิกใหม่ (Anti-F5 Fixed) ---
 if (isset($_POST['add_user'])) {
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT); 
@@ -16,14 +16,14 @@ if (isset($_POST['add_user'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $role = $_POST['role'];
 
-    // เเธเนเธเธเนำ
+    // แŠเน‡คเ‹เน‰ำ
     $check = mysqli_query($conn, "SELECT id FROM users WHERE username='$user' OR email='$email'");
     if(mysqli_num_rows($check) > 0) {
-        $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ชื่อเธูเนเนเธเน หรือ อีเมลนี้ มีเธเธเนเธเนแล้ว!', 'icon'=>'error'];
+        $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ชื่อผู้ใช้ หรือ อีเมลนี้ มีคนใช้แล้ว!', 'icon'=>'error'];
     } else {
         $sql = "INSERT INTO users (username, password, fullname, email, role, created_at) VALUES ('$user', '$pass', '$name', '$email', '$role', NOW())";
         if(mysqli_query($conn, $sql)) {
-            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'เเธิเนมสมาชิกเนหมเนเรียเธรเนอย', 'icon'=>'success'];
+            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'เพิ่มสมาชิกใหม่เรียบร้อย', 'icon'=>'success'];
         } else {
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
         }
@@ -31,7 +31,7 @@ if (isset($_POST['add_user'])) {
     header("Location: admin_users.php"); exit();
 }
 
-// --- Logic 2: เนเธเนเนเธสมาชิก ---
+// --- Logic 2: เนเเน‰เน„ขสมาชิก ---
 if (isset($_POST['edit_user'])) {
     $id = $_POST['edit_id'];
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
@@ -46,24 +46,24 @@ if (isset($_POST['edit_user'])) {
     }
 
     if(mysqli_query($conn, $sql)) {
-        $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปവเธเนอมูลเรียเธรเนอย', 'icon'=>'success'];
+        $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปവขเน‰อมูลเรียบร้อย', 'icon'=>'success'];
     } else {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
     }
     header("Location: admin_users.php"); exit();
 }
 
-// --- Logic 3: ลเธสมาชิก ---
+// --- Logic 3: ลบสมาชิก ---
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
     if ($id == $_SESSION['user_id']) {
-        $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'คุณเนมเนสามารถลเธตัวเอเธได้!', 'icon'=>'warning'];
+        $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'คุณไม่สามารถลบตัวเองได้!', 'icon'=>'warning'];
     } else {
         $sql = "DELETE FROM users WHERE id = $id";
         if(mysqli_query($conn, $sql)) {
-            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ลเธสมาชิกเรียเธรเนอยแล้ว', 'icon'=>'success'];
+            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ลบสมาชิกเรียบร้อยแล้ว', 'icon'=>'success'];
         } else {
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ลเธเนมเนได้ (อาเธมีออเดอรเนเธเนาเธอยูเน)', 'icon'=>'error'];
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ลบไม่ได้ (อาจมีออเดอรเนŒคเน‰างอยูเนˆ)', 'icon'=>'error'];
         }
     }
     header("Location: admin_users.php"); exit();
@@ -107,10 +107,10 @@ if (isset($_GET['delete'])) {
         <div class="col-md-10 p-4 p-md-5">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
                 <div>
-                    <h2 class="fw-bold m-0">๐‘ฅ จัดการสมาชิก (Users)</h2>
-                    <p class="text-muted small mb-0">เเธิเนม ลเธ เนเธเนเนเธ เธเนอมูลสมาชิกเนละเนอดมิเธ</p>
+                    <h2 class="fw-bold m-0">๐Ÿ‘ฅ จัดการสมาชิก (Users)</h2>
+                    <p class="text-muted small mb-0">เพิ่ม ลบ เนเเน‰เน„ข ขเน‰อมูลสมาชิกเนละเนอดมิน</p>
                     <button class="btn btn-gradient rounded-pill px-4 shadow-sm w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                    <i class="bi bi-person-plus-fill me-2"></i> เเธิเนมสมาชิก
+                    <i class="bi bi-person-plus-fill me-2"></i> เพิ่มสมาชิก
                 </button>
                 </div>
             </div>
@@ -121,7 +121,7 @@ if (isset($_GET['delete'])) {
                         <thead class="bg-light">
                             <tr>
                                 <th class="ps-4">ID</th>
-                                <th>ชื่อเธูเนเนเธเนเธาเธ</th>
+                                <th>ชื่อผู้ใช้งาน</th>
                                 <th>อีเมล</th>
                                 <th>สถานะ</th>
                                 <th>วันที่สมัคร</th>
@@ -177,7 +177,7 @@ if (isset($_GET['delete'])) {
     <div class="modal-dialog">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">เเธิเนมสมาชิกเนหมเน</h5>
+                <h5 class="modal-title fw-bold">เพิ่มสมาชิกใหม่</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
@@ -191,7 +191,7 @@ if (isset($_GET['delete'])) {
                         <input type="password" name="password" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">ชื่อ-เธามสเธุล</label>
+                        <label class="small text-muted">ชื่อ-นามสเุล</label>
                         <input type="text" name="fullname" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -199,10 +199,10 @@ if (isset($_GET['delete'])) {
                         <input type="email" name="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">Role (สิทเธิเนการเนเธเนเธาเธ)</label>
+                        <label class="small text-muted">Role (สิทธิเนŒการใช้งาน)</label>
                         <select name="role" class="form-select">
-                            <option value="user">User (ลูกค้าทัเนวไป)</option>
-                            <option value="admin">Admin (เธูเนดูเนลระบบ)</option>
+                            <option value="user">User (ลูกค้าทัเนˆวไป)</option>
+                            <option value="admin">Admin (ผู้ดูเนลระบบ)</option>
                         </select>
                     </div>
                 </div>
@@ -218,18 +218,18 @@ if (isset($_GET['delete'])) {
     <div class="modal-dialog">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">เนเธเนเนเธเธเนอมูลสมาชิก</h5>
+                <h5 class="modal-title fw-bold">เนเเน‰เน„ขขเน‰อมูลสมาชิก</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
                 <input type="hidden" name="edit_id" id="edit_id">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="small text-muted">Username (เนเธเนเนเธเนมเนได้)</label>
+                        <label class="small text-muted">Username (เนเเน‰เน„ขไม่ได้)</label>
                         <input type="text" id="edit_username" class="form-control bg-light" readonly>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">ชื่อ-เธามสเธุล</label>
+                        <label class="small text-muted">ชื่อ-นามสเุล</label>
                         <input type="text" name="fullname" id="edit_fullname" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -237,7 +237,7 @@ if (isset($_GET['delete'])) {
                         <input type="email" name="email" id="edit_email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">เปลี่ยนรหัสเธเนาเธ (เธลเนอยวเนาเธถเนาเนมเนเปลี่ยน)</label>
+                        <label class="small text-muted">เปลี่ยนรหัสผ่าน (ปลเนˆอยวเนˆางถ้าไม่เปลี่ยน)</label>
                         <input type="password" name="password" class="form-control" placeholder="*******">
                     </div>
                     <div class="mb-3">
@@ -249,7 +249,7 @@ if (isset($_GET['delete'])) {
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="submit" name="edit_user" class="btn btn-warning w-100 rounded-pill text-white">อัปവเธเนอมูล</button>
+                    <button type="submit" name="edit_user" class="btn btn-warning w-100 rounded-pill text-white">อัปവขเน‰อมูล</button>
                 </div>
             </form>
         </div>
@@ -267,12 +267,12 @@ if (isset($_GET['delete'])) {
 
     function confirmBan(id, name) {
         Swal.fire({
-            title: 'ยืเธยัเธการลเธ?',
-            text: "ตเนอเธการลเธสมาชิก '" + name + "' หรือเนมเน?",
+            title: 'ยืนยันการลบ?',
+            text: "ต้องการลบสมาชิก '" + name + "' หรือไม่?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            confirmButtonText: 'ลเธเลย',
+            confirmButtonText: 'ลบเลย',
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {

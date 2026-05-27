@@ -1,13 +1,13 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 
-// ตั้งค่า Timezone เนหเนตรเธเธัเธเนทยเสมอ
+// ตั้งค่า Timezone ให้ตรงเับเน„ทยเสมอ
 date_default_timezone_set('Asia/Bangkok');
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-// --- Logic 1: เเธิเนมเธเนอมูล (Add) ---
+// --- Logic 1: เพิ่มขเน‰อมูล (Add) ---
 if (isset($_POST['add'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $type = $_POST['type'];
@@ -19,14 +19,14 @@ if (isset($_POST['add'])) {
     }
 }
 
-// --- Logic 2: ลเธเธเนอมูล (Delete) ---
+// --- Logic 2: ลบขเน‰อมูล (Delete) ---
 if (isset($_GET['del'])) {
     $id = $_GET['del'];
     mysqli_query($conn, "DELETE FROM payment_methods WHERE id=$id");
     header("Location: admin_payments.php"); exit();
 }
 
-// --- Logic 3: เตรียมเธเนอมูลเนเธเนเนเธ (Fetch for Edit) ---
+// --- Logic 3: เตรียมขเน‰อมูลเนเเน‰เน„ข (Fetch for Edit) ---
 $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = $_GET['edit'];
@@ -34,7 +34,7 @@ if (isset($_GET['edit'])) {
     $edit_data = mysqli_fetch_assoc($res);
 }
 
-// --- Logic 4: อัปവเธเนอมูล (Update) ---
+// --- Logic 4: อัปവขเน‰อมูล (Update) ---
 if (isset($_POST['update'])) {
     $id = $_POST['id'];
     $name = mysqli_real_escape_string($conn, $_POST['name']);
@@ -53,7 +53,7 @@ if (isset($_POST['update'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เธเนอเธทาเธเธำระเเธิเธ | Por Mae Bet Taled Admin</title>
+    <title>ช่องทางเŠำระแ‡ิน | Por Mae Bet Taled Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -80,16 +80,16 @@ if (isset($_POST['update'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐’ณ เธเนอเธทาเธเธำระเเธิเธ</h2>
+            <h2 class="fw-bold mb-4">๐Ÿ’ณ ช่องทางเŠำระแ‡ิน</h2>
             
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 20px;">
                         <h5 class="fw-bold mb-3">
                             <?php if($edit_data): ?>
-                                <i class="bi bi-pencil-square text-warning"></i> เนเธเนเนเธเธเนอมูล
+                                <i class="bi bi-pencil-square text-warning"></i> เนเเน‰เน„ขขเน‰อมูล
                             <?php else: ?>
-                                <i class="bi bi-plus-circle text-primary"></i> เเธิเนมเธเนอเธทาเธเนหมเน
+                                <i class="bi bi-plus-circle text-primary"></i> เพิ่มช่องทางใหม่
                             <?php endif; ?>
                         </h5>
                         
@@ -97,27 +97,27 @@ if (isset($_POST['update'])) {
                             <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>">
                             
                             <div class="mb-2">
-                                <label class="small text-muted">ชื่อเธเธาเธาร/เธเนอเธทาเธ</label>
+                                <label class="small text-muted">ชื่อธนาคาร/ช่องทาง</label>
                                 <input type="text" name="name" class="form-control" value="<?= $edit_data['name'] ?? '' ?>" required>
                             </div>
                             
                             <div class="mb-2">
-                                <label class="small text-muted">เธระเภท</label>
+                                <label class="small text-muted">ประเภท</label>
                                 <select name="type" class="form-select">
-                                    <option value="bank" <?= ($edit_data['type'] ?? '') == 'bank' ? 'selected' : '' ?>>บัญชีเธเธาเธาร</option>
-                                    <option value="promptpay" <?= ($edit_data['type'] ?? '') == 'promptpay' ? 'selected' : '' ?>>เธรเนอมเเธยเน (QR)</option>
-                                    <option value="cod" <?= ($edit_data['type'] ?? '') == 'cod' ? 'selected' : '' ?>>เก็บเเธิเธเธลายทาเธ</option>
+                                    <option value="bank" <?= ($edit_data['type'] ?? '') == 'bank' ? 'selected' : '' ?>>บัญชีธนาคาร</option>
+                                    <option value="promptpay" <?= ($edit_data['type'] ?? '') == 'promptpay' ? 'selected' : '' ?>>เžรเน‰อมแžยเนŒ (QR)</option>
+                                    <option value="cod" <?= ($edit_data['type'] ?? '') == 'cod' ? 'selected' : '' ?>>เก็บแ‡ินปลายทาง</option>
                                 </select>
                             </div>
                             
                             <div class="mb-3">
-                                <label class="small text-muted">เลเธบัญชี/เเธอรเน</label>
+                                <label class="small text-muted">เลขบัญชี/แšอรเนŒ</label>
                                 <input type="text" name="account_number" class="form-control" value="<?= $edit_data['account_number'] ?? '' ?>">
                             </div>
                             
                             <?php if($edit_data): ?>
                                 <div class="d-flex gap-2">
-                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปവเธเนอมูล</button>
+                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปവขเน‰อมูล</button>
                                     <a href="admin_payments.php" class="btn btn-secondary rounded-3">ยกเลิก</a>
                                 </div>
                             <?php else: ?>
@@ -133,9 +133,9 @@ if (isset($_POST['update'])) {
                             <table class="table align-middle" style="min-width: 500px;">
                                 <thead class="text-muted small">
                                     <tr>
-                                        <th>ชื่อเธเนอเธทาเธ</th>
-                                        <th>เธระเภท</th>
-                                        <th>เลเธบัญชี/เเธอรเน</th>
+                                        <th>ชื่อช่องทาง</th>
+                                        <th>ประเภท</th>
+                                        <th>เลขบัญชี/แšอรเนŒ</th>
                                         <th class="text-end">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -150,10 +150,10 @@ if (isset($_POST['update'])) {
                                         <td><span class="badge bg-light text-dark border"><?= $row['type'] ?></span></td>
                                         <td><?= $row['account_number'] ?></td>
                                         <td class="text-end">
-                                            <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1" title="เนเธเนเนเธ">
+                                            <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1" title="เนเเน‰เน„ข">
                                                 <i class="bi bi-pencil-fill"></i>
                                             </a>
-                                            <a href="?del=<?= $row['id'] ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" title="ลเธ" onclick="return confirm('ยืเธยัเธการลเธ?');">
+                                            <a href="?del=<?= $row['id'] ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" title="ลบ" onclick="return confirm('ยืนยันการลบ?');">
                                                 <i class="bi bi-trash-fill"></i>
                                             </a>
                                         </td>
