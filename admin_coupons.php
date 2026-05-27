@@ -16,7 +16,7 @@ if (isset($_POST['add'])) {
     
     $check = mysqli_query($conn, "SELECT id FROM coupons WHERE code='$code'");
     if(mysqli_num_rows($check) > 0) {
-        echo "<script>alert('โค้ดนี้มีอยูเนˆแล้ว!');</script>";
+        echo "<script>alert('โค้ดนี้มีอยู่แล้ว!');</script>";
     } else {
         $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, expiry_date) 
                 VALUES ('$code', '$type', '$val', '$min', '$exp')";
@@ -82,14 +82,14 @@ if (isset($_POST['update'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">จัดการคูปองสเนˆวนลด</h2>
+            <h2 class="fw-bold mb-4">จัดการคูปองส่วนลด</h2>
             
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 20px;">
                         <h5 class="fw-bold mb-3">
                             <?php if($edit_data): ?>
-                                <i class="bi bi-pencil-square text-warning"></i> เนเเน‰เน„ขคูปอง
+                                <i class="bi bi-pencil-square text-warning"></i> แก้ไขคูปอง
                             <?php else: ?>
                                 <i class="bi bi-ticket-perforated text-blue" style="color:#AEE2FF"></i> สรเน‰างคูปองใหม่
                             <?php endif; ?>
@@ -100,7 +100,7 @@ if (isset($_POST['update'])) {
                             
                             <div class="mb-3">
                                 <label class="small text-muted">รหัสคูปอง (Code)</label>
-                                <input type="text" name="code" class="form-control text-uppercase fw-bold" placeholder="แŠเนˆน SALE2024" value="<?= $edit_data['code'] ?? '' ?>" required>
+                                <input type="text" name="code" class="form-control text-uppercase fw-bold" placeholder="ใส่รหัสคูปอง" value="<?= $edit_data['code'] ?? '' ?>" required>
                             </div>
                             
                             <div class="row g-2 mb-3">
@@ -112,14 +112,14 @@ if (isset($_POST['update'])) {
                                     </select>
                                 </div>
                                 <div class="col-6">
-                                    <label class="small text-muted">มูลคเนˆาสเนˆวนลด</label>
+                                    <label class="small text-muted">มูลค่าส่วนลด</label>
                                     <input type="number" name="discount_value" class="form-control" placeholder="0" value="<?= $edit_data['discount_value'] ?? '' ?>" required>
                                 </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="small text-muted">ยอดซื้อขัเน‰นตเนˆำ (บาท)</label>
-                                <input type="number" name="min_spend" class="form-control" placeholder="0 = ไม่มีขัเน‰นตเนˆำ" value="<?= $edit_data['min_spend'] ?? '0' ?>">
+                                <label class="small text-muted">ยอดซื้อขั้นต่ำ (บาท)</label>
+                                <input type="number" name="min_spend" class="form-control" placeholder="0 = ไม่มีขั้นต่ำ" value="<?= $edit_data['min_spend'] ?? '0' ?>">
                             </div>
 
                             <div class="mb-4">
@@ -146,9 +146,9 @@ if (isset($_POST['update'])) {
                                 <thead class="text-muted small">
                                     <tr>
                                         <th>โค้ด</th>
-                                        <th>สเนˆวนลด</th>
-                                        <th>แ‡ืเนˆอนเน„ข</th>
-                                        <th>หมดอายุ</th>
+                                        <th>ส่วนลด</th>
+                                        <th>เงื่อนไข</th>
+                                        <th>วันหมดอายุ</th>
                                         <th>สถานะ</th>
                                         <th class="text-end">จัดการ</th>
                                     </tr>
@@ -170,7 +170,7 @@ if (isset($_POST['update'])) {
                                             </span>
                                         </td>
                                         <td class="small text-muted">
-                                            <?= $row['min_spend'] > 0 ? 'ขัเน‰นตเนˆำ ฿'.number_format($row['min_spend']) : 'ไม่มีขัเน‰นตเนˆำ' ?>
+                                            <?= $row['min_spend'] > 0 ? 'ขั้นต่ำ ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?>
                                         </td>
                                         <td><?= date('d/m/Y', strtotime($row['expiry_date'])) ?></td>
                                         <td>

@@ -11,8 +11,8 @@ include 'header.php';
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="row g-0">
                     <div class="col-md-5 bg-dark text-white p-5 d-flex flex-column justify-content-center">
-                        <h4 class="fw-bold mb-4">ขเน‰อมูลติดต่อ</h4>
-                        <div class="mb-3"><i class="bi bi-geo-alt me-2"></i> สเลนคร, เน„ทย</div>
+                        <h4 class="fw-bold mb-4">ข้อมูลติดต่อ</h4>
+                        <div class="mb-3"><i class="bi bi-geo-alt me-2"></i> สกลนคร, ประเทศไทย</div>
                         <div class="mb-3"><i class="bi bi-envelope me-2"></i> Por Mae Bet Taled@gmail.com</div>
                         <div class="mb-3"><i class="bi bi-telephone me-2"></i> 091-992-2031</div>
                         <div class="mt-4 d-flex gap-3">
@@ -33,7 +33,7 @@ include 'header.php';
                                 <input type="email" name="email" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label small text-muted">หัวขเน‰อ</label>
+                                <label class="form-label small text-muted">หัวข้อ</label>
                                 <input type="text" name="subject" class="form-control" required>
                             </div>
                             <div class="mb-3">

@@ -93,17 +93,17 @@ elseif ($action == 'add_address') {
             </div>
         </div>';
         
-        $response = ['status' => 'success', 'message' => 'เพิ่มที่อยูเนˆเรียบร้อย', 'html' => $html];
+        $response = ['status' => 'success', 'message' => 'เพิ่มที่อยู่เรียบร้อย', 'html' => $html];
     } else {
-        $response = ['status' => 'error', 'message' => 'แิดข้อผิดพลาด'];
+        $response = ['status' => 'error', 'message' => 'เกิดข้อผิดพลาด'];
     }
 }
 
-// --- 4. ลบที่อยูเนˆ ---
+// --- 4. ลบที่อยู่เนˆ ---
 elseif ($action == 'delete_address') {
     $addr_id = $_POST['address_id'];
     if(mysqli_query($conn, "DELETE FROM user_addresses WHERE id='$addr_id' AND user_id='$user_id'")) {
-        $response = ['status' => 'success', 'message' => 'ลบที่อยูเนˆแล้ว'];
+        $response = ['status' => 'success', 'message' => 'ลบที่อยู่แล้ว'];
     } else {
         $response = ['status' => 'error', 'message' => 'ลบไม่สำเร็จ'];
     }

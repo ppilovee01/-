@@ -8,8 +8,7 @@ if(isset($_SESSION['cart'])) {
     }
 }
 
-// นับจำนวนเปรียบเทียบ (Compare)
-$compare_count = isset($_SESSION['compare']) ? count($_SESSION['compare']) : 0;
+
 
 if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้าออนไลน์เบ็ดเตล็ด";
 ?>
@@ -125,11 +124,6 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
 
                 <div class="icon-group">
                     
-                    <a class="icon-btn" href="compare.php" title="เปรียบเทียบ">
-                        <i class="bi bi-arrow-left-right"></i>
-                        <span id="badge-compare" class="badge-count <?= $compare_count > 0 ? '' : 'hidden' ?>"><?= $compare_count ?></span>
-                    </a>
-
                     <a class="icon-btn" href="wishlist.php" title="รายการโปรด">
                         <i class="bi bi-heart"></i>
                     </a>

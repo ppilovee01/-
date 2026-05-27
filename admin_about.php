@@ -118,7 +118,7 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
 <script>
     function previewImage(input) {
         if (input.files && input.files[0]) {
-            Swal.fire('เลือกรูปแล้ว', 'อยเนˆาลืมดบันทึกนะครับ', 'info');
+            Swal.fire('เลือกรูปแล้ว', 'อย่าลืมบันทึกนะครับ', 'info');
         }
     }
 </script>

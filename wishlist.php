@@ -41,7 +41,7 @@ $result = mysqli_query($conn, $sql);
                role="button" 
                aria-expanded="false" 
                aria-controls="userSidebar">
-                <i class="bi bi-list me-2"></i> เมนูสมาชิก (ดเพื่อเปิด)
+                <i class="bi bi-list me-2"></i> เมนูสมาชิก (คลิกเพื่อเปิด)
             </a>
             
             <div class="collapse d-lg-block" id="userSidebar">
@@ -72,7 +72,7 @@ $result = mysqli_query($conn, $sql);
                 </div>
             <?php else: ?>
                 <div class="text-center py-5 bg-white rounded-4 shadow-sm">
-                    <h5 class="text-dark fw-bold">ยังไม่มีสินค้าที่ถูเเนƒจ</h5>
+                    <h5 class="text-dark fw-bold">ยังไม่มีสินค้าที่ถูกใจ</h5>
                     <a href="index.php" class="btn btn-dark rounded-pill px-4 mt-3">ไปช้อปเลย</a>
                 </div>
             <?php endif; ?>

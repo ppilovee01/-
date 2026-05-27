@@ -63,7 +63,7 @@ if (isset($_GET['delete'])) {
         if(mysqli_query($conn, $sql)) {
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ลบสมาชิกเรียบร้อยแล้ว', 'icon'=>'success'];
         } else {
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ลบไม่ได้ (อาจมีออเดอรเนŒคเน‰างอยูเนˆ)', 'icon'=>'error'];
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ลบไม่ได้ (อาจมีออเดอร์ค้างอยู่)', 'icon'=>'error'];
         }
     }
     header("Location: admin_users.php"); exit();
@@ -201,7 +201,7 @@ if (isset($_GET['delete'])) {
                     <div class="mb-3">
                         <label class="small text-muted">Role (สิทธิเนŒการใช้งาน)</label>
                         <select name="role" class="form-select">
-                            <option value="user">User (ลูกค้าทัเนˆวไป)</option>
+                            <option value="user">User (ลูกค้าทั่วไป)</option>
                             <option value="admin">Admin (ผู้ดูเนลระบบ)</option>
                         </select>
                     </div>
@@ -237,7 +237,7 @@ if (isset($_GET['delete'])) {
                         <input type="email" name="email" id="edit_email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">เปลี่ยนรหัสผ่าน (ปลเนˆอยวเนˆางถ้าไม่เปลี่ยน)</label>
+                        <label class="small text-muted">เปลี่ยนรหัสผ่าน (ปล่อยว่างถ้าไม่เปลี่ยน)</label>
                         <input type="password" name="password" class="form-control" placeholder="*******">
                     </div>
                     <div class="mb-3">

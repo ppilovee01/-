@@ -47,7 +47,7 @@ if (isset($_GET['delete'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐Ÿ’ฌ ความคิดเห็นจากลูกค้า</h2>
+            <h2 class="fw-bold mb-4">ความคิดเห็นจากลูกค้า</h2>
 
             <div class="row g-4">
                 <?php 

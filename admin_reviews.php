@@ -42,7 +42,7 @@ if (isset($_GET['delete'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h3 class="fw-bold mb-4">๐Ÿ’ฌ จัดการรีวิวสินค้า</h3>
+            <h3 class="fw-bold mb-4">จัดการรีวิวสินค้า</h3>
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <div class="table-responsive">

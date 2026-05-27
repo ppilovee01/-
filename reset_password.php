@@ -9,24 +9,24 @@ date_default_timezone_set('Asia/Bangkok');
 $token = isset($_GET['token']) ? $_GET['token'] : '';
 $valid_token = false;
 
-// 2. ตรวจสอบวเนˆา Token นี้มีจริงเน„หม เนละหมดอายุหรือยัง?
+// 2. ตรวจสอบว่า Token นี้มีจริงไหม และหมดอายุหรือยัง?
 if (!empty($token)) {
     $now = date('Y-m-d H:i:s');
-    // ค้นหา User ที่มี Token นี้ เนละเวลาหมดอายุ (reset_expiry) ต้องมาเเวเนˆาเวลาปัจจุบัน
+    // ค้นหา User ที่มี Token นี้ และเวลาหมดอายุ (reset_expiry) ต้องมากกว่าเวลาปัจจุบัน
     $sql = "SELECT id FROM users WHERE reset_token = '$token' AND reset_expiry > '$now'";
     $result = mysqli_query($conn, $sql);
     
     if (mysqli_num_rows($result) > 0) {
         $valid_token = true;
     } else {
-        $error_msg = "ลิงเเนŒนี้หมดอายุ หรือถูเใช้งานไปแล้ว เรุณาขอเปลี่ยนรหัสใหม่";
+        $error_msg = "ลิงก์นี้หมดอายุ หรือถูกใช้งานไปแล้ว กรุณาขอเปลี่ยนรหัสใหม่";
     }
 } else {
     // ถ้าไม่มี Token ติดมาเลย ให้ดีดกลับไปหน้า Login
     header("Location: login.php"); exit();
 }
 
-// 3. เมืเนˆอดปุ่ม "บันทึกรหัสผ่าน" (Anti-F5 Fixed)
+// 3. เมื่อกดปุ่ม "บันทึกรหัสผ่าน" (Anti-F5 Fixed)
 if (isset($_POST['save_password']) && $valid_token) {
     $new_pass = $_POST['new_password'];
     $confirm_pass = $_POST['confirm_password'];
@@ -35,22 +35,22 @@ if (isset($_POST['save_password']) && $valid_token) {
         // เข้ารหัสรหัสผ่านใหม่
         $hashed_pass = password_hash($new_pass, PASSWORD_DEFAULT);
         
-        // อัปവลงเานขเน‰อมูล + ลเน‰าง Token ทิเน‰ง
+        // อัปเดตลงฐานข้อมูล + ล้าง Token ทิ้ง
         $update = "UPDATE users SET password='$hashed_pass', reset_token=NULL, reset_expiry=NULL WHERE reset_token='$token'";
         
         if (mysqli_query($conn, $update)) {
-            // ส่งขเน‰อความเนจเน‰งเตือนผ่าน Session ไปหน้า Login
+            // ส่งข้อความแจ้งเตือนผ่าน Session ไปหน้า Login
             $_SESSION['swal'] = [
                 'title' => 'สำเร็จ!',
-                'text' => 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว! เรุณาเข้าสู่ระบบดเน‰วยรหัสใหม่',
+                'text' => 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว! กรุณาเข้าสู่ระบบด้วยรหัสใหม่',
                 'icon' => 'success'
             ];
             header("Location: login.php"); exit();
         } else {
-            $form_error = "แิดข้อผิดพลาด: " . mysqli_error($conn);
+            $form_error = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
         }
     } else {
-        $form_error = "รหัสผ่านทั้งสองช่องไม่ตรงเัน";
+        $form_error = "รหัสผ่านทั้งสองช่องไม่ตรงกัน";
     }
 }
 ?>
@@ -79,24 +79,24 @@ if (isset($_POST['save_password']) && $valid_token) {
         <div class="col-md-5">
             <div class="card card-reset p-4">
                 <div class="card-body">
-                    <h3 class="fw-bold text-center mb-4 text-dark">๐Ÿ” ตั้งรหัสผ่านใหม่</h3>
+                    <h3 class="fw-bold text-center mb-4 text-dark">🔑 ตั้งรหัสผ่านใหม่</h3>
                     
                     <?php if($valid_token): ?>
                         <form method="POST">
                             <div class="mb-3">
                                 <label class="form-label text-muted small fw-bold">รหัสผ่านใหม่</label>
-                                <input type="password" name="new_password" class="form-control rounded-4" placeholder="อย่างน้อย 6 ตัวอัเษร" required minlength="6">
+                                <input type="password" name="new_password" class="form-control rounded-4" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6">
                             </div>
                             <div class="mb-4">
-                                <label class="form-label text-muted small fw-bold">ยืนยันรหัสผ่านอีเครัเน‰ง</label>
-                                <input type="password" name="confirm_password" class="form-control rounded-4" placeholder="เรอเให้ตรงเับช่องบน" required minlength="6">
+                                <label class="form-label text-muted small fw-bold">ยืนยันรหัสผ่านอีกครั้ง</label>
+                                <input type="password" name="confirm_password" class="form-control rounded-4" placeholder="กรอกให้ตรงกับช่องบน" required minlength="6">
                             </div>
                             <button type="submit" name="save_password" class="btn btn-blue w-100 mb-3">บันทึกรหัสผ่านใหม่</button>
                         </form>
                     <?php else: ?>
                         <div class="alert alert-danger text-center rounded-4 border-0 shadow-sm">
                             <i class="bi bi-exclamation-circle-fill me-2"></i> <?= $error_msg ?> <br><br>
-                            <a href="forgot_password.php" class="btn btn-sm btn-outline-danger rounded-pill px-4">ขอลิงเเนŒใหม่</a>
+                            <a href="forgot_password.php" class="btn btn-sm btn-outline-danger rounded-pill px-4">ขอลิงก์ใหม่</a>
                         </div>
                     <?php endif; ?>
                 </div>

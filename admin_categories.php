@@ -56,16 +56,16 @@ if (isset($_POST['edit_cat'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐Ÿ“‚ จัดการหมวดหมู่สินค้า</h2>
+            <h2 class="fw-bold mb-4">จัดการหมวดหมู่สินค้า</h2>
 
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 p-4">
-                        <h5 class="fw-bold mb-3">สรเน‰างหมวดหมู่ใหม่</h5>
+                        <h5 class="fw-bold mb-3">สร้างหมวดหมู่ใหม่</h5>
                         <form method="POST">
                             <div class="mb-3">
                                 <label class="text-muted small">ชื่อหมวดหมู่</label>
-                                <input type="text" name="cat_name" class="form-control" placeholder="แŠเนˆน อุปกรณ์เวท" required>
+                                <input type="text" name="cat_name" class="form-control" placeholder="ขนม" required>
                             </div>
                             <button type="submit" name="add_cat" class="btn btn-gradient w-100 rounded-pill">บันทึก</button>
                         </form>

@@ -82,7 +82,7 @@ if (isset($_POST['save_note'])) {
         </div>
 
         <div class="col-md-10 p-4">
-            <h3 class="fw-bold mb-4">๐Ÿ“ฆ จัดการคำสั觫ื้อ</h3>
+            <h3 class="fw-bold mb-4">จัดการคำสั่งซื้อ</h3>
 
             <?php 
             $res = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o JOIN users u ON o.user_id = u.id ORDER BY o.id DESC");

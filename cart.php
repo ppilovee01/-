@@ -191,21 +191,7 @@ include 'header.php';
 
 <div class="container py-5">
     <div class="row">
-                <div class="col-lg-3">
-            <a class="btn btn-light w-100 d-lg-none mb-3 border shadow-sm fw-bold text-start" 
-               data-bs-toggle="collapse" 
-               href="#userSidebar" 
-               role="button" 
-               aria-expanded="false" 
-               aria-controls="userSidebar">
-                <i class="bi bi-list me-2"></i> เมนูสมาชิก (กดเพื่อเปิด)
-            </a>
-            
-            <div class="collapse d-lg-block" id="userSidebar">
-                <?php include 'user_sidebar.php'; ?>
-            </div>
-        </div>
-        <div class="col-lg-9">
+        <div class="col-lg-12">
             <h3 class="fw-bold mb-4">🛒 ตะกร้าสินค้า</h3>
             
             <form method="POST" enctype="multipart/form-data" id="checkoutForm">

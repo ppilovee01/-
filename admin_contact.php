@@ -132,7 +132,7 @@ if (isset($_GET['read_id'])) {
                                     <td class="ps-4">
                                         <div class="mb-1">
                                             <span class="badge-status <?= $is_new ? 'bg-unread' : 'bg-read' ?>">
-                                                <?= $is_new ? 'โ— ยังไม่อเนˆาน' : 'โœ“ อเนˆานแล้ว' ?>
+                                                <?= $is_new ? 'ยังไม่อ่าน' : 'อ่านแล้ว' ?>
                                             </span>
                                         </div>
                                         <div class="fw-bold text-dark"><?= htmlspecialchars($row['name']) ?></div>

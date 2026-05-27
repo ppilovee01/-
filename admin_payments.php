@@ -80,7 +80,7 @@ if (isset($_POST['update'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐Ÿ’ณ ช่องทางเŠำระแ‡ิน</h2>
+            <h2 class="fw-bold mb-4">ช่องทางชำระเงิน</h2>
             
             <div class="row">
                 <div class="col-md-4 mb-4">

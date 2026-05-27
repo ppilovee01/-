@@ -5,37 +5,37 @@ include 'db.php';
 // 1. ตั้งค่า Timezone
 date_default_timezone_set('Asia/Bangkok');
 
-// --- Logic: สรเน‰างลิงเเนŒรีแ‹เน‡ต (เนบบจำลอง) ---
+// --- Logic: สร้างลิงก์รีเซ็ต (แบบจำลอง) ---
 if (isset($_POST['request_reset'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     
-    // 1. แŠเน‡ควเนˆามีอีเมลนี้ในระบบเน„หม
+    // 1. เช็คว่ามีอีเมลนี้ในระบบไหม
     $check = mysqli_query($conn, "SELECT id, fullname FROM users WHERE email = '$email'");
     
     if (mysqli_num_rows($check) > 0) {
         $user = mysqli_fetch_assoc($check);
         
-        // 2. สรเน‰างรหัสลับ (Token) เนละวันหมดอายุ (1 ชม.)
+        // 2. สร้างรหัสลับ (Token) และวันหมดอายุ (1 ชม.)
         $token = bin2hex(random_bytes(32)); 
         $expiry = date('Y-m-d H:i:s', strtotime('+1 hour'));
         
-        // 3. บันทึกลงเานขเน‰อมูล
+        // 3. บันทึกลงฐานข้อมูล
         $sql = "UPDATE users SET reset_token='$token', reset_expiry='$expiry' WHERE email='$email'";
         
         if (mysqli_query($conn, $sql)) {
             // -----------------------------------------------------------
-            // โš ๏ธ จุดที่เนเเน‰เน„ข: เปลี่ยนจาก Por Mae Bet Taled เป็น fitness ให้ตรงเับแ„รืเนˆองคุณ
+            // ⚠️ จุดที่แก้ไข: เปลี่ยนจาก Por Mae Bet Taled เป็น FitGear ให้ตรงกับเครื่องคุณ
             // -----------------------------------------------------------
-            $reset_link = "http://localhost/fitness/reset_password.php?token=" . $token;
+            $reset_link = "http://localhost/FitGear/reset_password.php?token=" . $token;
             
-            // เก็บลิงเเนŒเน„วเน‰โชว์ใน Popup (Simulation Mode)
-            $success_msg = "ระบบสรเน‰างลิงเเนŒเรียบร้อย (จำลองการส่งเมล)";
+            // เก็บลิงก์ไว้โชว์ใน Popup (Simulation Mode)
+            $success_msg = "ระบบสร้างลิงก์เรียบร้อย (จำลองการส่งเมล)";
             $debug_link = $reset_link; 
         } else {
-            $error_msg = "แิดข้อผิดพลาดในการบันทึกขเน‰อมูล";
+            $error_msg = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
         }
     } else {
-        $error_msg = "ไม่เžบอีเมลนี้ในระบบ";
+        $error_msg = "ไม่พบอีเมลนี้ในระบบ";
     }
 }
 ?>
@@ -72,7 +72,7 @@ if (isset($_POST['request_reset'])) {
                         </svg>
                     </div>
                     <h3 class="fw-bold mb-2">ลืมรหัสผ่าน?</h3>
-                    <p class="text-muted small mb-4">เรอเอีเมลของคุณเพื่อรับลิงเเนŒสำหรับตั้งรหัสผ่านใหม่</p>
+                    <p class="text-muted small mb-4">กรอกอีเมลของคุณเพื่อรับลิงก์สำหรับตั้งรหัสผ่านใหม่</p>
                     
                     <form method="POST">
                         <div class="form-floating mb-3 text-start">
@@ -82,7 +82,7 @@ if (isset($_POST['request_reset'])) {
                         <button type="submit" name="request_reset" class="btn btn-blue w-100 mb-3">ส่งคำขอเปลี่ยนรหัส</button>
                     </form>
                     
-                    <a href="login.php" class="link-back">โ† กลับไปหน้าเข้าสู่ระบบ</a>
+                    <a href="login.php" class="link-back">← กลับไปหน้าเข้าสู่ระบบ</a>
                 </div>
             </div>
         </div>
@@ -94,9 +94,9 @@ if (isset($_POST['request_reset'])) {
     Swal.fire({
         icon: 'success',
         title: 'ตรวจสอบอีเมล (จำลอง)',
-        html: 'ระบบได้สรเน‰างลิงเเนŒรีแ‹เน‡ตรหัสผ่านแล้ว<br><br>' +
-              '<a href="<?= $debug_link ?>" class="btn btn-primary btn-sm px-4 rounded-pill">๐Ÿ‘‰ คลิเที่นีเนˆเพื่อตั้งรหัสใหม่</a>' +
-              '<br><br><span class="text-muted small">(บน Server จริง ลิงเเนŒนี้จะถูเส่งเข้าอีเมล)</span>',
+        html: 'ระบบได้สร้างลิงก์รีเซ็ตรหัสผ่านแล้ว<br><br>' +
+              '<a href="<?= $debug_link ?>" class="btn btn-primary btn-sm px-4 rounded-pill">👉 คลิกที่นี่เพื่อตั้งรหัสใหม่</a>' +
+              '<br><br><span class="text-muted small">(บน Server จริง ลิงก์นี้จะถูกส่งเข้าอีเมล)</span>',
         showConfirmButton: false,
         allowOutsideClick: false,
         showCloseButton: true

@@ -71,11 +71,11 @@ $extra_css = "
     .btn-qty:hover { background: #f8f9fa; }
     .form-control-qty { border: none; text-align: center; font-weight: 600; color: #333; width: 50px; background: white; }
     
-    /* สเน„ตลเนŒปุ่มวงเลม */
+    /* สไตล์ปุ่มวงกลม */
     .btn-icon-action { width: 54px; height: 54px; border-radius: 50%; border: 1px solid #eee; background: white; color: #555; display: flex; align-items: center; justify-content: center; transition: 0.2s; font-size: 1.2rem; cursor: pointer; }
     .btn-icon-action:hover { border-color: var(--blue-dark); color: var(--blue-dark); background: #F0F8FF; transform: translateY(-2px); }
     
-    /* สเน„ตลเนŒเมืเนˆอดเน„ลเเนŒแล้ว */
+    /* สไตล์เมื่อกดไลก์แล้ว */
     .btn-icon-action.liked { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
     
     .detail-box { background: white; border-radius: 16px; padding: 40px; box-shadow: 0 5px 25px rgba(0,0,0,0.03); margin-top: 50px; border: 1px solid #f0f0f0; }
@@ -167,15 +167,12 @@ include 'header.php';
                     <button type="button" class="btn-icon-action <?= $fav_class ?>" onclick="toggleFeature('toggle_wishlist', <?= $id ?>, this)" title="เก็บลงรายการโปรด">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
-                    <button type="button" class="btn-icon-action" onclick="toggleFeature('toggle_compare', <?= $id ?>, this)" title="เปรียบเทียบสินค้า">
-                        <i class="bi bi-arrow-left-right"></i>
-                    </button>
                 </div>
             </form>
 
             <div class="mt-4 pt-4 border-top d-flex gap-4 text-secondary small">
                 <div><i class="bi bi-truck text-primary me-1"></i> จัดส่งฟรีทั่วไทย</div>
-                <div><i class="bi bi-shield-check text-success me-1"></i> ของเนทเน‰ 100%</div>
+                <div><i class="bi bi-shield-check text-success me-1"></i> ของแท้ 100%</div>
                 <div><i class="bi bi-arrow-return-left text-danger me-1"></i> คืนสินค้าได้ใน 7 วัน</div>
             </div>
         </div>
@@ -203,16 +200,16 @@ include 'header.php';
                             <div class="col-md-3">
                                 <label class="small text-muted">ความพึงพอใจ</label>
                                 <select name="rating" class="form-select border-0 shadow-sm">
-                                    <option value="5">⭐⭐⭐⭐⭐ (ดีเยีเนˆยม)</option>
+                                    <option value="5">⭐⭐⭐⭐⭐ (ดีเยี่ยม)</option>
                                     <option value="4">⭐⭐⭐⭐ (ดี)</option>
-                                    <option value="3">⭐⭐⭐ (ปานเลาง)</option>
+                                    <option value="3">⭐⭐⭐ (ปานกลาง)</option>
                                     <option value="2">⭐⭐ (พอใช้)</option>
-                                    <option value="1">⭐ (เนยเนˆ)</option>
+                                    <option value="1">⭐ (แย่)</option>
                                 </select>
                             </div>
                             <div class="col-md-9">
                                 <label class="small text-muted">ความคิดเห็น</label>
-                                <textarea name="comment" class="form-control border-0 shadow-sm" rows="1" placeholder="บอเเลเนˆาประสบการณ์ใช้งาน..." required></textarea>
+                                <textarea name="comment" class="form-control border-0 shadow-sm" rows="1" placeholder="บอกเล่าประสบการณ์ใช้งาน..." required></textarea>
                             </div>
                             <div class="col-12 text-end">
                                 <button type="submit" name="submit_review" class="btn btn-dark rounded-pill px-4">ส่งรีวิว</button>
@@ -228,7 +225,7 @@ include 'header.php';
                         <div>
                             <strong class="text-dark me-2"><?= $r['fullname'] ?></strong>
                             <span class="text-warning small">
-                                <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? 'โ˜…' : 'โ˜†'; ?>
+                                <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? '★' : '☆'; ?>
                             </span>
                         </div>
                         <small class="text-muted" style="font-size:0.8rem;"><?= date('d/m/Y', strtotime($r['created_at'])) ?></small>
@@ -280,7 +277,7 @@ include 'header.php';
         for (let key in groups) {
             if (!groups[key]) {
                 let cleanName = key.match(/\[(.*?)\]/)[1];
-                Swal.fire({icon: 'warning', title: 'เรุณาเลือก ' + cleanName, confirmButtonColor: '#222'});
+                Swal.fire({icon: 'warning', title: 'กรุณาเลือก ' + cleanName, confirmButtonColor: '#222'});
                 return;
             }
         }
@@ -309,16 +306,16 @@ include 'header.php';
                 const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true});
                 Toast.fire({icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว'});
             } else {
-                Swal.fire({icon: 'error', title: 'แิดข้อผิดพลาด', text: data.message});
+                Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: data.message});
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            Swal.fire({icon: 'error', title: 'Error', text: 'ไม่สามารถเชื่อมตเนˆอเับเซิร์ฟเวอร์ได้'});
+            Swal.fire({icon: 'error', title: 'Error', text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้'});
         });
     }
 
-    // โœ… ฟังเเนŒเŠัน Wishlist/Compare ที่อัปവ UI ทันที
+    // ✅ ฟังก์ชัน Wishlist ที่อัปเดต UI ทันที
     function toggleFeature(action, pid, btn) {
         let fd = new FormData(); 
         fd.append('action', action); 
@@ -330,7 +327,7 @@ include 'header.php';
             if(data.status === 'success') {
                 const icon = btn.querySelector('i');
                 
-                // เรณี Wishlist: เปลี่ยนสีหัวเนƒจทันที
+                // กรณี Wishlist: เปลี่ยนสีหัวใจทันที
                 if (action === 'toggle_wishlist') {
                     if (data.state === 'added') {
                         btn.classList.add('liked');
@@ -351,13 +348,8 @@ include 'header.php';
                     showConfirmButton: false, 
                     timer: 1500
                 });
-
-                if(data.count !== undefined && action === 'toggle_compare') {
-                    let badge = document.getElementById('badge-compare');
-                    if(badge) { badge.innerText = data.count; badge.classList.remove('hidden'); }
-                }
             } else {
-                Swal.fire('เนจเน‰งเตือน', data.message, 'warning');
+                Swal.fire('แจ้งเตือน', data.message, 'warning');
             }
         })
         .catch(err => console.error(err));

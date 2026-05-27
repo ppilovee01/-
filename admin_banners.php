@@ -65,16 +65,16 @@ if (isset($_GET['delete'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐Ÿ–ผ๏ธ จัดการเนบนแ™อรเนŒ</h2>
+            <h2 class="fw-bold mb-4">จัดการแบนเนอร์</h2>
 
             <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                 <form method="POST" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-3 align-items-end">
                     <div class="flex-grow-1 w-100">
-                        <label class="form-label fw-bold">อัปเน‚หลดรูปใหม่</label>
+                        <label class="form-label fw-bold">อัปโหลดรูปใหม่</label>
                         <input type="file" name="banner_img" class="form-control" accept="image/*" required>
                         <div class="form-text">แนะนำขนาด 1200 x 400 pixel</div>
                         <button type="submit" name="upload_banner" class="btn btn-gradient px-4 rounded-3 w-100 w-md-auto">
-                        <i class="bi bi-cloud-upload-fill me-2"></i> อัปเน‚หลด
+                        <i class="bi bi-cloud-upload-fill me-2"></i> อัปโหลด
                     </button>
                     </div>
                 </form>
