@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
@@ -21,9 +21,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a href="wishlist.php" class="list-group-item list-group-item-action p-3 <?= $current_page == 'wishlist.php' ? 'active bg-blue text-white' : '' ?>">
             <i class="bi bi-heart me-2"></i> รายการที่ชอบ
         </a>
-        <a href="compare.php" class="list-group-item list-group-item-action p-3 <?= $current_page == 'compare.php' ? 'active bg-blue text-white' : '' ?>">
-            <i class="bi bi-arrow-left-right me-2"></i> เปรียบเทียบสินค้า
-        </a>
+
         <a href="cart.php" class="list-group-item list-group-item-action p-3 <?= $current_page == 'cart.php' ? 'active bg-blue text-white' : '' ?>">
             <i class="bi bi-cart me-2"></i> ตะกร้าสินค้า
         </a>

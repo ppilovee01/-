@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 
@@ -71,11 +71,11 @@ $extra_css = "
     .btn-qty:hover { background: #f8f9fa; }
     .form-control-qty { border: none; text-align: center; font-weight: 600; color: #333; width: 50px; background: white; }
     
-    /* สเนตลเนเธุเนมวเธเธลม */
+    /* สไตล์ปุ่มวงกลม */
     .btn-icon-action { width: 54px; height: 54px; border-radius: 50%; border: 1px solid #eee; background: white; color: #555; display: flex; align-items: center; justify-content: center; transition: 0.2s; font-size: 1.2rem; cursor: pointer; }
     .btn-icon-action:hover { border-color: var(--blue-dark); color: var(--blue-dark); background: #F0F8FF; transform: translateY(-2px); }
     
-    /* สเนตลเนเมืเนอเธดเนลเธเนแล้ว */
+    /* สไตล์เมื่อกดไลก์แล้ว */
     .btn-icon-action.liked { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
     
     .detail-box { background: white; border-radius: 16px; padding: 40px; box-shadow: 0 5px 25px rgba(0,0,0,0.03); margin-top: 50px; border: 1px solid #f0f0f0; }
@@ -158,24 +158,21 @@ include 'header.php';
                     
                     <?php if($product['stock'] > 0): ?>
                         <button type="button" class="btn-add-cart" onclick="submitCart()">
-                            <i class="bi bi-cart-plus me-2"></i> เเธิเนมลเธตะกร้า
+                            <i class="bi bi-cart-plus me-2"></i> เพิ่มลงตะกร้า
                         </button>
                     <?php else: ?>
                         <button class="btn-add-cart" disabled>สินค้าหมดชั่วคราว</button>
                     <?php endif; ?>
 
-                    <button type="button" class="btn-icon-action <?= $fav_class ?>" onclick="toggleFeature('toggle_wishlist', <?= $id ?>, this)" title="เก็บลเธรายการโปรด">
+                    <button type="button" class="btn-icon-action <?= $fav_class ?>" onclick="toggleFeature('toggle_wishlist', <?= $id ?>, this)" title="เก็บลงรายการโปรด">
                         <i class="bi <?= $fav_icon ?>"></i>
-                    </button>
-                    <button type="button" class="btn-icon-action" onclick="toggleFeature('toggle_compare', <?= $id ?>, this)" title="เปรียบเทียบสินค้า">
-                        <i class="bi bi-arrow-left-right"></i>
                     </button>
                 </div>
             </form>
 
             <div class="mt-4 pt-4 border-top d-flex gap-4 text-secondary small">
-                <div><i class="bi bi-truck text-primary me-1"></i> เธัดสเนเธเธรีทัเนวเนทย</div>
-                <div><i class="bi bi-shield-check text-success me-1"></i> ของเนทเน 100%</div>
+                <div><i class="bi bi-truck text-primary me-1"></i> จัดส่งฟรีทั่วไทย</div>
+                <div><i class="bi bi-shield-check text-success me-1"></i> ของแท้ 100%</div>
                 <div><i class="bi bi-arrow-return-left text-danger me-1"></i> คืนสินค้าได้ใน 7 วัน</div>
             </div>
         </div>
@@ -184,7 +181,7 @@ include 'header.php';
     <div class="detail-box animate__animated animate__fadeInUp">
         <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#desc">รายละเอียดสินค้า</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#review">รีวิวจากเธูเนซื้อ (<?= $review_count ?>)</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#review">รีวิวจากผู้ซื้อ (<?= $review_count ?>)</button></li>
         </ul>
         
         <div class="tab-content">
@@ -201,21 +198,21 @@ include 'header.php';
                     <form method="POST">
                         <div class="row g-3">
                             <div class="col-md-3">
-                                <label class="small text-muted">ความเธึเธเธอเนเธ</label>
+                                <label class="small text-muted">ความพึงพอใจ</label>
                                 <select name="rating" class="form-select border-0 shadow-sm">
-                                    <option value="5">โญโญโญโญโญ (ดีเยีเนยม)</option>
-                                    <option value="4">โญโญโญโญ (ดี)</option>
-                                    <option value="3">โญโญโญ (เธาเธเธลาเธ)</option>
-                                    <option value="2">โญโญ (เธอเนเธเน)</option>
-                                    <option value="1">โญ (เนยเน)</option>
+                                    <option value="5">⭐⭐⭐⭐⭐ (ดีเยี่ยม)</option>
+                                    <option value="4">⭐⭐⭐⭐ (ดี)</option>
+                                    <option value="3">⭐⭐⭐ (ปานกลาง)</option>
+                                    <option value="2">⭐⭐ (พอใช้)</option>
+                                    <option value="1">⭐ (แย่)</option>
                                 </select>
                             </div>
                             <div class="col-md-9">
                                 <label class="small text-muted">ความคิดเห็น</label>
-                                <textarea name="comment" class="form-control border-0 shadow-sm" rows="1" placeholder="เธอเธเลเนาเธระสเธการณเนเนเธเนเธาเธ..." required></textarea>
+                                <textarea name="comment" class="form-control border-0 shadow-sm" rows="1" placeholder="บอกเล่าประสบการณ์ใช้งาน..." required></textarea>
                             </div>
                             <div class="col-12 text-end">
-                                <button type="submit" name="submit_review" class="btn btn-dark rounded-pill px-4">สเนเธรีวิว</button>
+                                <button type="submit" name="submit_review" class="btn btn-dark rounded-pill px-4">ส่งรีวิว</button>
                             </div>
                         </div>
                     </form>
@@ -228,7 +225,7 @@ include 'header.php';
                         <div>
                             <strong class="text-dark me-2"><?= $r['fullname'] ?></strong>
                             <span class="text-warning small">
-                                <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? 'โ…' : 'โ'; ?>
+                                <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? '★' : '☆'; ?>
                             </span>
                         </div>
                         <small class="text-muted" style="font-size:0.8rem;"><?= date('d/m/Y', strtotime($r['created_at'])) ?></small>
@@ -238,7 +235,7 @@ include 'header.php';
                 <?php endwhile; else: ?>
                     <div class="text-center py-5 text-muted opacity-50">
                         <i class="bi bi-chat-square-quote display-3 d-block mb-3"></i>
-                        ยัเธเนมเนมีรีวิวสำหรับสินค้านี้
+                        ยังไม่มีรีวิวสำหรับสินค้านี้
                     </div>
                 <?php endif; ?>
             </div>
@@ -280,7 +277,7 @@ include 'header.php';
         for (let key in groups) {
             if (!groups[key]) {
                 let cleanName = key.match(/\[(.*?)\]/)[1];
-                Swal.fire({icon: 'warning', title: 'เธรุณาเลือก ' + cleanName, confirmButtonColor: '#222'});
+                Swal.fire({icon: 'warning', title: 'กรุณาเลือก ' + cleanName, confirmButtonColor: '#222'});
                 return;
             }
         }
@@ -307,18 +304,18 @@ include 'header.php';
                     badge.classList.remove('hidden'); 
                 }
                 const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true});
-                Toast.fire({icon: 'success', title: 'เเธิเนมลเธตะกร้าแล้ว'});
+                Toast.fire({icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว'});
             } else {
-                Swal.fire({icon: 'error', title: 'เเธิดเธเนอผิดพลาด', text: data.message});
+                Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: data.message});
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            Swal.fire({icon: 'error', title: 'Error', text: 'เนมเนสามารถเชื่อมตเนอเธัเธเเธิรเนเธเวอรเนได้'});
+            Swal.fire({icon: 'error', title: 'Error', text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้'});
         });
     }
 
-    // โ… เธัเธเธเนเธัเธ Wishlist/Compare ที่อัปവ UI ทัเธที
+    // ✅ ฟังก์ชัน Wishlist ที่อัปเดต UI ทันที
     function toggleFeature(action, pid, btn) {
         let fd = new FormData(); 
         fd.append('action', action); 
@@ -330,7 +327,7 @@ include 'header.php';
             if(data.status === 'success') {
                 const icon = btn.querySelector('i');
                 
-                // เธรณี Wishlist: เปลี่ยนสีหัวเนเธทัเธที
+                // กรณี Wishlist: เปลี่ยนสีหัวใจทันที
                 if (action === 'toggle_wishlist') {
                     if (data.state === 'added') {
                         btn.classList.add('liked');
@@ -351,13 +348,8 @@ include 'header.php';
                     showConfirmButton: false, 
                     timer: 1500
                 });
-
-                if(data.count !== undefined && action === 'toggle_compare') {
-                    let badge = document.getElementById('badge-compare');
-                    if(badge) { badge.innerText = data.count; badge.classList.remove('hidden'); }
-                }
             } else {
-                Swal.fire('เนเธเนเธเตือเธ', data.message, 'warning');
+                Swal.fire('แจ้งเตือน', data.message, 'warning');
             }
         })
         .catch(err => console.error(err));

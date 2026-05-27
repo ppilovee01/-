@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 $page_title = "ติดต่อเรา | Por Mae Bet Taled";
@@ -11,8 +11,8 @@ include 'header.php';
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="row g-0">
                     <div class="col-md-5 bg-dark text-white p-5 d-flex flex-column justify-content-center">
-                        <h4 class="fw-bold mb-4">เธเนอมูลติดต่อ</h4>
-                        <div class="mb-3"><i class="bi bi-geo-alt me-2"></i> สเธลเธเธร, เนทย</div>
+                        <h4 class="fw-bold mb-4">ข้อมูลติดต่อ</h4>
+                        <div class="mb-3"><i class="bi bi-geo-alt me-2"></i> สกลนคร, ประเทศไทย</div>
                         <div class="mb-3"><i class="bi bi-envelope me-2"></i> Por Mae Bet Taled@gmail.com</div>
                         <div class="mb-3"><i class="bi bi-telephone me-2"></i> 091-992-2031</div>
                         <div class="mt-4 d-flex gap-3">
@@ -22,7 +22,7 @@ include 'header.php';
                         </div>
                     </div>
                     <div class="col-md-7 p-5">
-                        <h4 class="fw-bold mb-4 text-dark">สเนเธเธเนอความถึเธเรา</h4>
+                        <h4 class="fw-bold mb-4 text-dark">ส่งข้อความถึงเรา</h4>
                         <form id="contactForm" onsubmit="sendContact(); return false;">
                             <div class="mb-3">
                                 <label class="form-label small text-muted">ชื่อของคุณ</label>
@@ -33,14 +33,14 @@ include 'header.php';
                                 <input type="email" name="email" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label small text-muted">หัวเธเนอ</label>
+                                <label class="form-label small text-muted">หัวข้อ</label>
                                 <input type="text" name="subject" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label small text-muted">เธเนอความ</label>
+                                <label class="form-label small text-muted">ข้อความ</label>
                                 <textarea name="message" class="form-control" rows="4" required></textarea>
                             </div>
-                            <button type="submit" class="btn btn-gradient w-100 rounded-pill">สเนเธเธเนอความ</button>
+                            <button type="submit" class="btn btn-gradient w-100 rounded-pill">ส่งข้อความ</button>
                         </form>
                     </div>
                 </div>
@@ -56,7 +56,7 @@ function sendContact() {
     fd.append('action', 'send_contact');
     fetch('ajax_features.php', { method: 'POST', body: fd }).then(r => r.json()).then(data => {
         if(data.status === 'success') {
-            Swal.fire({icon: 'success', title: 'สเนเธเรียเธรเนอย', text: data.message});
+            Swal.fire({icon: 'success', title: 'ส่งเรียบร้อย', text: data.message});
             document.getElementById('contactForm').reset();
         } else {
             Swal.fire({icon: 'error', title: 'ผิดพลาด', text: data.message});

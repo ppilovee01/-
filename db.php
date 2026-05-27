@@ -6,7 +6,7 @@ ini_set('display_errors', 0);
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "fitness_dbd"; 
+$dbname = "fitness_db"; 
 
 // สร้างการเชื่อมต่อ
 $conn = mysqli_connect($servername, $username, $password, $dbname);

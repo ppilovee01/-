@@ -1,14 +1,14 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 
-// ระบบความเธลอดภัย
+// ระบบความปลอดภัย
 if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') { 
     header("Location: login.php"); 
     exit(); 
 }
 
-// --- Logic จัดการเธเนอมูล ---
+// --- Logic จัดการขเน‰อมูล ---
 if (isset($_GET['delete_id'])) {
     $did = mysqli_real_escape_string($conn, $_GET['delete_id']);
     mysqli_query($conn, "DELETE FROM contact_messages WHERE id = '$did'");
@@ -103,21 +103,21 @@ if (isset($_GET['read_id'])) {
                     
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <div>
-                            <h4 class="fw-bold mb-0">๐“ซ เธเนอความติดต่อลูกค้า</h4>
-                            <p class="text-muted small mb-0">รายการเนเธเนเธเธัเธหาจากหน้าเวเนเธ</p>
+                            <h4 class="fw-bold mb-0">ข้อความติดต่อลูกค้า</h4>
+                            <p class="text-muted small mb-0">รายการข้อความปัญหาจากหน้าเว็บ</p>
                         </div>
                         <?php 
                             $unread = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM contact_messages WHERE status='unread'"))['c'];
                         ?>
-                        <span class="badge bg-danger rounded-pill px-3 py-2">เนหมเน <?= $unread ?></span>
+                        <span class="badge bg-danger rounded-pill px-3 py-2">ใหม่ <?= $unread ?></span>
                     </div>
 
                     <div class="table-responsive">
                         <table class="custom-table" style="min-width: 600px;">
                             <thead>
                                 <tr class="text-muted small uppercase">
-                                    <th class="ps-4">เธูเนติดต่อ</th>
-                                    <th>เธเนอความ</th>
+                                    <th class="ps-4">ผู้ติดต่อ</th>
+                                    <th>ข้อความ</th>
                                     <th class="text-center">วันที่</th>
                                     <th class="text-center">จัดการ</th>
                                 </tr>
@@ -132,7 +132,7 @@ if (isset($_GET['read_id'])) {
                                     <td class="ps-4">
                                         <div class="mb-1">
                                             <span class="badge-status <?= $is_new ? 'bg-unread' : 'bg-read' ?>">
-                                                <?= $is_new ? 'โ— ยัเธเนมเนอเนาเธ' : 'โ“ อเนาเธแล้ว' ?>
+                                                <?= $is_new ? 'ยังไม่อ่าน' : 'อ่านแล้ว' ?>
                                             </span>
                                         </div>
                                         <div class="fw-bold text-dark"><?= htmlspecialchars($row['name']) ?></div>
@@ -173,11 +173,11 @@ if (isset($_GET['read_id'])) {
 <script>
 function confirmDelete(id) {
     Swal.fire({
-        title: 'ยืเธยัเธการลเธ?',
+        title: 'ยืนยันการลบ?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#AEE2FF',
-        confirmButtonText: 'ลเธเธเนอมูล'
+        confirmButtonText: 'ลบขเน‰อมูล'
     }).then((result) => {
         if (result.isConfirmed) { window.location.href = '?delete_id=' + id; }
     })

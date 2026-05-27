@@ -171,12 +171,12 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
         <div class="container">
             <div class="row align-items-center flex-column-reverse flex-lg-row">
                 <div class="col-lg-6 animate__animated animate__fadeInLeft text-center text-lg-start mt-4 mt-lg-0">
-                    <h1 class="display-4 fw-bold mb-3">เปลี่ยนบ้านให้เป็น <br><span style="color: var(--blue-dark);">ฟิตเนสสุดชิค</span></h1>
-                    <p class="lead text-muted mb-4">อุปกรณ์ออกกำลังกายเกรดพรีเมียม เพื่อผลลัพธ์ที่ชัดਹ</p>
+                    <h1 class="display-4 fw-bold mb-3">แหล่งรวม <br><span style="color: var(--blue-dark);">สินค้าเบ็ดเตล็ด</span></h1>
+                    <p class="lead text-muted mb-4">สินค้าคุณภาพดี ของใช้ทั่วไป ของใช้ในบ้าน ครบจบในที่เดียว</p>
                     <a href="#shop" class="btn btn-gradient btn-lg px-5 shadow">เริ่มช้อปเลย</a>
                 </div>
                 <div class="col-lg-6 animate__animated animate__fadeInRight text-center">
-                    <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=800" class="img-fluid rounded-5 shadow-lg" style="max-height: 400px; object-fit: cover;" alt="Por Mae Bet Taled">
+                    <img src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=800" class="img-fluid rounded-5 shadow-lg" style="max-height: 400px; object-fit: cover;" alt="Por Mae Bet Taled">
                 </div>
             </div>
         </div>
@@ -231,9 +231,6 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
                         <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="btn-action-mini <?= $fav_class ?>" title="เก็บลงรายการโปรด">
                             <i class="bi <?= $fav_icon ?>"></i>
                         </button>
-                        <button onclick="toggleFeature('toggle_compare', <?= $p['id'] ?>, this)" class="btn-action-mini" title="เปรียบเทียบ">
-                            <i class="bi bi-arrow-left-right"></i>
-                        </button>
                     </div>
                 </div>
                 
@@ -277,17 +274,37 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
 </section>
 
 <footer class="py-5 bg-white border-top mt-5">
-    <div class="container text-center">
-        <h4 class="fw-bold mb-4 text-dark">ส่งข้อเสนอแนะถึงเรา 💬</h4>
-        <div class="row justify-content-center mb-4">
-            <div class="col-md-6">
-                <form method="POST" class="input-group shadow-sm rounded-pill overflow-hidden border">
-                    <input type="text" name="message" class="form-control border-0 px-4" placeholder="บอกสิ觷ี่คุณต้องการ..." required>
-                    <button class="btn btn-gradient px-4" name="send_feedback" type="submit">ส่งข้อความ</button>
-                </form>
+    <div class="container">
+        <div class="row g-4 text-start justify-content-between">
+            <div class="col-lg-5 col-md-6">
+                <h5 class="fw-bold mb-3" style="color: var(--blue-hover);">พ่อแม่ เบ็ดเตล็ด</h5>
+                <p class="text-muted small" style="line-height: 1.8;">แหล่งรวมของใช้ทั่วไป ของใช้ในบ้าน อุปกรณ์สำนักงาน เครื่องปรุงรส และของใช้เบ็ดเตล็ดคุณภาพดี คัดสรรมาเพื่อตอบโจทย์ทุกครอบครัวในราคามิตรภาพ</p>
+                <div class="d-flex gap-3 mt-3">
+                    <a href="contact.php" class="text-muted"><i class="bi bi-facebook fs-5"></i></a>
+                    <a href="contact.php" class="text-muted"><i class="bi bi-line fs-5"></i></a>
+                    <a href="contact.php" class="text-muted"><i class="bi bi-instagram fs-5"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <h6 class="fw-bold mb-3">ลิงก์ด่วน</h6>
+                <ul class="list-unstyled d-flex flex-column gap-2 small">
+                    <li><a href="index.php" class="text-decoration-none text-muted">หน้าแรก</a></li>
+                    <li><a href="index.php#shop" class="text-decoration-none text-muted">สินค้าทั้งหมด</a></li>
+                    <li><a href="about.php" class="text-decoration-none text-muted">เกี่ยวกับเรา</a></li>
+                    <li><a href="contact.php" class="text-decoration-none text-muted">ติดต่อเรา</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-3 col-md-12">
+                <h6 class="fw-bold mb-3">การบริการและช่วยเหลือ</h6>
+                <p class="text-muted small mb-1"><i class="bi bi-clock me-1"></i> บริการลูกค้า: 08:30 - 18:00 น.</p>
+                <p class="text-muted small mb-1"><i class="bi bi-truck me-1"></i> จัดส่งฟรีเมื่อถึงยอดขั้นต่ำ</p>
+                <p class="text-muted small"><i class="bi bi-shield-check me-1"></i> สินค้าของแท้ คุณภาพดี 100%</p>
             </div>
         </div>
-        <p class="text-muted small">© 2026 Por Mae Bet Taled. All rights reserved.</p>
+        <hr class="my-4 opacity-25">
+        <div class="text-center text-muted small">
+            © 2026 Por Mae Bet Taled. All rights reserved.
+        </div>
     </div>
 </footer>
 

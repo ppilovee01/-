@@ -1,11 +1,11 @@
-﻿<?php
+<?php
 session_start();
 include 'db.php';
 
-// เเธเนเธ Admin
+// แŠเน‡ค Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
-// --- Logic: ลเธรีวิว ---
+// --- Logic: ลบรีวิว ---
 if (isset($_GET['delete'])) {
     $id = mysqli_real_escape_string($conn, $_GET['delete']);
     mysqli_query($conn, "DELETE FROM product_reviews WHERE id = '$id'");
@@ -42,7 +42,7 @@ if (isset($_GET['delete'])) {
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h3 class="fw-bold mb-4">๐’ฌ จัดการรีวิวสินค้า</h3>
+            <h3 class="fw-bold mb-4">จัดการรีวิวสินค้า</h3>
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <div class="table-responsive">
@@ -51,7 +51,7 @@ if (isset($_GET['delete'])) {
                             <tr>
                                 <th>สินค้า</th>
                                 <th>ลูกค้า</th>
-                                <th>เธะเนเธเธ</th>
+                                <th>คะแนนน</th>
                                 <th style="width: 40%;">ความคิดเห็น</th>
                                 <th>วันที่</th>
                                 <th class="text-end">จัดการ</th>
@@ -59,7 +59,7 @@ if (isset($_GET['delete'])) {
                         </thead>
                         <tbody>
                             <?php 
-                            // ดึเธรีวิว + ชื่อสินค้า + ชื่อเธเธรีวิว
+                            // ดึงรีวิว + ชื่อสินค้า + ชื่อคนรีวิว
                             $sql = "SELECT r.*, p.name as product_name, p.image, u.fullname 
                                     FROM product_reviews r 
                                     JOIN products p ON r.product_id = p.id 
@@ -80,7 +80,7 @@ if (isset($_GET['delete'])) {
                                 <td class="small fw-bold"><?= $row['fullname'] ?></td>
                                 <td>
                                     <span class="text-warning small">
-                                        <?php for($i=1;$i<=5;$i++) echo $i<=$row['rating'] ? 'โ…' : 'โ'; ?>
+                                        <?php for($i=1;$i<=5;$i++) echo $i<=$row['rating'] ? 'โ˜…' : 'โ˜†'; ?>
                                     </span>
                                     <span class="small text-muted">(<?= $row['rating'] ?>)</span>
                                 </td>
@@ -93,7 +93,7 @@ if (isset($_GET['delete'])) {
                                 </td>
                             </tr>
                             <?php endwhile; else: ?>
-                                <tr><td colspan="6" class="text-center py-4 text-muted">ยัเธเนมเนมีรีวิว</td></tr>
+                                <tr><td colspan="6" class="text-center py-4 text-muted">ยังไม่มีรีวิว</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -107,12 +107,12 @@ if (isset($_GET['delete'])) {
 <script>
     function confirmDelete(id) {
         Swal.fire({
-            title: 'ลเธรีวิวนี้?',
-            text: "เธเนอมูลเธะหายไปถาวร",
+            title: 'ลบรีวิวนี้?',
+            text: "ข้อมูลจะหายไปถาวร",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            confirmButtonText: 'ลเธเลย'
+            confirmButtonText: 'ลบเลย'
         }).then((result) => {
             if (result.isConfirmed) {
                 window.location.href = '?delete=' + id;

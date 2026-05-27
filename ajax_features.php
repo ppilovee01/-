@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // เริ่มต้นด้วยการจัดการ Buffer และ Error
 ob_start(); 
 session_start();
