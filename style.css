@@ -1,64 +1,245 @@
-﻿body {
+/* Import Google Fonts - Kanit and Outfit */
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
+
+:root {
+    /* Color Palette */
+    --blue-main: #AEE2FF;      /* Light pastel blue */
+    --blue-hover: #7FB5FF;     /* Darker pastel blue */
+    --blue-light: #F0F8FF;     /* Soft blue background tint */
+    --slate-dark: #1E293B;     /* Elegant dark slate */
+    --slate-medium: #475569;   /* Subtle slate text */
+    --slate-light: #F8FAFC;    /* Soft gray-blue background */
+    --text-primary: #1E293B;
+    --text-secondary: #64748B;
+    
+    /* Layout Properties */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    
+    /* Shadows */
+    --shadow-sm: 0 4px 10px rgba(174, 226, 255, 0.08), 0 2px 4px rgba(174, 226, 255, 0.08);
+    --shadow-md: 0 10px 25px -5px rgba(174, 226, 255, 0.15), 0 8px 10px -6px rgba(174, 226, 255, 0.15);
+    --shadow-lg: 0 20px 40px -10px rgba(127, 181, 255, 0.22);
+    --shadow-hover: 0 25px 50px -12px rgba(127, 181, 255, 0.35);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base styles and Global Fade-in */
+body {
     font-family: 'Kanit', sans-serif;
-    color: #444;
+    color: var(--text-primary);
+    background-color: var(--slate-light);
+    overflow-x: hidden;
+    animation: pageFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* เปลี่ยนจาก .text-blue เป็น .text-blue เนละใช้สีฟ้า Pastel */
-.text-blue, .text-accent {
-    color: #85D1FF !important; /* Pastel Blue */
-}
-
-/* ปุ่มสีฟ้า */
-.btn-blue {
-    background-color: #85D1FF;
-    color: white;
-    border: none;
-}
-
-.btn-blue:hover {
-    background-color: #6BBEFF;
-    color: white;
-}
-
-/* ปุ่ม Outline สีฟ้า */
-.btn-outline-blue {
-    border-color: #85D1FF;
-    color: #85D1FF;
-}
-
-.btn-outline-blue:hover {
-    background-color: #85D1FF;
-    color: white;
-}
-
-.navbar {
-    background-color: white;
-}
-
-/* ปรับ Gradient ของ Hero Section ให้เป็นเน‚ทนฟเน‰า-ขาว */
-.hero-section {
-    min-height: 80vh;
-    background: linear-gradient(135deg, #F0F8FF 0%, #FFFFFF 100%);
-}
-
-.hover-up:hover {
-    transform: translateY(-10px);
-    transition: all 0.3s ease;
-}
-
-/* สรเน‰าง Effect คเนˆอยเน† โผล่ออกมา */
-@keyframes fadeInPage {
-    from { opacity: 0; transform: translateY(20px); }
+@keyframes pageFadeIn {
+    from { opacity: 0; transform: translateY(15px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* นำมาใช้เับ body หรือ wrapper */
-body {
-    animation: fadeInPage 0.6s ease-out;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--slate-light);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--blue-main);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--blue-hover);
 }
 
-/* สำหรับปุ่มหรือการเนŒด ให้มันนุ่มนวลเวลาเอาเมาสเนŒไปวาง */
-.btn, .card {
-    transition: all 0.3s ease-in-out !important;
+/* Glassmorphism Header */
+.glass-nav {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02) !important;
 }
 
+/* Curated Button System */
+.btn-gradient {
+    background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%) !important;
+    color: #fff !important;
+    font-weight: 600;
+    border: none !important;
+    border-radius: 50px !important;
+    padding: 10px 28px !important;
+    box-shadow: 0 8px 20px rgba(174, 226, 255, 0.4) !important;
+    transition: var(--transition-smooth) !important;
+}
+.btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(127, 181, 255, 0.55) !important;
+    color: #fff !important;
+}
+.btn-gradient:active {
+    transform: translateY(0);
+}
+
+.btn-outline-custom {
+    background: transparent;
+    color: var(--blue-hover) !important;
+    border: 2px solid var(--blue-main) !important;
+    border-radius: 50px !important;
+    padding: 8px 24px !important;
+    font-weight: 600;
+    transition: var(--transition-smooth) !important;
+}
+.btn-outline-custom:hover {
+    background: var(--blue-main);
+    color: #fff !important;
+    border-color: var(--blue-main) !important;
+    transform: translateY(-2px);
+}
+
+/* Card Improvements */
+.card-modern {
+    background: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-smooth);
+}
+.card-modern:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Product Cards */
+.card-product {
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    background: #fff;
+    box-shadow: var(--shadow-sm) !important;
+    transition: var(--transition-smooth) !important;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+.card-product:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.product-img-wrapper {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.product-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: var(--transition-smooth);
+}
+.card-product:hover .product-img-wrapper img {
+    transform: scale(1.06);
+}
+
+/* Wishlist Top Corner Toggle */
+.wishlist-tag {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 4;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: var(--transition-smooth);
+    cursor: pointer;
+}
+.wishlist-tag:hover {
+    transform: scale(1.1);
+    background: #fff;
+    color: #ff5e84;
+}
+.wishlist-tag.liked {
+    background: #fff;
+    color: #ff5e84;
+}
+
+/* Form Design */
+.form-control-custom {
+    border-radius: 30px !important;
+    padding: 10px 20px !important;
+    border: 1px solid #E2E8F0 !important;
+    background: #FAFCFF !important;
+    transition: var(--transition-smooth) !important;
+}
+.form-control-custom:focus {
+    border-color: var(--blue-hover) !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 4px rgba(174, 226, 255, 0.25) !important;
+}
+
+/* Option Cards for Address and Payments */
+.option-card {
+    border: 2px solid #E2E8F0 !important;
+    border-radius: var(--radius-md) !important;
+    padding: 16px !important;
+    cursor: pointer;
+    background: #fff;
+    transition: var(--transition-smooth) !important;
+    position: relative;
+    height: 100%;
+}
+.option-card:hover {
+    border-color: var(--blue-main) !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+input:checked + .option-card {
+    border-color: var(--blue-hover) !important;
+    background-color: var(--blue-light) !important;
+    box-shadow: var(--shadow-sm);
+}
+
+.check-icon {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    color: var(--blue-hover);
+    font-size: 1.2rem;
+    display: none;
+}
+input:checked + .option-card .check-icon {
+    display: block;
+}
+
+/* Search Input Overrides */
+.search-input {
+    border-radius: 50px !important;
+    padding: 10px 45px 10px 20px !important;
+    border: 1px solid #E2E8F0 !important;
+    background-color: #F8FAFC !important;
+    height: 44px !important;
+    transition: var(--transition-smooth) !important;
+}
+.search-input:focus {
+    background-color: #fff !important;
+    border-color: var(--blue-hover) !important;
+    box-shadow: 0 0 0 4px rgba(174, 226, 255, 0.25) !important;
+}
+.btn-search {
+    right: 12px !important;
+}

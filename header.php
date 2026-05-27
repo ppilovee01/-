@@ -92,10 +92,11 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     </style>
     
     <?php if(isset($extra_css)) echo $extra_css; ?>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg sticky-top">
+<nav class="navbar navbar-expand-lg sticky-top glass-nav">
     <div class="container">
         
         <a class="navbar-brand d-flex align-items-center" href="index.php">

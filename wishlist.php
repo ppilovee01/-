@@ -16,19 +16,6 @@ $result = mysqli_query($conn, $sql);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายการโปรด | Por Mae Bet Taled</title>
-    <style>
-        body { background-color: #f8f9fa; font-family: 'Kanit', sans-serif; }
-        .wishlist-card { background: white; border: none; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); transition: all 0.3s ease; position: relative; overflow: hidden; height: 100%; }
-        .img-zoom-container { height: 200px; overflow: hidden; position: relative; background: #fff; display: flex; align-items: center; justify-content: center; }
-        .wishlist-img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
-        .wishlist-card:hover .wishlist-img { transform: scale(1.08); }
-        .btn-remove-circle { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; background: rgba(255, 255, 255, 0.9); border-radius: 50%; border: none; color: #999; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; z-index: 5; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .btn-remove-circle:hover { background: #ff4d4f; color: white; }
-        .card-body-custom { padding: 15px; text-align: center; }
-        .product-title { font-size: 0.95rem; font-weight: 500; color: #333; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .product-price { font-size: 1.1rem; font-weight: 700; color: #AEE2FF; margin-bottom: 15px; }
-        .btn-action-main { background: linear-gradient(135deg, #333 0%, #000 100%); color: white; border: none; border-radius: 50px; padding: 8px 0; width: 100%; font-size: 0.85rem; font-weight: 500; display: block; text-decoration: none; transition: 0.3s; }
-    </style>
 </head>
 <body>
 
@@ -55,16 +42,24 @@ $result = mysqli_query($conn, $sql);
             <?php if (mysqli_num_rows($result) > 0): ?>
                 <div class="row g-3">
                     <?php while ($p = mysqli_fetch_assoc($result)): ?>
-                    <div class="col-6 col-md-4">
-                        <div class="wishlist-card">
-                            <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this); this.closest('.col-6').remove();" class="btn-remove-circle"><i class="bi bi-x-lg"></i></button>
-                            <a href="product_detail.php?id=<?= $p['id'] ?>">
-                                <div class="img-zoom-container"><img src="<?= $p['image'] ?>" class="wishlist-img"></div>
-                            </a>
-                            <div class="card-body-custom">
-                                <div class="product-title"><?= $p['name'] ?></div>
-                                <div class="product-price">฿<?= number_format($p['price']) ?></div>
-                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn-action-main"><i class="bi bi-bag"></i> ดูรายละเอียดสินค้า</a>
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="card card-product">
+                            <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this); this.closest('.col-6').remove();" class="wishlist-tag liked"><i class="bi bi-heart-fill"></i></button>
+                            <div class="product-img-wrapper">
+                                <a href="product_detail.php?id=<?= $p['id'] ?>">
+                                    <img src="<?= $p['image'] ?>" class="wishlist-img">
+                                </a>
+                            </div>
+                            <div class="card-body d-flex flex-column text-center mt-2 p-3 pt-0">
+                                <h6 class="fw-bold mb-2 text-truncate">
+                                    <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name stretched-link"><?= $p['name'] ?></a>
+                                </h6>
+                                <div class="mb-3">
+                                    <span class="fw-bold" style="color:var(--blue-dark); font-size:1.2rem;">฿<?= number_format($p['price']) ?></span>
+                                </div>
+                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn btn-gradient btn-sm py-2 position-relative" style="z-index:2;">
+                                    <i class="bi bi-bag"></i> ดูสินค้า
+                                </a>
                             </div>
                         </div>
                     </div>

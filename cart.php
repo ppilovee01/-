@@ -169,21 +169,18 @@ if (isset($_POST['confirm_order'])) {
 $page_title = "ตระกร้าสินค้า | Por Mae Bet Taled";
 $extra_css = "
 <style>
-    .card-modern { border: none; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); background: white; margin-bottom: 25px; overflow: hidden; }
-    .card-header-modern { background: white; border-bottom: 1px solid #f0f0f0; padding: 20px 25px; font-weight: 700; font-size: 1.1rem; }
+    .card-modern { border: 1px solid rgba(226, 232, 240, 0.8); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: white; margin-bottom: 25px; overflow: hidden; }
+    .card-header-modern { background: white; border-bottom: 1px solid #E2E8F0; padding: 20px 25px; font-weight: 700; font-size: 1.1rem; color: var(--slate-dark); }
     .item-img { width: 70px; height: 70px; object-fit: cover; border-radius: 12px; }
-    .qty-box { display: flex; align-items: center; justify-content: center; border: 1px solid #eee; border-radius: 50px; background: white; width: 100px; padding: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-    .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: white; color: #999; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-    .qty-btn:hover { background: #AEE2FF; color: white; }
-    .qty-num { flex-grow: 1; text-align: center; font-weight: bold; font-size: 0.95rem; color: #333; user-select: none; }
-    .option-card { border: 2px solid #f1f1f1; border-radius: 15px; padding: 15px; cursor: pointer; transition: 0.2s; position: relative; height: 100%; background: white; }
-    input:checked + .option-card { border-color: #AEE2FF; background-color: #F0F8FF; }
-    .check-icon { position: absolute; top: 10px; right: 10px; color: #AEE2FF; display: none; }
-    input:checked + .option-card .check-icon { display: block; }
-    .summary-card { position: sticky; top: 100px; }
-    .btn-checkout { background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); color: white; border: none; border-radius: 50px; padding: 15px; width: 100%; font-weight: 600; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(174, 226, 255, 0.3); transition: 0.3s; }
-    .btn-checkout:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(174, 226, 255, 0.5); color: white; }
-    .info-box { background: #f8faff; border: 1px dashed #ced4da; border-radius: 12px; padding: 15px; margin-top: 15px; display: none; text-align: center; }
+    .qty-box { display: flex; align-items: center; justify-content: center; border: 1px solid #E2E8F0; border-radius: 50px; background: white; width: 100px; padding: 3px; }
+    .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: white; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition-smooth); }
+    .qty-btn:hover { background: var(--blue-main); color: white; }
+    .qty-num { flex-grow: 1; text-align: center; font-weight: bold; font-size: 0.95rem; color: var(--text-primary); user-select: none; }
+    
+    .summary-card { position: sticky; top: 100px; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: white; }
+    .btn-checkout { background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%); color: white; border: none; border-radius: 50px; padding: 15px; width: 100%; font-weight: 600; font-size: 1.1rem; box-shadow: 0 8px 20px rgba(174, 226, 255, 0.4); transition: var(--transition-smooth); }
+    .btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(127, 181, 255, 0.55); color: white; }
+    .info-box { background: var(--blue-light); border: 1px dashed var(--blue-hover); border-radius: 12px; padding: 15px; margin-top: 15px; display: none; text-align: center; }
 </style>
 ";
 include 'header.php';

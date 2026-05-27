@@ -55,94 +55,78 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <style>
-        :root { --blue-dark: #AEE2FF; --blue-light: #F0F8FF; }
-        body { font-family: 'Kanit', sans-serif; background-color: #f8f9fa; }
-        
-        .navbar { background: white !important; border-bottom: 2px solid var(--blue-light); box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
-        .navbar-brand { font-weight: 800; color: var(--blue-dark) !important; font-size: 1.6rem; letter-spacing: -0.5px; }
-        
-        /* Banner Styles Responsive */
+        /* Hero Section styling */
         .hero-section {
             background: linear-gradient(135deg, #F0F8FF 0%, #FFFFFF 100%);
-            padding: 80px 0; border-bottom-left-radius: 60px; border-bottom-right-radius: 60px;
+            padding: 90px 0;
+            border-bottom-left-radius: 60px;
+            border-bottom-right-radius: 60px;
+            position: relative;
+            overflow: hidden;
         }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: -50px;
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: rgba(174, 226, 255, 0.25);
+            filter: blur(50px);
+            z-index: 1;
+        }
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            bottom: -80px;
+            right: -80px;
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            background: rgba(127, 181, 255, 0.18);
+            filter: blur(60px);
+            z-index: 1;
+        }
+        .hero-section .container {
+            position: relative;
+            z-index: 2;
+        }
+        
         .carousel-item img { height: 400px; object-fit: cover; object-position: center; }
         
         @media (max-width: 991px) {
-            .hero-section { padding: 40px 0; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; }
-            .carousel-item img { height: 250px; } /* ลดความสูงแบนเนอร์มือถือ */
-            h1.display-4 { font-size: 2rem; } /* ลดขนาดหัวข้อ */
+            .hero-section { padding: 50px 0; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; }
+            .carousel-item img { height: 250px; }
+            h1.display-4 { font-size: 2.2rem; }
         }
 
-        /* Product Card */
-        .card-product { 
-            border: none; border-radius: 20px; 
-            transition: all 0.3s; overflow: hidden; background: white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.03); height: 100%; position: relative;
+        /* Category scroll menu styling */
+        .scroll-menu { 
+            display: flex; 
+            overflow-x: auto; 
+            gap: 12px; 
+            padding-bottom: 12px; 
+            scrollbar-width: thin; 
+            scrollbar-color: var(--blue-hover) #f0f0f0; 
         }
-        .card-product:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(174, 226, 255, 0.25); }
-
-        .product-img-wrapper {
-            position: relative; height: 250px; width: 100%; background: #fff; 
-            display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid #f8f9fa;
+        .cat-btn { 
+            border: 1px solid #E2E8F0; 
+            color: var(--text-secondary); 
+            background: white; 
+            padding: 10px 24px; 
+            border-radius: 50px; 
+            text-decoration: none; 
+            transition: var(--transition-smooth); 
+            white-space: nowrap; 
+            font-weight: 500;
         }
-        @media (max-width: 576px) { .product-img-wrapper { height: 180px; } } /* รูปเล็กลงในมือถือ */
-
-        .product-img-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
-        .card-product:hover .product-img-wrapper img { transform: scale(1.1); }
-        
-        /* Product Actions */
-        .product-actions { 
-            position: absolute; top: 10px; right: 10px; 
-            display: flex; flex-direction: column; gap: 8px; 
-            opacity: 0; transition: 0.3s; transform: translateX(20px); z-index: 5; 
+        .cat-btn:hover, .cat-btn.active { 
+            background: var(--blue-hover); 
+            color: white; 
+            border-color: var(--blue-hover); 
+            box-shadow: 0 4px 12px rgba(127, 181, 255, 0.3);
         }
-        .card-product:hover .product-actions { opacity: 1; transform: translateX(0); }
-        
-        .btn-action-mini { 
-            width: 38px; height: 38px; border-radius: 50%; background: white; border: none; 
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1); color: #555; display: flex; align-items: center; justify-content: center; 
-            transition: 0.2s; cursor: pointer; text-decoration: none;
-        }
-        .btn-action-mini:hover { background: #AEE2FF; color: white; transform: scale(1.1); }
-        .btn-action-mini.liked { background: #AEE2FF; color: white; }
-        .btn-action-mini.liked i::before { content: "\f417"; }
-
-        /* ชื่อสินค้า */
-        .product-name { font-size: 1.1rem; font-weight: 600; color: #333 !important; text-decoration: none !important; transition: 0.3s; }
-        .product-name:hover { color: var(--blue-dark) !important; }
-
-        .btn-gradient {
-            background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%);
-            color: white !important; border: none; border-radius: 50px; font-weight: 600;
-            box-shadow: 0 5px 15px rgba(174, 226, 255, 0.4); transition: 0.3s;
-            text-decoration: none; display: block; text-align: center;
-        }
-        .btn-gradient:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(174, 226, 255, 0.6); }
-        
-        .out-stock-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(3px); }
-        .badge-out { background: #333; color: white; padding: 8px 20px; border-radius: 30px; font-weight: bold; }
-
-        .floating-cart {
-            position: fixed; bottom: 30px; right: 30px; background: var(--blue-dark); color: white;
-            width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 5px 20px rgba(174, 226, 255, 0.5); z-index: 1000; text-decoration: none; transition: 0.3s; animation: bounceIn 0.5s;
-        }
-        @media (max-width: 576px) { .floating-cart { bottom: 20px; right: 20px; width: 50px; height: 50px; } }
-
-        .floating-cart:hover { transform: scale(1.1) rotate(10deg); color: white; }
-        .floating-count {
-            position: absolute; top: -5px; right: -5px; background: #fff; color: var(--blue-dark);
-            width: 25px; height: 25px; border-radius: 50%; font-size: 0.8rem; font-weight: bold; border: 2px solid var(--blue-dark);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .hidden { display: none !important; }
-        
-        .scroll-menu { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; scrollbar-width: thin; scrollbar-color: var(--blue-dark) #f0f0f0; }
-        .cat-btn { border: 1px solid #ddd; color: #666; background: white; padding: 8px 20px; border-radius: 50px; text-decoration: none; transition: 0.3s; white-space: nowrap; }
-        .cat-btn:hover, .cat-btn.active { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
-        
-        @keyframes bounceIn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -219,6 +203,9 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
         ?>
         <div class="col-6 col-md-4 col-lg-3 animate__animated animate__fadeInUp">
             <div class="card card-product">
+                <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด">
+                    <i class="bi <?= $fav_icon ?>"></i>
+                </button>
                 <div class="product-img-wrapper">
                     <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
                         <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>">
@@ -226,12 +213,6 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
                             <div class="out-stock-overlay"><span class="badge-out">สินค้าหมด</span></div>
                         <?php endif; ?>
                     </a>
-                    
-                    <div class="product-actions">
-                        <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="btn-action-mini <?= $fav_class ?>" title="เก็บลงรายการโปรด">
-                            <i class="bi <?= $fav_icon ?>"></i>
-                        </button>
-                    </div>
                 </div>
                 
                 <div class="card-body d-flex flex-column text-center pt-0">

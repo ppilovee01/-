@@ -51,38 +51,37 @@ $review_count = $avg_data['count'];
 $page_title = $product['name'] . " | Por Mae Bet Taled";
 $extra_css = "
 <style>
-    :root { --blue-dark: #AEE2FF; --blue-light: #F0F8FF; --dark-heading: #222; }
-    .badge-cart { background-color: var(--blue-dark) !important; color: white; border: 2px solid white; }
-    .product-img-container { border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); background: white; padding: 20px; text-align: center; border: 1px solid #f0f0f0; }
-    .product-img { max-width: 100%; height: auto; transition: transform 0.3s; border-radius: 10px; }
-    .product-img:hover { transform: scale(1.03); }
-    h1.product-title { color: var(--dark-heading); font-weight: 700; letter-spacing: -0.5px; }
-    .price-tag { color: var(--blue-dark); font-weight: 700; font-size: 2rem; }
-    .option-group { margin-bottom: 20px; }
-    .option-label { font-weight: 600; font-size: 0.95rem; margin-bottom: 10px; display: block; color: var(--dark-heading); }
-    .btn-option { border: 1px solid #ddd; background: white; color: #666; padding: 8px 20px; margin-right: 8px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 400; }
-    .btn-option:hover { border-color: var(--dark-heading); color: var(--dark-heading); }
-    .btn-check:checked + .btn-option { background-color: var(--dark-heading); color: white; border-color: var(--dark-heading); font-weight: 500; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-    .btn-add-cart { background-color: var(--dark-heading); color: white; border: none; border-radius: 50px; padding: 14px 30px; font-weight: 600; font-size: 1.1rem; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: all 0.3s ease; flex-grow: 1; }
-    .btn-add-cart:hover { background-color: var(--blue-dark); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 94, 132, 0.3); }
-    .btn-add-cart:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
-    .qty-input-group { width: 130px; border-radius: 50px; overflow: hidden; border: 1px solid #ddd; background: white; }
-    .btn-qty { border: none; background: white; color: #333; width: 40px; font-weight: bold; transition: 0.2s; }
-    .btn-qty:hover { background: #f8f9fa; }
-    .form-control-qty { border: none; text-align: center; font-weight: 600; color: #333; width: 50px; background: white; }
+    .badge-cart { background-color: var(--blue-main) !important; color: #fff; border: 2px solid white; }
+    .product-img-container { border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); background: white; padding: 30px; text-align: center; border: 1px solid rgba(226, 232, 240, 0.8); }
+    .product-img { max-width: 100%; height: auto; transition: var(--transition-smooth); border-radius: var(--radius-md); }
+    .product-img:hover { transform: scale(1.02); }
+    h1.product-title { color: var(--slate-dark); font-weight: 700; letter-spacing: -0.5px; }
+    .price-tag { color: var(--blue-hover); font-weight: 800; font-size: 2.2rem; }
+    .option-group { margin-bottom: 24px; }
+    .option-label { font-weight: 600; font-size: 0.95rem; margin-bottom: 12px; display: block; color: var(--slate-dark); }
     
-    /* สไตล์ปุ่มวงกลม */
-    .btn-icon-action { width: 54px; height: 54px; border-radius: 50%; border: 1px solid #eee; background: white; color: #555; display: flex; align-items: center; justify-content: center; transition: 0.2s; font-size: 1.2rem; cursor: pointer; }
-    .btn-icon-action:hover { border-color: var(--blue-dark); color: var(--blue-dark); background: #F0F8FF; transform: translateY(-2px); }
+    .btn-option { border: 1px solid #E2E8F0; background: white; color: var(--text-secondary); padding: 8px 22px; margin-right: 8px; margin-bottom: 8px; border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition-smooth); font-weight: 500; }
+    .btn-option:hover { border-color: var(--blue-hover); color: var(--blue-hover); }
+    .btn-check:checked + .btn-option { background-color: var(--blue-hover); color: white; border-color: var(--blue-hover); font-weight: 600; box-shadow: 0 4px 12px rgba(127, 181, 255, 0.3); }
     
-    /* สไตล์เมื่อกดไลก์แล้ว */
-    .btn-icon-action.liked { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
+    .btn-add-cart { background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%); color: white; border: none; border-radius: 50px; padding: 14px 30px; font-weight: 600; font-size: 1.1rem; box-shadow: 0 8px 20px rgba(174, 226, 255, 0.4); transition: var(--transition-smooth); flex-grow: 1; }
+    .btn-add-cart:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(127, 181, 255, 0.55); color: white; }
+    .btn-add-cart:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
     
-    .detail-box { background: white; border-radius: 16px; padding: 40px; box-shadow: 0 5px 25px rgba(0,0,0,0.03); margin-top: 50px; border: 1px solid #f0f0f0; }
-    .nav-tabs { border-bottom: 1px solid #eee; }
-    .nav-tabs .nav-link { color: #888; border: none; font-weight: 500; padding-bottom: 15px; margin-right: 20px; font-size: 1.1rem; }
-    .nav-tabs .nav-link.active { color: var(--blue-dark); border-bottom: 3px solid var(--blue-dark); background: transparent; font-weight: 700; }
-    .review-item { border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; margin-bottom: 20px; }
+    .qty-input-group { width: 130px; border-radius: 50px; overflow: hidden; border: 1px solid #E2E8F0; background: white; padding: 2px; }
+    .btn-qty { border: none; background: white; color: var(--text-secondary); width: 36px; font-weight: bold; transition: var(--transition-smooth); }
+    .btn-qty:hover { background: var(--blue-light); color: var(--blue-hover); }
+    .form-control-qty { border: none; text-align: center; font-weight: 700; color: var(--text-primary); width: 50px; background: white; }
+    
+    .btn-icon-action { width: 54px; height: 54px; border-radius: 50%; border: 1px solid #E2E8F0; background: white; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; transition: var(--transition-smooth); font-size: 1.25rem; cursor: pointer; box-shadow: var(--shadow-sm); }
+    .btn-icon-action:hover { border-color: #ff5e84; color: #ff5e84; background: #FFF5F7; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 94, 132, 0.15); }
+    .btn-icon-action.liked { background: #fff; color: #ff5e84; border-color: #ff5e84; }
+    
+    .detail-box { background: white; border-radius: var(--radius-md); padding: 40px; box-shadow: var(--shadow-sm); margin-top: 50px; border: 1px solid rgba(226, 232, 240, 0.8); }
+    .nav-tabs { border-bottom: 2px solid #E2E8F0; }
+    .nav-tabs .nav-link { color: var(--text-secondary); border: none; font-weight: 500; padding-bottom: 15px; margin-right: 20px; font-size: 1.1rem; }
+    .nav-tabs .nav-link.active { color: var(--blue-hover); border-bottom: 3px solid var(--blue-hover); background: transparent; font-weight: 700; }
+    .review-item { border-bottom: 1px solid #E2E8F0; padding-bottom: 20px; margin-bottom: 20px; }
     .star-rating i { color: #FFC107; font-size: 0.9rem; }
 </style>
 ";
