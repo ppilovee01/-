@@ -334,7 +334,7 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
 
     function toggleFeature(action, pid, btn) {
         let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid);
-        fetch('ajax_features.php', { method: 'POST', body: fd })
+        fetch('ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {

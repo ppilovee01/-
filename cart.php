@@ -396,7 +396,7 @@ function saveAddressCart() {
     const form = document.getElementById('form-add-address-cart');
     const formData = new FormData(form);
 
-    fetch('ajax_profile.php', { method: 'POST', body: formData })
+    fetch('ajax.php', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(data => {
         if(data.status === 'success') {
@@ -440,7 +440,7 @@ function updateQty(id, type) {
     formData.append('product_id', id);
     formData.append('type', type);
 
-    fetch('ajax_cart.php', { method: 'POST', body: formData })
+    fetch('ajax.php', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(data => {
         if(data.status === 'success') {
@@ -474,7 +474,7 @@ function removeItem(id) {
     }).then((r)=>{
         if(r.isConfirmed) {
             let fd = new FormData(); fd.append('action','remove_item'); fd.append('product_id',id);
-            fetch('ajax_cart.php', { method:'POST', body:fd }).then(r=>r.json()).then(data=>{
+            fetch('ajax.php', { method:'POST', body:fd }).then(r=>r.json()).then(data=>{
                 if(data.status==='success') {
                     const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true});
                     Toast.fire({icon: 'success', title: 'ลบสินค้าเรียบร้อย'});

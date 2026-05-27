@@ -85,11 +85,21 @@ if (isset($_POST['save_password']) && $valid_token) {
                         <form method="POST">
                             <div class="mb-3">
                                 <label class="form-label text-muted small fw-bold">รหัสผ่านใหม่</label>
-                                <input type="password" name="new_password" class="form-control rounded-4" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6">
+                                <div class="input-group">
+                                    <input type="password" name="new_password" id="resetNewPass" class="form-control rounded-start-4" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6">
+                                    <button class="btn btn-outline-secondary rounded-end-4 border-start-0" type="button" onclick="togglePasswordVisibility('resetNewPass', this)" style="background: white; border-color: #dee2e6;">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label text-muted small fw-bold">ยืนยันรหัสผ่านอีกครั้ง</label>
-                                <input type="password" name="confirm_password" class="form-control rounded-4" placeholder="กรอกให้ตรงกับช่องบน" required minlength="6">
+                                <div class="input-group">
+                                    <input type="password" name="confirm_password" id="resetConfirmPass" class="form-control rounded-start-4" placeholder="กรอกให้ตรงกับช่องบน" required minlength="6">
+                                    <button class="btn btn-outline-secondary rounded-end-4 border-start-0" type="button" onclick="togglePasswordVisibility('resetConfirmPass', this)" style="background: white; border-color: #dee2e6;">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <button type="submit" name="save_password" class="btn btn-blue w-100 mb-3">บันทึกรหัสผ่านใหม่</button>
                         </form>
@@ -109,6 +119,21 @@ if (isset($_POST['save_password']) && $valid_token) {
 <script>Swal.fire({icon:'error', title:'ผิดพลาด', text:'<?= $form_error ?>', confirmButtonColor: '#333'});</script>
 <?php endif; ?>
 
+<script>
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

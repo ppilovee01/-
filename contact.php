@@ -54,7 +54,7 @@ include 'header.php';
 function sendContact() {
     let fd = new FormData(document.getElementById('contactForm'));
     fd.append('action', 'send_contact');
-    fetch('ajax_features.php', { method: 'POST', body: fd }).then(r => r.json()).then(data => {
+    fetch('ajax.php', { method: 'POST', body: fd }).then(r => r.json()).then(data => {
         if(data.status === 'success') {
             Swal.fire({icon: 'success', title: 'ส่งเรียบร้อย', text: data.message});
             document.getElementById('contactForm').reset();

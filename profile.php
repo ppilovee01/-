@@ -196,16 +196,31 @@ include 'header.php';
                                 <div class="col-lg-8">
                                     <div class="mb-3">
                                         <label class="form-label text-muted small fw-bold">รหัสผ่านปัจจุบัน</label>
-                                        <input type="password" name="old_password" class="form-control" required>
+                                        <div class="input-group">
+                                            <input type="password" name="old_password" id="profileOldPass" class="form-control" required>
+                                            <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('profileOldPass', this)" style="background: #fcfcfc; border-color: #eee;">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="row mb-4">
                                         <div class="col-md-6">
                                             <label class="form-label text-muted small fw-bold">รหัสผ่านใหม่</label>
-                                            <input type="password" name="new_password" class="form-control" required>
+                                            <div class="input-group">
+                                                <input type="password" name="new_password" id="profileNewPass" class="form-control" required>
+                                                <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('profileNewPass', this)" style="background: #fcfcfc; border-color: #eee;">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label text-muted small fw-bold">ยืนยันรหัสผ่านใหม่</label>
-                                            <input type="password" name="confirm_password" class="form-control" required>
+                                            <div class="input-group">
+                                                <input type="password" name="confirm_password" id="profileConfirmPass" class="form-control" required>
+                                                <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('profileConfirmPass', this)" style="background: #fcfcfc; border-color: #eee;">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <button type="submit" class="btn btn-save w-100">เปลี่ยนรหัสผ่าน</button>
@@ -252,7 +267,7 @@ include 'header.php';
     document.getElementById('form-profile').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);
-        fetch('ajax_profile.php', { method: 'POST', body: formData })
+        fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
             if(data.status === 'success') {
@@ -268,7 +283,7 @@ include 'header.php';
         e.preventDefault();
         const formData = new FormData(this);
         const form = this;
-        fetch('ajax_profile.php', { method: 'POST', body: formData })
+        fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
             if(data.status === 'success') {
@@ -284,7 +299,7 @@ include 'header.php';
     document.getElementById('form-add-address').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);
-        fetch('ajax_profile.php', { method: 'POST', body: formData })
+        fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
             if(data.status === 'success') {
@@ -311,7 +326,7 @@ include 'header.php';
                 const formData = new FormData();
                 formData.append('action', 'delete_address');
                 formData.append('address_id', id);
-                fetch('ajax_profile.php', { method: 'POST', body: formData })
+                fetch('ajax.php', { method: 'POST', body: formData })
                 .then(res => res.json())
                 .then(data => {
                     if(data.status === 'success') {
@@ -327,6 +342,20 @@ include 'header.php';
                 });
             }
         });
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
     }
 </script>
 </body>

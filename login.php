@@ -113,7 +113,10 @@ unset($_SESSION['active_tab']);
                             <div class="mb-2">
                                 <div class="input-group">
                                     <span class="input-group-text rounded-start-4 text-muted"><i class="bi bi-key"></i></span>
-                                    <input type="password" name="password" class="form-control rounded-end-4 border-start-0 ps-2" placeholder="รหัสผ่าน" required>
+                                    <input type="password" name="password" id="loginPassword" class="form-control border-start-0 ps-2" placeholder="รหัสผ่าน" required>
+                                    <button class="btn btn-outline-light border border-start-0 text-muted rounded-end-4" type="button" onclick="togglePasswordVisibility('loginPassword', this)" style="background: #f8f9fa;">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div class="text-end mb-3"><a href="forgot_password.php" class="text-decoration-none small text-muted">ลืมรหัสผ่าน?</a></div>
@@ -127,7 +130,14 @@ unset($_SESSION['active_tab']);
                             <div class="mb-3"><input type="email" name="email" class="form-control rounded-4 ps-3" placeholder="อีเมล" required></div>
                             <div class="row">
                                 <div class="col-6 mb-3"><input type="text" name="username" class="form-control rounded-4 ps-3" placeholder="ชื่อผู้ใช้ (Eng)" required></div>
-                                <div class="col-6 mb-3"><input type="password" name="password" class="form-control rounded-4 ps-3" placeholder="รหัส 6 ตัวขึ้นไป" required></div>
+                                <div class="col-6 mb-3">
+                                    <div class="input-group">
+                                        <input type="password" name="password" id="regPassword" class="form-control rounded-start-4 ps-3" placeholder="รหัส 6 ตัวขึ้นไป" required>
+                                        <button class="btn btn-outline-light border border-start-0 text-muted rounded-end-4" type="button" onclick="togglePasswordVisibility('regPassword', this)" style="background: #f8f9fa;">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             <button type="submit" name="register" class="btn btn-auth mb-3">สมัครสมาชิก</button>
                         </form>
@@ -143,6 +153,21 @@ unset($_SESSION['active_tab']);
 <script>Swal.fire({icon: '<?= $_SESSION['swal']['icon'] ?>', title: '<?= $_SESSION['swal']['title'] ?>', text: '<?= $_SESSION['swal']['text'] ?>', confirmButtonColor: '#85D1FF'});</script>
 <?php unset($_SESSION['swal']); endif; ?>
 
+<script>
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

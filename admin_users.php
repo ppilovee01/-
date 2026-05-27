@@ -5,7 +5,7 @@ include 'db.php';
 // 1. ตั้งค่า Timezone
 date_default_timezone_set('Asia/Bangkok');
 
-// 2. แŠเน‡คสิทธิเนŒ Admin
+// 2. เช็คสิทธิ์ Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
 // --- Logic 1: เพิ่มสมาชิกใหม่ (Anti-F5 Fixed) ---
@@ -16,7 +16,7 @@ if (isset($_POST['add_user'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $role = $_POST['role'];
 
-    // แŠเน‡คเ‹เน‰ำ
+    // เช็คซ้ำ
     $check = mysqli_query($conn, "SELECT id FROM users WHERE username='$user' OR email='$email'");
     if(mysqli_num_rows($check) > 0) {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ชื่อผู้ใช้ หรือ อีเมลนี้ มีคนใช้แล้ว!', 'icon'=>'error'];
@@ -31,7 +31,7 @@ if (isset($_POST['add_user'])) {
     header("Location: admin_users.php"); exit();
 }
 
-// --- Logic 2: เนเเน‰เน„ขสมาชิก ---
+// --- Logic 2: แก้ไขสมาชิก ---
 if (isset($_POST['edit_user'])) {
     $id = $_POST['edit_id'];
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
@@ -46,7 +46,7 @@ if (isset($_POST['edit_user'])) {
     }
 
     if(mysqli_query($conn, $sql)) {
-        $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปവขเน‰อมูลเรียบร้อย', 'icon'=>'success'];
+        $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปเดตข้อมูลเรียบร้อย', 'icon'=>'success'];
     } else {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
     }
@@ -107,8 +107,8 @@ if (isset($_GET['delete'])) {
         <div class="col-md-10 p-4 p-md-5">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
                 <div>
-                    <h2 class="fw-bold m-0">๐Ÿ‘ฅ จัดการสมาชิก (Users)</h2>
-                    <p class="text-muted small mb-0">เพิ่ม ลบ เนเเน‰เน„ข ขเน‰อมูลสมาชิกเนละเนอดมิน</p>
+                    <h2 class="fw-bold m-0">จัดการสมาชิก (Users)</h2>
+                    <p class="text-muted small mb-0">เพิ่ม ลบ แก้ไข ข้อมูลสมาชิกและแอดมิน</p>
                     <button class="btn btn-gradient rounded-pill px-4 shadow-sm w-100 w-md-auto" data-bs-toggle="modal" data-bs-target="#addUserModal">
                     <i class="bi bi-person-plus-fill me-2"></i> เพิ่มสมาชิก
                 </button>
@@ -188,10 +188,15 @@ if (isset($_GET['delete'])) {
                     </div>
                     <div class="mb-3">
                         <label class="small text-muted">Password</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <div class="input-group">
+                            <input type="password" name="password" id="adminAddPass" class="form-control" required>
+                            <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('adminAddPass', this)" style="background: white; border-color: #ced4da;">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">ชื่อ-นามสเุล</label>
+                        <label class="small text-muted">ชื่อ-นามสกุล</label>
                         <input type="text" name="fullname" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -199,10 +204,10 @@ if (isset($_GET['delete'])) {
                         <input type="email" name="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">Role (สิทธิเนŒการใช้งาน)</label>
+                        <label class="small text-muted">Role (สิทธิ์การใช้งาน)</label>
                         <select name="role" class="form-select">
                             <option value="user">User (ลูกค้าทั่วไป)</option>
-                            <option value="admin">Admin (ผู้ดูเนลระบบ)</option>
+                            <option value="admin">Admin (ผู้ดูแลระบบ)</option>
                         </select>
                     </div>
                 </div>
@@ -218,18 +223,18 @@ if (isset($_GET['delete'])) {
     <div class="modal-dialog">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">เนเเน‰เน„ขขเน‰อมูลสมาชิก</h5>
+                <h5 class="modal-title fw-bold">แก้ไขข้อมูลสมาชิก</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
                 <input type="hidden" name="edit_id" id="edit_id">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="small text-muted">Username (เนเเน‰เน„ขไม่ได้)</label>
+                        <label class="small text-muted">Username (แก้ไขไม่ได้)</label>
                         <input type="text" id="edit_username" class="form-control bg-light" readonly>
                     </div>
                     <div class="mb-3">
-                        <label class="small text-muted">ชื่อ-นามสเุล</label>
+                        <label class="small text-muted">ชื่อ-นามสกุล</label>
                         <input type="text" name="fullname" id="edit_fullname" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -238,7 +243,12 @@ if (isset($_GET['delete'])) {
                     </div>
                     <div class="mb-3">
                         <label class="small text-muted">เปลี่ยนรหัสผ่าน (ปล่อยว่างถ้าไม่เปลี่ยน)</label>
-                        <input type="password" name="password" class="form-control" placeholder="*******">
+                        <div class="input-group">
+                            <input type="password" name="password" id="adminEditPass" class="form-control" placeholder="*******">
+                            <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('adminEditPass', this)" style="background: white; border-color: #ced4da;">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="small text-muted">Role</label>
@@ -249,7 +259,7 @@ if (isset($_GET['delete'])) {
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="submit" name="edit_user" class="btn btn-warning w-100 rounded-pill text-white">อัปവขเน‰อมูล</button>
+                    <button type="submit" name="edit_user" class="btn btn-warning w-100 rounded-pill text-white">อัปเดตข้อมูล</button>
                 </div>
             </form>
         </div>
@@ -279,6 +289,20 @@ if (isset($_GET['delete'])) {
                 window.location.href = '?delete=' + id;
             }
         })
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
     }
 </script>
 

@@ -294,7 +294,7 @@ include 'header.php';
         if(!formData.has('action')) formData.append('action', 'add');
         formData.append('options', selectedOpts.join(', '));
 
-        fetch('ajax_cart.php', { method: 'POST', body: formData })
+        fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
             if(data.status === 'success') {
@@ -321,7 +321,7 @@ include 'header.php';
         fd.append('action', action); 
         fd.append('product_id', pid);
         
-        fetch('ajax_features.php', { method: 'POST', body: fd })
+        fetch('ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {

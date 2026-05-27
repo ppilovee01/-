@@ -84,7 +84,7 @@ $result = mysqli_query($conn, $sql);
 <script>
 function toggleFeature(action, pid) {
     let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid);
-    fetch('ajax_features.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => {
+    fetch('ajax.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => {
         const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1000});
         Toast.fire({icon: 'success', title: 'ลบเรียบร้อย'});
     });
