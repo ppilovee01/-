@@ -1,0 +1,64 @@
+﻿body {
+    font-family: 'Kanit', sans-serif;
+    color: #444;
+}
+
+/* เปลี่ยนจาก .text-blue เเธเนเธ .text-blue เนละเนเธเนสีเธเนา Pastel */
+.text-blue, .text-accent {
+    color: #85D1FF !important; /* Pastel Blue */
+}
+
+/* เธุเนมสีเธเนา */
+.btn-blue {
+    background-color: #85D1FF;
+    color: white;
+    border: none;
+}
+
+.btn-blue:hover {
+    background-color: #6BBEFF;
+    color: white;
+}
+
+/* เธุเนม Outline สีเธเนา */
+.btn-outline-blue {
+    border-color: #85D1FF;
+    color: #85D1FF;
+}
+
+.btn-outline-blue:hover {
+    background-color: #85D1FF;
+    color: white;
+}
+
+.navbar {
+    background-color: white;
+}
+
+/* เธรัเธ Gradient เธอเธ Hero Section เนหเนเเธเนเธเนทเธเธเนา-เธาว */
+.hero-section {
+    min-height: 80vh;
+    background: linear-gradient(135deg, #F0F8FF 0%, #FFFFFF 100%);
+}
+
+.hover-up:hover {
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+/* สรเนาเธ Effect เธเนอยเน เนเธลเนออกมา */
+@keyframes fadeInPage {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* เธำมาเนเธเนเธัเธ body หรือ wrapper */
+body {
+    animation: fadeInPage 0.6s ease-out;
+}
+
+/* สำหรับเธุเนมหรือการเนด เนหเนมัเธเธุเนมเธวลเวลาเอาเมาสเนไปวาเธ */
+.btn, .card {
+    transition: all 0.3s ease-in-out !important;
+}
+
