@@ -16,78 +16,58 @@ if(isset($_SESSION['cart'])) {
 // ดึงข้อมูล User ล่าสุด
 $q = mysqli_query($conn, "SELECT * FROM users WHERE id = '$user_id'");
 $user = mysqli_fetch_assoc($q);
+
+$page_title = "ข้อมูลส่วนตัว | Por Mae Bet Taled";
+$extra_css = "
+<style>
+    .hidden { display: none !important; }
+
+    /* Main Content Card */
+    .content-card {
+        border: none; border-radius: 16px; background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow: hidden;
+    }
+
+    /* Custom Tabs */
+    .nav-tabs { border-bottom: 2px solid #f0f0f0; padding: 0 20px; }
+    .nav-tabs .nav-link {
+        border: none; color: #888; font-weight: 500; padding: 15px 20px;
+        border-bottom: 3px solid transparent; transition: 0.3s;
+    }
+    .nav-tabs .nav-link:hover { color: var(--blue-hover); }
+    .nav-tabs .nav-link.active {
+        color: var(--blue-hover); background: transparent;
+        border-bottom-color: var(--blue-hover); font-weight: 700;
+    }
+    .nav-tabs .nav-link i { margin-right: 8px; font-size: 1.1rem; }
+
+    /* Form Elements */
+    .form-control { border-radius: 10px; padding: 10px 15px; border: 1px solid #eee; background-color: #fcfcfc; }
+    .form-control:focus { border-color: var(--blue-hover); background-color: white; box-shadow: 0 0 0 4px rgba(174, 226, 255, 0.1); }
+    .btn-save {
+        background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); color: white;
+        border: none; border-radius: 50px; padding: 10px 30px; font-weight: 600;
+        box-shadow: 0 4px 15px rgba(174, 226, 255, 0.3); transition: 0.3s;
+    }
+    .btn-save:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(174, 226, 255, 0.5); color: white; }
+
+    /* Address Box */
+    .address-item {
+        border: 1px solid #eee; border-radius: 12px; padding: 20px;
+        background: white; position: relative; transition: 0.2s; height: 100%;
+    }
+    .address-item:hover { border-color: var(--blue-hover); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    .btn-del-addr {
+        position: absolute; top: 15px; right: 15px;
+        width: 30px; height: 30px; border-radius: 50%; background: #F0F8FF;
+        color: #dc3545; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: 0.2s;
+    }
+    .btn-del-addr:hover { background: #dc3545; color: white; }
+</style>
+";
 include 'header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ข้อมูลส่วนตัว | Por Mae Bet Taled</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <style>
-        :root { --blue-dark: #AEE2FF; --blue-light: #F0F8FF; --text-dark: #333; }
-        body { font-family: 'Kanit', sans-serif; background-color: #f5f7fa; color: var(--text-dark); }
-        
-        /* Navbar Styles */
-        .navbar { background: white !important; border-bottom: 2px solid var(--blue-light); box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
-        .navbar-brand { font-weight: 800; color: var(--blue-dark) !important; font-size: 1.6rem; letter-spacing: -0.5px; }
-        .badge-cart { background-color: var(--blue-dark); }
-        .hidden { display: none !important; }
-
-        /* Main Content Card */
-        .content-card {
-            border: none; border-radius: 16px; background: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); overflow: hidden;
-        }
-
-        /* Custom Tabs */
-        .nav-tabs { border-bottom: 2px solid #f0f0f0; padding: 0 20px; }
-        .nav-tabs .nav-link {
-            border: none; color: #888; font-weight: 500; padding: 15px 20px;
-            border-bottom: 3px solid transparent; transition: 0.3s;
-        }
-        .nav-tabs .nav-link:hover { color: var(--blue-dark); }
-        .nav-tabs .nav-link.active {
-            color: var(--blue-dark); background: transparent;
-            border-bottom-color: var(--blue-dark); font-weight: 700;
-        }
-        .nav-tabs .nav-link i { margin-right: 8px; font-size: 1.1rem; }
-
-        /* Form Elements */
-        .form-control { border-radius: 10px; padding: 10px 15px; border: 1px solid #eee; background-color: #fcfcfc; }
-        .form-control:focus { border-color: var(--blue-dark); background-color: white; box-shadow: 0 0 0 4px rgba(174, 226, 255, 0.1); }
-        .btn-save {
-            background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); color: white;
-            border: none; border-radius: 50px; padding: 10px 30px; font-weight: 600;
-            box-shadow: 0 4px 15px rgba(174, 226, 255, 0.3); transition: 0.3s;
-        }
-        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(174, 226, 255, 0.5); color: white; }
-
-        /* Address Box */
-        .address-item {
-            border: 1px solid #eee; border-radius: 12px; padding: 20px;
-            background: white; position: relative; transition: 0.2s; height: 100%;
-        }
-        .address-item:hover { border-color: var(--blue-dark); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .btn-del-addr {
-            position: absolute; top: 15px; right: 15px;
-            width: 30px; height: 30px; border-radius: 50%; background: #F0F8FF;
-            color: #dc3545; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s;
-        }
-        .btn-del-addr:hover { background: #dc3545; color: white; }
-    </style>
-</head>
-<body>
 
 <div class="container py-5">
     <div class="row">

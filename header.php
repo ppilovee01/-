@@ -342,6 +342,19 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            // ตั้งค่าคลาส active ให้กับเมนูหลักตามหน้าเว็บปัจจุบัน
+            const currentPath = window.location.pathname.split('/').pop() || 'index.php';
+            const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href) {
+                    const linkPath = href.split('#')[0];
+                    if (linkPath === currentPath) {
+                        link.classList.add('active');
+                    }
+                }
+            });
+
             // ดักจับการคลิกลิงก์เพื่อทำอนิเมชันตอนย้ายหน้า
             const links = document.querySelectorAll('a');
             links.forEach(link => {
@@ -355,6 +368,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     target === '_blank' || 
                     link.classList.contains('dropdown-toggle') ||
                     link.hasAttribute('data-bs-toggle') ||
+                    link.hasAttribute('download') ||
                     link.getAttribute('role') === 'button') {
                     return;
                 }
@@ -421,7 +435,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                                 }
                             }, 150);
                         }
-                    }, 1500); // 1.5 วินาทีตามเงื่อนไขหากเว็บโหลดช้า
+                    }, 2000); // 2.0 วินาทีตามเงื่อนไขหากเว็บโหลดช้า
 
                     // 3. เริ่มส่งคำขอเปลี่ยนหน้าของบราวเซอร์หลังจากคลิกและเฟดจอมารวม 150ms
                     setTimeout(() => {
@@ -560,7 +574,9 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 <ul class="navbar-nav me-lg-3 text-center text-lg-start">
                     <li class="nav-item"><a class="nav-link" href="index.php">หน้าแรก</a></li>
                     <li class="nav-item"><a class="nav-link" href="index.php#shop">สินค้าทั้งหมด</a></li>
-                    <li class="nav-item"><a class="nav-link" href="demo_loader.php">ทดสอบตัวโหลด</a></li>
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                        <li class="nav-item"><a class="nav-link" href="demo_loader.php">ทดสอบตัวโหลด</a></li>
+                    <?php endif; ?>
                 </ul>
 
                 <div class="icon-group">

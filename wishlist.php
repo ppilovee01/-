@@ -1,23 +1,16 @@
 <?php
 session_start();
 include 'db.php';
-include 'header.php'; // ใน header.php ต้องมี bootstrap.bundle.min.js นะครับ
 
 if (!isset($_SESSION['user_id'])) { echo "<script>window.location='login.php';</script>"; exit(); }
 $uid = $_SESSION['user_id'];
 
 $sql = "SELECT p.*, w.created_at as added_date FROM wishlist w JOIN products p ON w.product_id = p.id WHERE w.user_id = '$uid' ORDER BY w.created_at DESC";
 $result = mysqli_query($conn, $sql);
-?>
 
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>รายการโปรด | Por Mae Bet Taled</title>
-</head>
-<body>
+$page_title = "รายการโปรด | Por Mae Bet Taled";
+include 'header.php';
+?>
 
 <div class="container py-5">
     <div class="row">

@@ -36,82 +36,63 @@ if (isset($_GET['cancel_my_order'])) {
         $action_status = "error";
     }
 }
+
+$page_title = "ติดตามคำสั่งซื้อ | Por Mae Bet Taled";
+$extra_css = "
+<style>
+    /* การ์ดออเดอร์ */
+    .order-card {
+        border: none; border-radius: 16px; background: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 25px;
+        overflow: hidden; transition: all 0.3s ease;
+    }
+    .order-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.06); }
+    .order-card.cancelled { opacity: 0.7; filter: grayscale(100%); }
+    
+    .card-header-custom {
+        padding: 15px 20px; background: #fff; border-bottom: 1px dashed #eee;
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    
+    /* Badges */
+    .status-badge { padding: 6px 12px; border-radius: 30px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+    .status-pending { background: #fff8e1; color: #f59e0b; }
+    .status-approved { background: #e0f2fe; color: #0ea5e9; }
+    .status-shipping { background: #dcfce7; color: #16a34a; }
+    .status-completed { background: #d1e7dd; color: #0f5132; }
+    .status-cancelled { background: #f3f4f6; color: #6b7280; }
+
+    /* Timeline */
+    .step-progress { display: flex; justify-content: space-between; position: relative; margin: 30px 0; padding: 0 10px; }
+    .step-progress::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 3px; background: #e5e7eb; z-index: 1; }
+    .step-item { position: relative; z-index: 2; text-align: center; width: 33.33%; }
+    .step-circle { width: 32px; height: 32px; background: #fff; border: 3px solid #e5e7eb; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: transparent; font-size: 14px; transition: 0.3s; }
+    .step-item.active .step-circle { background: var(--blue-hover); border-color: var(--blue-hover); color: white; box-shadow: 0 0 0 4px rgba(174,226,255,0.2); }
+    .step-text { font-size: 0.8rem; color: #9ca3af; font-weight: 500; }
+    .step-item.active .step-text { color: var(--blue-hover); font-weight: 700; }
+    
+    /* Product List */
+    .product-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f9f9f9; }
+    .product-item:last-child { border-bottom: none; }
+    .product-img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid #eee; margin-right: 15px; }
+    
+    /* Buttons */
+    .btn-action { font-size: 0.8rem; padding: 5px 15px; border-radius: 20px; text-decoration: none; display: inline-block; cursor: pointer; transition: 0.2s; }
+    .btn-view-slip { background: #f3f4f6; color: #4b5563; }
+    .btn-view-slip:hover { background: #e5e7eb; color: #1f2937; }
+    .btn-cancel { border: 1px solid #ef4444; color: #ef4444; background: white; }
+    .btn-cancel:hover { background: #ef4444; color: white; }
+    .btn-review { border: 1px solid var(--slate-dark); color: var(--slate-dark); background: white; margin-left: 10px; }
+    .btn-review:hover { background: var(--slate-dark); color: white; }
+
+    .tracking-box { background: #fdf2f8; border: 1px dashed var(--blue-hover); border-radius: 10px; padding: 10px; text-align: center; margin-top: 15px; }
+    .tracking-number { font-size: 1rem; font-weight: 700; color: var(--blue-hover); letter-spacing: 1px; }
+    .hidden { display: none !important; }
+</style>
+";
+include 'header.php';
+date_default_timezone_set('Asia/Bangkok');
 ?>
-
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ติดตามคำสั่งซื้อ | Por Mae Bet Taled</title>
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <style>
-        :root { --blue-dark: #AEE2FF; --blue-light: #F0F8FF; --text-dark: #333; }
-        body { font-family: 'Kanit', sans-serif; background-color: #f5f7fa; color: var(--text-dark); }
-        
-        /* Navbar Styles */
-        .navbar { background: white !important; border-bottom: 2px solid var(--blue-light); box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
-        .navbar-brand { font-weight: 800; color: var(--blue-dark) !important; font-size: 1.6rem; letter-spacing: -0.5px; }
-        .badge-cart { background-color: var(--blue-dark); }
-
-        /* การ์ดออเดอร์ */
-        .order-card {
-            border: none; border-radius: 16px; background: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 25px;
-            overflow: hidden; transition: all 0.3s ease;
-        }
-        .order-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.06); }
-        .order-card.cancelled { opacity: 0.7; filter: grayscale(100%); }
-        
-        .card-header-custom {
-            padding: 15px 20px; background: #fff; border-bottom: 1px dashed #eee;
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
-        }
-        
-        /* Badges */
-        .status-badge { padding: 6px 12px; border-radius: 30px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
-        .status-pending { background: #fff8e1; color: #f59e0b; }
-        .status-approved { background: #e0f2fe; color: #0ea5e9; }
-        .status-shipping { background: #dcfce7; color: #16a34a; }
-        .status-completed { background: #d1e7dd; color: #0f5132; }
-        .status-cancelled { background: #f3f4f6; color: #6b7280; }
-
-        /* Timeline */
-        .step-progress { display: flex; justify-content: space-between; position: relative; margin: 30px 0; padding: 0 10px; }
-        .step-progress::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 3px; background: #e5e7eb; z-index: 1; }
-        .step-item { position: relative; z-index: 2; text-align: center; width: 33.33%; }
-        .step-circle { width: 32px; height: 32px; background: #fff; border: 3px solid #e5e7eb; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: transparent; font-size: 14px; transition: 0.3s; }
-        .step-item.active .step-circle { background: var(--blue-dark); border-color: var(--blue-dark); color: white; box-shadow: 0 0 0 4px rgba(174,226,255,0.2); }
-        .step-text { font-size: 0.8rem; color: #9ca3af; font-weight: 500; }
-        .step-item.active .step-text { color: var(--blue-dark); font-weight: 700; }
-        
-        /* Product List */
-        .product-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f9f9f9; }
-        .product-item:last-child { border-bottom: none; }
-        .product-img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid #eee; margin-right: 15px; }
-        
-        /* Buttons */
-        .btn-action { font-size: 0.8rem; padding: 5px 15px; border-radius: 20px; text-decoration: none; display: inline-block; cursor: pointer; transition: 0.2s; }
-        .btn-view-slip { background: #f3f4f6; color: #4b5563; }
-        .btn-view-slip:hover { background: #e5e7eb; color: #1f2937; }
-        .btn-cancel { border: 1px solid #ef4444; color: #ef4444; background: white; }
-        .btn-cancel:hover { background: #ef4444; color: white; }
-        .btn-review { border: 1px solid var(--text-dark); color: var(--text-dark); background: white; margin-left: 10px; }
-        .btn-review:hover { background: var(--text-dark); color: white; }
-
-        .tracking-box { background: #fdf2f8; border: 1px dashed var(--blue-dark); border-radius: 10px; padding: 10px; text-align: center; margin-top: 15px; }
-        .tracking-number { font-size: 1rem; font-weight: 700; color: var(--blue-dark); letter-spacing: 1px; }
-        .hidden { display: none !important; }
-    </style>
-</head>
-<body>
 
 
 <div class="container py-5">

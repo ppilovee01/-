@@ -1,7 +1,6 @@
 <?php
 session_start();
 include 'db.php'; 
-include 'header.php';
 
 // --- Feedback Logic (Anti-F5 Fixed) ---
 if (isset($_POST['send_feedback'])) {
@@ -39,97 +38,86 @@ $res = mysqli_query($conn, "SELECT * FROM categories ORDER BY name ASC");
 while ($c = mysqli_fetch_assoc($res)) $categories[] = $c;
 
 $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ? array_column($_SESSION['cart'], 'qty') : $_SESSION['cart']) : 0;
-?>
 
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Por Mae Bet Taled | Por Mae Bet Taled</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-    <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+$page_title = "Por Mae Bet Taled | แหล่งรวมสินค้าเบ็ดเตล็ด";
+$extra_css = "
+<style>
+    /* Hero Section styling */
+    .hero-section {
+        background: linear-gradient(135deg, #F0F8FF 0%, #FFFFFF 100%);
+        padding: 90px 0;
+        border-bottom-left-radius: 60px;
+        border-bottom-right-radius: 60px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        left: -50px;
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background: rgba(174, 226, 255, 0.25);
+        filter: blur(50px);
+        z-index: 1;
+    }
+    .hero-section::after {
+        content: '';
+        position: absolute;
+        bottom: -80px;
+        right: -80px;
+        width: 350px;
+        height: 350px;
+        border-radius: 50%;
+        background: rgba(127, 181, 255, 0.18);
+        filter: blur(60px);
+        z-index: 1;
+    }
+    .hero-section .container {
+        position: relative;
+        z-index: 2;
+    }
     
-    <style>
-        /* Hero Section styling */
-        .hero-section {
-            background: linear-gradient(135deg, #F0F8FF 0%, #FFFFFF 100%);
-            padding: 90px 0;
-            border-bottom-left-radius: 60px;
-            border-bottom-right-radius: 60px;
-            position: relative;
-            overflow: hidden;
-        }
-        .hero-section::before {
-            content: '';
-            position: absolute;
-            top: -50px;
-            left: -50px;
-            width: 250px;
-            height: 250px;
-            border-radius: 50%;
-            background: rgba(174, 226, 255, 0.25);
-            filter: blur(50px);
-            z-index: 1;
-        }
-        .hero-section::after {
-            content: '';
-            position: absolute;
-            bottom: -80px;
-            right: -80px;
-            width: 350px;
-            height: 350px;
-            border-radius: 50%;
-            background: rgba(127, 181, 255, 0.18);
-            filter: blur(60px);
-            z-index: 1;
-        }
-        .hero-section .container {
-            position: relative;
-            z-index: 2;
-        }
-        
-        .carousel-item img { height: 400px; object-fit: cover; object-position: center; }
-        
-        @media (max-width: 991px) {
-            .hero-section { padding: 50px 0; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; }
-            .carousel-item img { height: 250px; }
-            h1.display-4 { font-size: 2.2rem; }
-        }
+    .carousel-item img { height: 400px; object-fit: cover; object-position: center; }
+    
+    @media (max-width: 991px) {
+        .hero-section { padding: 50px 0; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; }
+        .carousel-item img { height: 250px; }
+        h1.display-4 { font-size: 2.2rem; }
+    }
 
-        /* Category scroll menu styling */
-        .scroll-menu { 
-            display: flex; 
-            overflow-x: auto; 
-            gap: 12px; 
-            padding-bottom: 12px; 
-            scrollbar-width: thin; 
-            scrollbar-color: var(--blue-hover) #f0f0f0; 
-        }
-        .cat-btn { 
-            border: 1px solid #E2E8F0; 
-            color: var(--text-secondary); 
-            background: white; 
-            padding: 10px 24px; 
-            border-radius: 50px; 
-            text-decoration: none; 
-            transition: var(--transition-smooth); 
-            white-space: nowrap; 
-            font-weight: 500;
-        }
-        .cat-btn:hover, .cat-btn.active { 
-            background: var(--blue-hover); 
-            color: white; 
-            border-color: var(--blue-hover); 
-            box-shadow: 0 4px 12px rgba(127, 181, 255, 0.3);
-        }
-    </style>
-</head>
-<body>
+    /* Category scroll menu styling */
+    .scroll-menu { 
+        display: flex; 
+        overflow-x: auto; 
+        gap: 12px; 
+        padding-bottom: 12px; 
+        scrollbar-width: thin; 
+        scrollbar-color: var(--blue-hover) #f0f0f0; 
+    }
+    .cat-btn { 
+        border: 1px solid #E2E8F0; 
+        color: var(--text-secondary); 
+        background: white; 
+        padding: 10px 24px; 
+        border-radius: 50px; 
+        text-decoration: none; 
+        transition: var(--transition-smooth); 
+        white-space: nowrap; 
+        font-weight: 500;
+    }
+    .cat-btn:hover, .cat-btn.active { 
+        background: var(--blue-hover); 
+        color: white; 
+        border-color: var(--blue-hover); 
+        box-shadow: 0 4px 12px rgba(127, 181, 255, 0.3);
+    }
+</style>
+";
+include 'header.php';
+?>
 
 <?php if (count($banners) > 0): ?>
     <div class="container mt-4 animate__animated animate__fadeIn">
