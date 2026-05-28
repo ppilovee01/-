@@ -20,7 +20,6 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     <title><?= $page_title ?></title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
@@ -30,70 +29,318 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         :root { 
             --blue-main: #AEE2FF; 
             --blue-hover: #7FB5FF; 
-            --bg-soft: #f9f9f9; 
-            --text-main: #2c2c2c;
+            --bg-soft: #f8fafc; 
+            --text-main: #1e293b;
         }
         body { font-family: 'Kanit', sans-serif; background-color: var(--bg-soft); color: var(--text-main); }
         
-        /* Navbar Styling */
-        .navbar { background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.03); padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
-        .navbar-brand { font-weight: 800; color: #333 !important; font-size: 1.6rem; letter-spacing: -0.5px; margin-right: 20px; }
-        .navbar-brand span { color: var(--blue-main); }
+        /* Navbar Glassmorphism Styling */
+        .navbar { 
+            background: rgba(255, 255, 255, 0.8) !important; 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 4px 30px rgba(0,0,0,0.03); 
+            padding: 10px 0; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4); 
+            transition: all 0.3s ease;
+        }
+        .navbar-brand { font-weight: 800; color: #1e293b !important; font-size: 1.45rem; letter-spacing: -0.5px; margin-right: 20px; }
+        .navbar-brand span { color: var(--blue-hover); }
         
-        .nav-link { font-weight: 500; color: #555 !important; margin: 0 10px; font-size: 1rem; position: relative; transition: color 0.2s; }
-        .nav-link:hover, .nav-link.active { color: var(--blue-main) !important; }
+        .nav-link { 
+            font-weight: 500; 
+            color: #64748b !important; 
+            margin: 0 12px; 
+            font-size: 0.95rem; 
+            position: relative; 
+            transition: color 0.3s ease; 
+            padding: 6px 0;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background-color: var(--blue-hover);
+            transition: width 0.3s ease, left 0.3s ease;
+        }
+        .nav-link:hover::after, .nav-link.active::after {
+            width: 100%;
+            left: 0;
+        }
+        .nav-link:hover, .nav-link.active { color: #1e293b !important; }
         
-        /* Search Form */
-        .search-form { width: 100%; max-width: 400px; position: relative; }
-        .search-input { background-color: #f8f9fa; border: 1px solid #eee; font-size: 0.9rem; padding-left: 15px; height: 40px; transition: 0.3s; }
-        .search-input:focus { background-color: white; border-color: var(--blue-main); box-shadow: 0 0 0 3px rgba(174, 226, 255, 0.1); }
-        .btn-search { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: #999; border: none; background: transparent; padding: 5px 10px; }
-        .btn-search:hover { color: var(--blue-main); }
+        /* Premium Search Input */
+        .search-form { width: 100%; max-width: 380px; position: relative; }
+        .search-input { 
+            background-color: #f1f5f9; 
+            border: 1px solid transparent; 
+            font-size: 0.9rem; 
+            padding-left: 20px; 
+            padding-right: 45px; 
+            height: 42px; 
+            transition: all 0.3s ease; 
+            border-radius: 50px;
+        }
+        .search-input:focus { 
+            background-color: white; 
+            border-color: var(--blue-main); 
+            box-shadow: 0 8px 25px rgba(174, 226, 255, 0.25); 
+        }
+        .btn-search { 
+            position: absolute; 
+            right: 15px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            color: #64748b; 
+            border: none; 
+            background: transparent; 
+            padding: 0;
+            font-size: 1.05rem;
+            transition: color 0.2s;
+        }
+        .btn-search:hover { color: var(--blue-hover); }
 
         /* Icon Buttons */
-        .icon-group { display: flex; align-items: center; gap: 10px; }
+        .icon-group { display: flex; align-items: center; gap: 12px; }
         .icon-btn { 
-            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; 
-            border-radius: 50%; background: #fff; color: #444; border: 1px solid #eee; 
-            transition: 0.2s; position: relative; text-decoration: none; font-size: 1.1rem;
+            width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; 
+            border-radius: 50%; background: #f1f5f9; color: #475569; border: none; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; text-decoration: none; font-size: 1.15rem;
         }
-        .icon-btn:hover { background: var(--blue-main); color: white; border-color: var(--blue-main); transform: translateY(-2px); box-shadow: 0 4px 10px rgba(174, 226, 255, 0.3); }
+        .icon-btn:hover { 
+            background: var(--blue-hover); 
+            color: white; 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 20px rgba(127, 181, 255, 0.4); 
+        }
         
         /* Badge Count */
         .badge-count { 
-            background-color: var(--blue-main); color: #444; 
-            font-size: 0.6rem; font-weight: bold; 
-            position: absolute; top: -5px; right: -5px; 
-            min-width: 18px; height: 18px; 
-            border-radius: 50%; border: 2px solid white; 
-            display: flex; align-items: center; justify-content: center;
+            background-color: #ef4444; 
+            color: white; 
+            font-size: 0.65rem; 
+            font-weight: 800; 
+            position: absolute; 
+            top: -2px; 
+            right: -2px; 
+            min-width: 18px; 
+            height: 18px; 
+            border-radius: 50%; 
+            border: 2px solid white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
         }
 
-        /* Buttons */
-        .btn-auth { background: var(--blue-main); color: #444 !important; border-radius: 50px; padding: 8px 24px; font-weight: 500; text-decoration: none; box-shadow: 0 4px 12px rgba(174, 226, 255, 0.4); transition: 0.3s; font-size: 0.9rem; }
-        .btn-auth:hover { background: var(--blue-hover); color: white !important; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(174, 226, 255, 0.6); }
+        /* Authentication Button */
+        .btn-auth { 
+            background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%); 
+            color: #fff !important; 
+            border-radius: 50px; 
+            padding: 8px 24px; 
+            font-weight: 600; 
+            text-decoration: none; 
+            box-shadow: 0 6px 18px rgba(174, 226, 255, 0.4); 
+            transition: all 0.3s ease; 
+            font-size: 0.9rem; 
+            border: none;
+        }
+        .btn-auth:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(127, 181, 255, 0.55); 
+            color: #fff !important;
+        }
 
         .hidden { display: none !important; }
         
-        /* Dropdown User */
-        .dropdown-menu { border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 15px; padding: 10px; margin-top: 10px; }
-        .dropdown-item { border-radius: 8px; padding: 8px 15px; font-size: 0.9rem; transition: 0.2s; }
-        .dropdown-item:hover { background-color: #F0F8FF; color: var(--blue-main); }
+        /* Dropdown User Menu */
+        .dropdown-menu { 
+            border: 1px solid rgba(0,0,0,0.03); 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
+            border-radius: 16px; 
+            padding: 8px; 
+            margin-top: 12px; 
+        }
+        .dropdown-item { border-radius: 10px; padding: 10px 18px; font-size: 0.9rem; font-weight: 500; color: #475569; transition: all 0.2s; }
+        .dropdown-item i { font-size: 1.05rem; color: #94a3b8; transition: color 0.2s; }
+        .dropdown-item:hover { background-color: #f1f5f9; color: var(--blue-hover); }
+        .dropdown-item:hover i { color: var(--blue-hover); }
         .dropdown-item.text-danger:hover { background-color: #fee2e2; color: #dc3545; }
+        .dropdown-item.text-danger:hover i { color: #dc3545; }
 
-        /* Mobile Responsive */
+        /* Toggler Icon */
+        .navbar-toggler {
+            border: none;
+            padding: 8px;
+            background: #f1f5f9;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+        .navbar-toggler:focus {
+            box-shadow: none;
+            background: #e2e8f0;
+        }
+
+        /* Mobile Responsive UI/UX Overhauls */
         @media (max-width: 991px) { 
-            .search-form { max-width: 100%; margin: 15px 0; } 
-            .nav-link { margin: 5px 0; padding: 10px 0; border-bottom: 1px solid #f8f8f8; }
-            .icon-group { justify-content: center; margin-top: 15px; }
-            .navbar-toggler { border: none; padding: 5px; }
-            .navbar-toggler:focus { box-shadow: none; }
+            .navbar-collapse {
+                background: white;
+                border-radius: 20px;
+                padding: 20px;
+                box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+                margin-top: 15px;
+                border: 1px solid rgba(0,0,0,0.03);
+            }
+            .search-form { max-width: 100%; margin: 10px 0 15px 0; } 
+            .nav-link { 
+                margin: 5px 0; 
+                padding: 12px 10px; 
+                border-bottom: 1px solid #f1f5f9; 
+            }
+            .nav-link::after { display: none; }
+            .icon-group { 
+                position: relative;
+                justify-content: center; 
+                margin-top: 15px; 
+                gap: 15px; 
+            }
+            /* จัดการดรอปดาวน์ผู้ใช้งานบนหน้าจอมือถือให้สวยงามลอยเต็มกว้าง */
+            .icon-group .dropdown {
+                position: static;
+            }
+            .icon-group .dropdown-menu {
+                position: absolute !important;
+                top: 55px !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                transform: none !important;
+                border-radius: 16px;
+                box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+                border: 1px solid #f1f5f9;
+                padding: 10px;
+                z-index: 1100;
+            }
+            .dropdown-item {
+                padding: 12px 18px;
+                font-size: 0.95rem;
+                border-bottom: 1px solid #f8fafc;
+            }
+            .dropdown-item:last-child {
+                border-bottom: none;
+            }
+            .btn-auth { width: 100%; text-align: center; margin-left: 0 !important; margin-top: 10px; }
+        }
+
+        /* Global Premium Preloader & Transition Loader Styles (Inline fallback to bypass cache) */
+        .preloader-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 99999 !important;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .preloader-overlay.active {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        .preloader-content {
+            text-align: center !important;
+            width: 280px !important;
+            background: white !important;
+            padding: 30px !important;
+            border-radius: 24px !important; /* var(--radius-lg) fallback */
+            box-shadow: 0 20px 40px -10px rgba(127, 181, 255, 0.22) !important; /* var(--shadow-lg) fallback */
+            border: 1px solid rgba(255,255,255,0.8) !important;
+        }
+        .preloader-spinner {
+            width: 55px !important;
+            height: 55px !important;
+            border: 5px solid #f1f5f9 !important;
+            border-top-color: var(--blue-hover) !important;
+            border-bottom-color: var(--blue-main) !important;
+            border-radius: 50% !important;
+            margin: 0 auto 20px !important;
+            animation: loader-spin 1s cubic-bezier(0.55, 0.055, 0.675, 0.19) infinite !important;
+        }
+        @keyframes loader-spin {
+            to { transform: rotate(360deg); }
+        }
+        .preloader-text {
+            font-weight: 600 !important;
+            color: var(--text-main, #1E293B) !important;
+            font-size: 0.95rem !important;
+            margin-bottom: 12px !important;
+        }
+        .preloader-progress-bar {
+            width: 100% !important;
+            height: 5px !important;
+            background-color: #e2e8f0 !important;
+            border-radius: 10px !important;
+            overflow: hidden !important;
+            margin-bottom: 6px !important;
+        }
+        .preloader-progress-fill {
+            width: 0%;
+            height: 100% !important;
+            background: linear-gradient(90deg, var(--blue-main), var(--blue-hover)) !important;
+            border-radius: 10px !important;
+            transition: width 0.3s ease-out !important;
+        }
+        .preloader-percentage {
+            font-size: 0.8rem !important;
+            font-weight: 700 !important;
+            color: #64748B !important; /* var(--text-secondary) fallback */
         }
     </style>
     
     <?php if(isset($extra_css)) echo $extra_css; ?>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.3">
     <script>
+        // ฟังก์ชันแปลงชื่อไฟล์หน้าเว็บเป็นชื่อภาษาไทยที่เข้าใจง่าย
+        window.getPageNameThai = (urlStr) => {
+            try {
+                const url = new URL(urlStr, window.location.href);
+                const file = url.pathname.split('/').pop();
+                if (!file || file === 'index.php') return 'หน้าแรก';
+                if (file === 'about.php') return 'เกี่ยวกับเรา';
+                if (file === 'contact.php') return 'ติดต่อสอบถาม';
+                if (file === 'cart.php') return 'ตะกร้าสินค้า';
+                if (file === 'product_detail.php') return 'รายละเอียดสินค้า';
+                if (file === 'profile.php') return 'ข้อมูลส่วนตัว';
+                if (file === 'my_orders.php') return 'รายการสั่งซื้อ';
+                if (file === 'wishlist.php') return 'รายการโปรด';
+                if (file === 'login.php') return 'หน้าเข้าสู่ระบบ';
+                if (file.startsWith('admin_dashboard.php')) return 'แดชบอร์ดผู้ดูแล';
+                if (file.startsWith('admin')) return 'หน้าควบคุมแอดมิน';
+                return 'หน้าหลัก';
+            } catch (e) {
+                return 'หน้าเว็บ';
+            }
+        };
+
+        // ฟังก์ชันคืนค่าข้อความอัปเดตข้อมูลตามความคืบหน้า (เปอร์เซ็นต์)
+        window.getLoadingStatusMessage = (progress, pageThai) => {
+            if (progress < 25) return `กำลังเชื่อมต่อเซิร์ฟเวอร์เพื่อเปิด ${pageThai}...`;
+            if (progress < 55) return `กำลังดึงข้อมูลโครงสร้าง ${pageThai}...`;
+            if (progress < 85) return `กำลังดึงข้อมูลองค์ประกอบและรูปภาพ...`;
+            if (progress < 100) return `กำลังโหลดส่วนเสริมดีไซน์พาสเทล...`;
+            return `ดาวน์โหลดข้อมูลเสร็จสิ้น! กำลังแสดงผล...`;
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
             // ดักจับการคลิกลิงก์เพื่อทำอนิเมชันตอนย้ายหน้า
             const links = document.querySelectorAll('a');
@@ -112,6 +359,17 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     return;
                 }
 
+                // ตรวจสอบว่าเป็นแค่การคลิกเพื่อเลื่อนจอไปยังสมอ (#) บนหน้าเดิมหรือไม่
+                try {
+                    const url = new URL(link.href);
+                    const currentUrl = new URL(window.location.href);
+                    const pathL = url.pathname.replace(/index\.php$/, '').replace(/\/$/, '');
+                    const pathC = currentUrl.pathname.replace(/index\.php$/, '').replace(/\/$/, '');
+                    if (pathL === pathC && url.hash) {
+                        return; // ข้ามการเปลี่ยนหน้าและอนิเมชันเฟด
+                    }
+                } catch (e) {}
+
                 // เช็คว่าลิงก์นำไปยังโฮสต์เดียวกันหรือไม่
                 const isInternal = link.hostname === window.location.hostname || !link.hostname;
                 if (!isInternal) return;
@@ -121,13 +379,55 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     e.preventDefault();
                     const targetUrl = link.href;
 
-                    // เริ่มการทำอนิเมชัน Fade-Out
-                    document.body.classList.add('fade-out');
+                    // แสดง Preloader กลางหน้าจอ
+                    const loader = document.getElementById('global-loader');
+                    const progressFill = document.getElementById('loader-progress');
+                    const percentageText = document.getElementById('loader-percentage');
+                    const statusLabel = document.getElementById('loader-text');
+                    
+                    if (loader && progressFill && percentageText) {
+                        const pageThai = typeof window.getPageNameThai === 'function' ? window.getPageNameThai(targetUrl) : 'หน้าหลัก';
+                        if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
+                            statusLabel.innerText = window.getLoadingStatusMessage(0, pageThai);
+                        }
 
-                    // ย้ายหน้าหลังจากอนิเมชันจบ (300ms)
-                    setTimeout(() => {
-                        window.location.href = targetUrl;
-                    }, 300);
+                        loader.classList.remove('hidden');
+                        loader.classList.add('active');
+                        
+                        // จำลองแถบโหลดวิ่งก่อนย้ายจริง (Simulated Progress)
+                        let progress = 0;
+                        const interval = setInterval(() => {
+                            if (progress < 90) {
+                                progress += Math.floor(Math.random() * 20) + 10;
+                                if (progress > 90) progress = 90;
+                                progressFill.style.width = progress + '%';
+                                percentageText.innerText = progress + '%';
+                                if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
+                                    statusLabel.innerText = window.getLoadingStatusMessage(progress, pageThai);
+                                }
+                            } else {
+                                clearInterval(interval);
+                            }
+                        }, 80);
+
+                        // ทำการเปลี่ยนหน้าจริงหลังจากเริ่มหน่วงแถบโหลดเรียบร้อย
+                        setTimeout(() => {
+                            progressFill.style.width = '100%';
+                            percentageText.innerText = '100%';
+                            if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
+                                statusLabel.innerText = window.getLoadingStatusMessage(100, pageThai);
+                            }
+                            setTimeout(() => {
+                                window.location.href = targetUrl;
+                            }, 100);
+                        }, 400); // 400ms กำลังพอดีสำหรับการคลิกเปลี่ยนหน้าทั่วไป
+                    } else {
+                        // กรณีไม่มี Loader ให้เปลี่ยนหน้าทันที
+                        document.body.classList.add('fade-out');
+                        setTimeout(() => {
+                            window.location.href = targetUrl;
+                        }, 300);
+                    }
                 });
             });
 
@@ -201,15 +501,39 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             }
         });
 
-        // หากกด Back/Forward จากเบราว์เซอร์ ให้ลบคลาสออกเพื่อให้หน้าเว็บกลับมาแสดงผลปกติ
+        // หากกด Back/Forward จากเบราว์เซอร์ ให้ซ่อน Preloader และแสดงหน้าเพจปกติ
         window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                document.body.classList.remove('fade-out');
+            const loader = document.getElementById('global-loader');
+            if (loader) {
+                loader.classList.remove('active');
+                loader.classList.add('hidden');
+                
+                const progressFill = document.getElementById('loader-progress');
+                const percentageText = document.getElementById('loader-percentage');
+                const statusLabel = document.getElementById('loader-text');
+                if (progressFill && percentageText) {
+                    progressFill.style.width = '0%';
+                    percentageText.innerText = '0%';
+                    if (statusLabel) statusLabel.innerText = 'กำลังโหลดข้อมูล...';
+                }
             }
+            document.body.classList.remove('fade-out');
         });
     </script>
 </head>
 <body>
+
+<!-- Global Premium Preloader -->
+<div id="global-loader" class="preloader-overlay hidden">
+    <div class="preloader-content animate__animated animate__zoomIn">
+        <div class="preloader-spinner"></div>
+        <div class="preloader-text" id="loader-text">กำลังโหลดข้อมูล...</div>
+        <div class="preloader-progress-bar">
+            <div class="preloader-progress-fill" id="loader-progress"></div>
+        </div>
+        <div class="preloader-percentage" id="loader-percentage">0%</div>
+    </div>
+</div>
 
 <nav class="navbar navbar-expand-lg sticky-top glass-nav">
     <div class="container">
@@ -237,6 +561,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 <ul class="navbar-nav me-lg-3 text-center text-lg-start">
                     <li class="nav-item"><a class="nav-link" href="index.php">หน้าแรก</a></li>
                     <li class="nav-item"><a class="nav-link" href="index.php#shop">สินค้าทั้งหมด</a></li>
+                    <li class="nav-item"><a class="nav-link" href="demo_loader.php">ทดสอบตัวโหลด</a></li>
                 </ul>
 
                 <div class="icon-group">

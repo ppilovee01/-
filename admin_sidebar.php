@@ -1,17 +1,94 @@
 <?php
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
+<link rel="stylesheet" href="style.css?v=2.3">
 <style>
-    .sidebar { background: white; border-right: 1px solid #f0f0f0; padding: 30px 20px; }
+    .sidebar { background: white; border-right: 1px solid #f1f5f9; padding: 30px 20px; }
     @media (min-width: 768px) { .sidebar { min-height: 100vh; } }
-    .brand-logo { font-weight: 800; color: #333; font-size: 1.5rem; letter-spacing: -1px; }
-    .brand-logo span { color: #AEE2FF; }
-    .admin-badge { background: #333; color: white; font-size: 0.6rem; padding: 3px 8px; border-radius: 4px; vertical-align: middle; margin-left: 5px; letter-spacing: 1px; }
-    .nav-link { color: #777; padding: 12px 20px; border-radius: 12px; margin-bottom: 5px; transition: 0.3s; display: flex; align-items: center; font-weight: 500; text-decoration: none; }
-    .nav-link i { font-size: 1.2rem; margin-right: 12px; width: 25px; text-align: center; }
-    .nav-link:hover { background-color: #F0F8FF; color: #AEE2FF; transform: translateX(5px); }
-    .nav-link.active { background-color: #AEE2FF; color: white; box-shadow: 0 4px 10px rgba(174, 226, 255, 0.4); }
+    .brand-logo { font-weight: 800; color: #1e293b; font-size: 1.4rem; letter-spacing: -0.5px; }
+    .brand-logo span { color: #7FB5FF; }
+    .admin-badge { background: #7FB5FF; color: white; font-size: 0.65rem; padding: 4px 8px; border-radius: 6px; vertical-align: middle; margin-left: 5px; font-weight: 700; letter-spacing: 0.5px; }
+    .nav-link { color: #64748b; padding: 12px 20px; border-radius: 12px; margin-bottom: 5px; transition: all 0.3s ease; display: flex; align-items: center; font-weight: 500; text-decoration: none; }
+    .nav-link i { font-size: 1.25rem; margin-right: 12px; width: 25px; text-align: center; color: #94a3b8; transition: color 0.3s; }
+    .nav-link:hover { background-color: #f1f5f9; color: #7FB5FF; transform: translateX(4px); }
+    .nav-link:hover i { color: #7FB5FF; }
+    .nav-link.active { background-color: #7FB5FF; color: white; box-shadow: 0 8px 20px rgba(127, 181, 255, 0.35); }
+    .nav-link.active i { color: white; }
     .nav-link.text-danger:hover { background-color: #fee2e2; color: #dc3545; }
+    .nav-link.text-danger:hover i { color: #dc3545; }
+
+    /* ======== Mobile Premium Floating Menu Overrides ======== */
+    @media (max-width: 767px) {
+        /* ปรับสไตล์ปุ่ม toggle หน้าเพจแอดมินเดิมให้กลายเป็น Header Bar ติดขอบบนสุด */
+        button[data-bs-target="#sidebarMenu"] {
+            position: sticky !important;
+            top: 0;
+            z-index: 1050;
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border: none !important;
+            border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+            padding: 16px 20px !important;
+            font-size: 0 !important; /* ซ่อนตัวอักษรเดิม */
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 0 !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
+            text-align: left;
+            width: 100% !important;
+        }
+        
+        /* ใส่ชื่อร้าน/แบรนด์แอดมินจำลองฝั่งซ้ายของแถบ */
+        button[data-bs-target="#sidebarMenu"]::before {
+            content: 'Por Mae Bet Taled \00a0 Admin';
+            font-weight: 800;
+            font-size: 1.15rem;
+            color: #1e293b;
+            font-family: 'Kanit', sans-serif;
+            letter-spacing: -0.5px;
+        }
+
+        /* ปรับไอคอนแฮมเบอร์เกอร์ฝั่งขวา */
+        button[data-bs-target="#sidebarMenu"] i {
+            font-size: 1.5rem !important;
+            color: #7FB5FF !important;
+            margin: 0 !important;
+            order: 2;
+        }
+
+        /* ปรับเมนูที่ดร็อปลงมาให้ลอยทับเนื้อหา (Overlay) แทนการดันเนื้อหาลงด้านล่าง */
+        #sidebarMenu {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            z-index: 1040;
+            background: white;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-bottom: 3px solid #7FB5FF;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .sidebar {
+            padding: 20px !important;
+            border: none !important;
+            min-height: auto !important;
+        }
+
+        /* ซ่อนโลโก้ในลิสต์เมนูบนมือถือเนื่องจากไปแสดงที่แถบด้านบนแล้ว */
+        .sidebar .mb-5 {
+            display: none !important;
+        }
+        
+        /* ปรับปุ่มเมนูให้กดง่ายขึ้นในจอสัมผัส */
+        .nav-link {
+            padding: 14px 20px;
+            font-size: 1.05rem;
+        }
+    }
 </style>
 
 <div class="sidebar d-flex flex-column h-100">
