@@ -379,55 +379,54 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     e.preventDefault();
                     const targetUrl = link.href;
 
-                    // แสดง Preloader กลางหน้าจอ
-                    const loader = document.getElementById('global-loader');
-                    const progressFill = document.getElementById('loader-progress');
-                    const percentageText = document.getElementById('loader-percentage');
-                    const statusLabel = document.getElementById('loader-text');
-                    
-                    if (loader && progressFill && percentageText) {
-                        const pageThai = typeof window.getPageNameThai === 'function' ? window.getPageNameThai(targetUrl) : 'หน้าหลัก';
-                        if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
-                            statusLabel.innerText = window.getLoadingStatusMessage(0, pageThai);
-                        }
+                    // 1. สั่งเฟดบอดี้ (จอจางสีขาว) ทันทีเพื่อความสมูทในการเปลี่ยนหน้าเร็ว
+                    document.body.classList.add('fade-out');
 
-                        loader.classList.remove('hidden');
-                        loader.classList.add('active');
-                        
-                        // จำลองแถบโหลดวิ่งก่อนย้ายจริง (Simulated Progress)
-                        let progress = 0;
-                        const interval = setInterval(() => {
-                            if (progress < 90) {
-                                progress += Math.floor(Math.random() * 20) + 10;
-                                if (progress > 90) progress = 90;
-                                progressFill.style.width = progress + '%';
-                                percentageText.innerText = progress + '%';
-                                if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
-                                    statusLabel.innerText = window.getLoadingStatusMessage(progress, pageThai);
-                                }
-                            } else {
-                                clearInterval(interval);
-                            }
-                        }, 80);
+                    // เคลียร์ค่าตัวหน่วงเวลาเดิมหากมีตกค้าง
+                    if (window.loaderTimeout) clearTimeout(window.loaderTimeout);
+                    if (window.loaderInterval) clearInterval(window.loaderInterval);
 
-                        // ทำการเปลี่ยนหน้าจริงหลังจากเริ่มหน่วงแถบโหลดเรียบร้อย
-                        setTimeout(() => {
-                            progressFill.style.width = '100%';
-                            percentageText.innerText = '100%';
+                    // 2. ตั้งเวลาหน่วง 1.5 วินาที: หากหน้าเว็บยังไม่สลับ ค่อยเปิดตัวโหลด UI Load ขึ้นมา
+                    window.loaderTimeout = setTimeout(() => {
+                        const loader = document.getElementById('global-loader');
+                        const progressFill = document.getElementById('loader-progress');
+                        const percentageText = document.getElementById('loader-percentage');
+                        const statusLabel = document.getElementById('loader-text');
+
+                        if (loader) {
+                            // ดึงคลาสเฟดออกเพื่อให้เห็นการจำลองตัวโหลดกลางจออย่างชัดเจนไม่หม่นแสง
+                            document.body.classList.remove('fade-out');
+                            
+                            loader.classList.remove('hidden');
+                            loader.classList.add('active');
+                            
+                            const pageThai = typeof window.getPageNameThai === 'function' ? window.getPageNameThai(targetUrl) : 'หน้าหลัก';
                             if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
-                                statusLabel.innerText = window.getLoadingStatusMessage(100, pageThai);
+                                statusLabel.innerText = window.getLoadingStatusMessage(0, pageThai);
                             }
-                            setTimeout(() => {
-                                window.location.href = targetUrl;
-                            }, 100);
-                        }, 400); // 400ms กำลังพอดีสำหรับการคลิกเปลี่ยนหน้าทั่วไป
-                    } else {
-                        // กรณีไม่มี Loader ให้เปลี่ยนหน้าทันที
-                        document.body.classList.add('fade-out');
-                        setTimeout(() => {
-                            window.location.href = targetUrl;
-                        }, 300);
-                    }
+
+                            // เริ่มแสดงความคืบหน้าหลอดโหลดแบบจำลองกรณีหน้าเว็บโหลดช้าจริงๆ
+                            let progress = 0;
+                            window.loaderInterval = setInterval(() => {
+                                if (progress < 90) {
+                                    progress += Math.floor(Math.random() * 12) + 5;
+                                    if (progress > 90) progress = 90;
+                                    if (progressFill) progressFill.style.width = progress + '%';
+                                    if (percentageText) percentageText.innerText = progress + '%';
+                                    if (statusLabel && typeof window.getLoadingStatusMessage === 'function') {
+                                        statusLabel.innerText = window.getLoadingStatusMessage(progress, pageThai);
+                                    }
+                                } else {
+                                    clearInterval(window.loaderInterval);
+                                }
+                            }, 150);
+                        }
+                    }, 1500); // 1.5 วินาทีตามเงื่อนไขหากเว็บโหลดช้า
+
+                    // 3. เริ่มส่งคำขอเปลี่ยนหน้าของบราวเซอร์หลังจากคลิกและเฟดจอมารวม 150ms
+                    setTimeout(() => {
+                        window.location.href = targetUrl;
+                    }, 150);
                 });
             });
 

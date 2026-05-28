@@ -153,7 +153,7 @@ if (isset($_POST['save_note'])) {
                         <div class="d-flex justify-content-between mb-3 align-items-center">
                             <div>สถานะ: <span class="badge rounded-pill bg-secondary"><?= $st ?></span></div>
                             <?php if($row['payment_slip']): ?>
-                                <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill">๐Ÿ“ท สลิป</button>
+                                <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill">ดูสลิป</button>
                             <?php endif; ?>
                         </div>
 

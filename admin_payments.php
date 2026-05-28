@@ -7,26 +7,28 @@ date_default_timezone_set('Asia/Bangkok');
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-// --- Logic 1: เพิ่มขเน‰อมูล (Add) ---
+// --- Logic 1: เพิ่มข้อมูล (Add) ---
 if (isset($_POST['add'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $type = $_POST['type'];
     $num = mysqli_real_escape_string($conn, $_POST['account_number']);
+    $acc_name = mysqli_real_escape_string($conn, $_POST['account_name']);
+    $status = $_POST['status'];
     
-    $sql = "INSERT INTO payment_methods (name, type, account_number) VALUES ('$name', '$type', '$num')";
+    $sql = "INSERT INTO payment_methods (name, type, account_number, account_name, status) VALUES ('$name', '$type', '$num', '$acc_name', '$status')";
     if(mysqli_query($conn, $sql)) {
         header("Location: admin_payments.php"); exit();
     }
 }
 
-// --- Logic 2: ลบขเน‰อมูล (Delete) ---
+// --- Logic 2: ลบข้อมูล (Delete) ---
 if (isset($_GET['del'])) {
     $id = $_GET['del'];
     mysqli_query($conn, "DELETE FROM payment_methods WHERE id=$id");
     header("Location: admin_payments.php"); exit();
 }
 
-// --- Logic 3: เตรียมขเน‰อมูลเนเเน‰เน„ข (Fetch for Edit) ---
+// --- Logic 3: เตรียมข้อมูลแก้ไข (Fetch for Edit) ---
 $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = $_GET['edit'];
@@ -34,14 +36,16 @@ if (isset($_GET['edit'])) {
     $edit_data = mysqli_fetch_assoc($res);
 }
 
-// --- Logic 4: อัปവขเน‰อมูล (Update) ---
+// --- Logic 4: อัปเดตข้อมูล (Update) ---
 if (isset($_POST['update'])) {
     $id = $_POST['id'];
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $type = $_POST['type'];
     $num = mysqli_real_escape_string($conn, $_POST['account_number']);
+    $acc_name = mysqli_real_escape_string($conn, $_POST['account_name']);
+    $status = $_POST['status'];
 
-    $sql = "UPDATE payment_methods SET name='$name', type='$type', account_number='$num' WHERE id=$id";
+    $sql = "UPDATE payment_methods SET name='$name', type='$type', account_number='$num', account_name='$acc_name', status='$status' WHERE id=$id";
     if(mysqli_query($conn, $sql)) {
         header("Location: admin_payments.php"); exit();
     }
@@ -53,7 +57,7 @@ if (isset($_POST['update'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ช่องทางเŠำระแ‡ิน | Por Mae Bet Taled Admin</title>
+    <title>ช่องทางการชำระเงิน | Por Mae Bet Taled Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -97,22 +101,47 @@ if (isset($_POST['update'])) {
                             <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>">
                             
                             <div class="mb-2">
-                                <label class="small text-muted">ชื่อธนาคาร/ช่องทาง</label>
-                                <input type="text" name="name" class="form-control" value="<?= $edit_data['name'] ?? '' ?>" required>
+                                <label class="small text-muted fw-bold">เลือกธนาคาร / ช่องทางชำระเงิน</label>
+                                <select name="bank_select" id="bankSelect" class="form-select mb-2" onchange="toggleCustomBankName(this)">
+                                    <option value="ธนาคารกสิกรไทย" <?= ($edit_data['name'] ?? '') == 'ธนาคารกสิกรไทย' ? 'selected' : '' ?>>ธนาคารกสิกรไทย (KBANK)</option>
+                                    <option value="ธนาคารไทยพาณิชย์" <?= ($edit_data['name'] ?? '') == 'ธนาคารไทยพาณิชย์' ? 'selected' : '' ?>>ธนาคารไทยพาณิชย์ (SCB)</option>
+                                    <option value="ธนาคารกรุงไทย" <?= ($edit_data['name'] ?? '') == 'ธนาคารกรุงไทย' ? 'selected' : '' ?>>ธนาคารกรุงไทย (KTB)</option>
+                                    <option value="ธนาคารกรุงเทพ" <?= ($edit_data['name'] ?? '') == 'ธนาคารกรุงเทพ' ? 'selected' : '' ?>>ธนาคารกรุงเทพ (BBL)</option>
+                                    <option value="ธนาคารกรุงศรีอยุธยา" <?= ($edit_data['name'] ?? '') == 'ธนาคารกรุงศรีอยุธยา' ? 'selected' : '' ?>>ธนาคารกรุงศรีอยุธยา (BAY)</option>
+                                    <option value="ธนาคารทหารไทยธนชาต" <?= ($edit_data['name'] ?? '') == 'ธนาคารทหารไทยธนชาต' ? 'selected' : '' ?>>ธนาคารทหารไทยธนชาต (TTB)</option>
+                                    <option value="ธนาคารออมสิน" <?= ($edit_data['name'] ?? '') == 'ธนาคารออมสิน' ? 'selected' : '' ?>>ธนาคารออมสิน (GSB)</option>
+                                    <option value="พร้อมเพย์ (PromptPay)" <?= ($edit_data['name'] ?? '') == 'พร้อมเพย์ (PromptPay)' ? 'selected' : '' ?>>พร้อมเพย์ (PromptPay)</option>
+                                    <option value="เก็บเงินปลายทาง (COD)" <?= ($edit_data['name'] ?? '') == 'เก็บเงินปลายทาง (COD)' ? 'selected' : '' ?>>เก็บเงินปลายทาง (COD)</option>
+                                    <option value="custom" <?= (!empty($edit_data['name']) && !in_array($edit_data['name'], ['ธนาคารกสิกรไทย','ธนาคารไทยพาณิชย์','ธนาคารกรุงไทย','ธนาคารกรุงเทพ','ธนาคารกรุงศรีอยุธยา','ธนาคารทหารไทยธนชาต','ธนาคารออมสิน','พร้อมเพย์ (PromptPay)','เก็บเงินปลายทาง (COD)'])) ? 'selected' : '' ?>>อื่นๆ (ระบุเอง)</option>
+                                </select>
+                                <input type="text" name="name" id="customBankName" class="form-control" placeholder="ระบุชื่อธนาคาร/ช่องทางชำระเงิน" value="<?= $edit_data['name'] ?? '' ?>" required>
                             </div>
                             
                             <div class="mb-2">
-                                <label class="small text-muted">ประเภท</label>
+                                <label class="small text-muted fw-bold">ประเภท</label>
                                 <select name="type" class="form-select">
                                     <option value="bank" <?= ($edit_data['type'] ?? '') == 'bank' ? 'selected' : '' ?>>บัญชีธนาคาร</option>
-                                    <option value="promptpay" <?= ($edit_data['type'] ?? '') == 'promptpay' ? 'selected' : '' ?>>เžรเน‰อมแžยเนŒ (QR)</option>
-                                    <option value="cod" <?= ($edit_data['type'] ?? '') == 'cod' ? 'selected' : '' ?>>เก็บแ‡ินปลายทาง</option>
+                                    <option value="promptpay" <?= ($edit_data['type'] ?? '') == 'promptpay' ? 'selected' : '' ?>>promptpay (QR)</option>
+                                    <option value="cod" <?= ($edit_data['type'] ?? '') == 'cod' ? 'selected' : '' ?>>เก็บเงินปลายทาง</option>
                                 </select>
                             </div>
                             
+                            <div class="mb-2">
+                                <label class="small text-muted fw-bold">ชื่อบัญชี / ชื่อผู้รับโอน</label>
+                                <input type="text" name="account_name" class="form-control" value="<?= $edit_data['account_name'] ?? '' ?>" placeholder="เช่น นายสมชาย รักดี" required>
+                            </div>
+                            
+                            <div class="mb-2">
+                                <label class="small text-muted fw-bold">เลขบัญชี / เบอร์โทรพร้อมเพย์</label>
+                                <input type="text" name="account_number" class="form-control" value="<?= $edit_data['account_number'] ?? '' ?>" placeholder="ไม่จำเป็นสำหรับ COD">
+                            </div>
+
                             <div class="mb-3">
-                                <label class="small text-muted">เลขบัญชี/เบอร์พร้อมเพย์</label>
-                                <input type="text" name="account_number" class="form-control" value="<?= $edit_data['account_number'] ?? '' ?>">
+                                <label class="small text-muted fw-bold">สถานะการใช้งาน</label>
+                                <select name="status" class="form-select">
+                                    <option value="active" <?= ($edit_data['status'] ?? '') == 'active' ? 'selected' : '' ?>>เปิดใช้งาน (Active)</option>
+                                    <option value="inactive" <?= ($edit_data['status'] ?? '') == 'inactive' ? 'selected' : '' ?>>ปิดใช้งาน (Inactive)</option>
+                                </select>
                             </div>
                             
                             <?php if($edit_data): ?>
@@ -121,7 +150,7 @@ if (isset($_POST['update'])) {
                                     <a href="admin_payments.php" class="btn btn-secondary rounded-3">ยกเลิก</a>
                                 </div>
                             <?php else: ?>
-                                <button type="submit" name="add" class="btn btn-dark w-100 rounded-3">บันทึก</button>
+                                <button type="submit" name="add" class="btn btn-dark w-100 rounded-3">บันทึกช่องทาง</button>
                             <?php endif; ?>
                         </form>
                     </div>
@@ -135,7 +164,9 @@ if (isset($_POST['update'])) {
                                     <tr>
                                         <th>ชื่อช่องทาง</th>
                                         <th>ประเภท</th>
+                                        <th>ชื่อบัญชี</th>
                                         <th>เลขบัญชี/เบอร์พร้อมเพย์</th>
+                                        <th>สถานะ</th>
                                         <th class="text-end">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -144,13 +175,28 @@ if (isset($_POST['update'])) {
                                     $res = mysqli_query($conn, "SELECT * FROM payment_methods"); 
                                     while($row = mysqli_fetch_assoc($res)): 
                                         $is_editing = ($edit_data && $edit_data['id'] == $row['id']) ? 'table-warning' : '';
+                                        
+                                        // ตั้งค่า Badge ตามประเภท
+                                        $type_badge = 'bg-light text-dark border';
+                                        if($row['type'] == 'promptpay') $type_badge = 'bg-info-subtle text-info border border-info-subtle';
+                                        elseif($row['type'] == 'cod') $type_badge = 'bg-warning-subtle text-warning border border-warning-subtle';
+                                        
+                                        // ตั้งค่า Badge ตามสถานะ
+                                        $status_badge = 'bg-success';
+                                        $status_text = 'เปิดใช้งาน';
+                                        if(($row['status'] ?? 'active') == 'inactive') {
+                                            $status_badge = 'bg-secondary';
+                                            $status_text = 'ปิดใช้งาน';
+                                        }
                                     ?>
                                     <tr class="<?= $is_editing ?>">
                                         <td class="fw-bold"><?= $row['name'] ?></td>
-                                        <td><span class="badge bg-light text-dark border"><?= $row['type'] ?></span></td>
-                                        <td><?= $row['account_number'] ?></td>
+                                        <td><span class="badge <?= $type_badge ?>"><?= $row['type'] ?></span></td>
+                                        <td><?= !empty($row['account_name']) ? $row['account_name'] : '-' ?></td>
+                                        <td><?= !empty($row['account_number']) ? $row['account_number'] : '-' ?></td>
+                                        <td><span class="badge <?= $status_badge ?>"><?= $status_text ?></span></td>
                                         <td class="text-end">
-                                            <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1" title="เนเเน‰เน„ข">
+                                            <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1" title="แก้ไข">
                                                 <i class="bi bi-pencil-fill"></i>
                                             </a>
                                             <a href="?del=<?= $row['id'] ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" title="ลบ" onclick="return confirm('ยืนยันการลบ?');">
@@ -168,6 +214,41 @@ if (isset($_POST['update'])) {
         </div>
     </div>
 </div>
+
+<script>
+function toggleCustomBankName(select) {
+    const customInput = document.getElementById('customBankName');
+    const typeSelect = document.querySelector('select[name="type"]');
+    
+    if (select.value === 'custom') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customInput.style.display = 'none';
+        customInput.value = select.value;
+        customInput.required = false;
+        
+        // ออโต้เลือกประเภทช่องทางชำระเงินตามชื่อเพื่อช่วยให้แอดมินทำงานง่ายขึ้น
+        if (typeSelect) {
+            if (select.value === 'พร้อมเพย์ (PromptPay)') {
+                typeSelect.value = 'promptpay';
+            } else if (select.value === 'เก็บเงินปลายทาง (COD)') {
+                typeSelect.value = 'cod';
+            } else {
+                typeSelect.value = 'bank';
+            }
+        }
+    }
+}
+
+// เรียกใช้ทันทีที่โหลดหน้าเสร็จเพื่อกำหนดสถานะฟอร์มเบื้องต้น
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('bankSelect');
+    if (select) {
+        toggleCustomBankName(select);
+    }
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -333,24 +333,36 @@ include 'header.php';
                                     <?php $pq=mysqli_query($conn,"SELECT * FROM payment_methods WHERE status='active'"); while($pm=mysqli_fetch_assoc($pq)): ?>
                                     <div class="col-6 col-md-4">
                                         <label class="w-100">
-                                            <input type="radio" name="payment_method_id" value="<?=$pm['id']?>" class="d-none" data-type="<?=$pm['type']?>" data-acc="<?=$pm['account_number']?>" onchange="updatePaymentUI(this)">
+                                            <input type="radio" name="payment_method_id" value="<?=$pm['id']?>" class="d-none" data-type="<?=$pm['type']?>" data-acc="<?=$pm['account_number']?>" data-holder="<?=htmlspecialchars($pm['account_name'] ?? '')?>" data-name="<?=htmlspecialchars($pm['name'])?>" onchange="updatePaymentUI(this)">
                                             <div class="option-card text-center py-3">
                                                 <i class="bi bi-check-circle-fill check-icon"></i>
-                                                <i class="bi bi-wallet2 fs-2 d-block mb-1" style="color:#AEE2FF"></i>
+                                                <?php 
+                                                $icon_class = 'bi-wallet2';
+                                                if ($pm['type'] == 'promptpay') $icon_class = 'bi-qr-code-scan';
+                                                elseif ($pm['type'] == 'bank') $icon_class = 'bi-bank';
+                                                elseif ($pm['type'] == 'cod') $icon_class = 'bi-cash-coin';
+                                                ?>
+                                                <i class="bi <?= $icon_class ?> fs-2 d-block mb-1" style="color:#AEE2FF"></i>
                                                 <div class="fw-bold small"><?=$pm['name']?></div>
                                             </div>
                                         </label>
                                     </div>
                                     <?php endwhile; ?>
                                 </div>
-                                <div id="qrSection" class="info-box">
-                                    <h6 class="fw-bold mb-2">สแกน QR Code</h6>
-                                    <img id="qrImg" src="" style="width:150px; mix-blend-mode:multiply;" class="mb-2">
-                                    <div class="text-danger fw-bold">ยอดโอน: ฿<span id="qr-total"><?= number_format($final, 2) ?></span></div>
+                                <div id="qrSection" class="info-box" style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 20px; display: none;">
+                                    <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-qr-code-scan text-primary me-2"></i>สแกน QR Code พร้อมเพย์</h6>
+                                    <div class="d-inline-block bg-white p-3 border rounded-4 mb-2 shadow-sm" style="border-color: #E2E8F0 !important;">
+                                        <img id="qrImg" src="" style="width:230px; height:230px; object-fit:contain;" class="d-block mx-auto">
+                                    </div>
+                                    <div class="text-dark fw-bold mb-1" id="qr-acc-holder" style="font-size:0.95rem;"></div>
+                                    <div class="text-muted small mb-2" id="qr-acc-num"></div>
+                                    <div class="text-danger fw-bold" style="font-size:1.15rem;">ยอดโอน: ฿<span id="qr-total"><?= number_format($final, 2) ?></span></div>
                                 </div>
-                                <div id="bankSection" class="info-box">
-                                    <h6 class="fw-bold text-muted mb-1">เลขบัญชีธนาคาร</h6>
-                                    <div id="bankAcc" class="fs-4 fw-bold text-primary my-2"></div>
+                                <div id="bankSection" class="info-box" style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 20px; display: none;">
+                                    <h6 class="fw-bold text-muted mb-2"><i class="bi bi-bank text-primary me-2"></i>รายละเอียดการโอนเงินธนาคาร</h6>
+                                    <div class="fs-5 fw-bold text-dark mb-1" id="bankName"></div>
+                                    <div id="bankAcc" class="fs-3 fw-bold text-primary my-2" style="letter-spacing: 0.5px;"></div>
+                                    <div class="small text-muted" style="font-size:0.95rem;">ชื่อบัญชี: <span id="bankHolder" class="fw-bold text-dark"></span></div>
                                 </div>
                                 <div id="slipUploadSection" class="mt-3" style="display:none;">
                                     <label class="form-label fw-bold text-dark small">แนบสลิปโอนเงิน</label>
@@ -546,9 +558,57 @@ function removeItem(id) {
     });
 }
 
+function generatePromptPayPayload(target, amount) {
+    const sanitizedId = target.replace(/[^0-9]/g, '');
+    let subtag = '';
+    if (sanitizedId.length === 10) {
+        const formattedPhone = '0066' + sanitizedId.substring(1);
+        subtag = '0113' + formattedPhone;
+    } else if (sanitizedId.length === 13) {
+        subtag = '0213' + sanitizedId;
+    } else {
+        subtag = '03' + String(sanitizedId.length).padStart(2, '0') + sanitizedId;
+    }
+    
+    const merchantInfo = '0016A000000677010111' + subtag;
+    const merchantLen = String(merchantInfo.length).padStart(2, '0');
+    const tag29 = '29' + merchantLen + merchantInfo;
+    
+    const floatAmount = parseFloat(amount);
+    const hasAmount = !isNaN(floatAmount) && floatAmount > 0;
+    const poiMethod = hasAmount ? '12' : '11';
+    
+    let payload = '000201' + '0102' + poiMethod + tag29 + '5802TH5303764';
+    
+    if (hasAmount) {
+        const amountStr = floatAmount.toFixed(2);
+        const amountLen = String(amountStr.length).padStart(2, '0');
+        payload += '54' + amountLen + amountStr;
+    }
+    
+    payload += '6304';
+    
+    let crc = 0xFFFF;
+    for (let i = 0; i < payload.length; i++) {
+        crc ^= (payload.charCodeAt(i) << 8);
+        for (let j = 0; j < 8; j++) {
+            if (crc & 0x8000) {
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+            } else {
+                crc = (crc << 1) & 0xFFFF;
+            }
+        }
+    }
+    const crcHex = (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    
+    return payload + crcHex;
+}
+
 function updatePaymentUI(radio) {
     const type = radio.dataset.type;
-    const acc = radio.dataset.acc;
+    const acc = radio.dataset.acc || '';
+    const holder = radio.dataset.holder || '';
+    const name = radio.dataset.name || '';
     const total = document.getElementById('final_total').innerText.replace(/,/g, '');
     
     document.getElementById('qrSection').style.display = 'none';
@@ -556,11 +616,24 @@ function updatePaymentUI(radio) {
     document.getElementById('slipUploadSection').style.display = 'none';
 
     if (type === 'promptpay') {
-        document.getElementById('qrImg').src = `https://promptpay.io/${acc}/${total}.png`;
+        const floatTotal = parseFloat(total);
+        const sanitizedTotal = isNaN(floatTotal) ? '0.00' : floatTotal.toFixed(2);
+        
+        // Generate standard EMVCo payload
+        const ppPayload = generatePromptPayPayload(acc, sanitizedTotal);
+        
+        // Render QR code using high-reliability standard QR server
+        document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(ppPayload)}`;
+        document.getElementById('qr-acc-holder').innerText = 'ชื่อบัญชี: ' + (holder || '-');
+        document.getElementById('qr-acc-num').innerText = 'เบอร์โทรศัพท์/เลขพร้อมเพย์: ' + acc;
+        
         document.getElementById('qrSection').style.display = 'block';
         document.getElementById('slipUploadSection').style.display = 'block';
     } else if (type === 'bank') {
+        document.getElementById('bankName').innerText = name;
         document.getElementById('bankAcc').innerText = acc;
+        document.getElementById('bankHolder').innerText = holder || '-';
+        
         document.getElementById('bankSection').style.display = 'block';
         document.getElementById('slipUploadSection').style.display = 'block';
     }
