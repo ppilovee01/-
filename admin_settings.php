@@ -5,15 +5,32 @@ include 'db.php';
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
 // --- การบันทึกข้อมูลตั้งค่าร้านค้า ---
-if (isset($_POST['save_settings'])) {
+if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $name = mysqli_real_escape_string($conn, $_POST['shop_name']);
     $addr = mysqli_real_escape_string($conn, $_POST['address']);
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     $email = mysqli_real_escape_string($conn, $_POST['shop_email']);
     $remark = mysqli_real_escape_string($conn, $_POST['print_remark']);
+    $smtp_host = mysqli_real_escape_string($conn, $_POST['smtp_host']);
+    $smtp_port = intval($_POST['smtp_port']);
+    $smtp_user = mysqli_real_escape_string($conn, $_POST['smtp_user']);
+    $smtp_pass = str_replace(' ', '', $_POST['smtp_pass']);
+    $smtp_pass = mysqli_real_escape_string($conn, $smtp_pass);
+    $smtp_secure = mysqli_real_escape_string($conn, $_POST['smtp_secure']);
     
     // 1. อัปเดตข้อมูลข้อความ
-    $sql = "UPDATE shop_settings SET shop_name='$name', address='$addr', phone='$phone', shop_email='$email', print_remark='$remark' WHERE id=1";
+    $sql = "UPDATE shop_settings SET 
+            shop_name='$name', 
+            address='$addr', 
+            phone='$phone', 
+            shop_email='$email', 
+            print_remark='$remark', 
+            smtp_host='$smtp_host', 
+            smtp_port='$smtp_port', 
+            smtp_user='$smtp_user', 
+            smtp_pass='$smtp_pass', 
+            smtp_secure='$smtp_secure' 
+            WHERE id=1";
     mysqli_query($conn, $sql);
 
     // 2. อัปเดต Icon (ถ้ามีการอัปโหลดใหม่)
@@ -28,7 +45,17 @@ if (isset($_POST['save_settings'])) {
         }
     }
 
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกข้อมูลร้านค้าเรียบร้อยแล้ว', 'icon'=>'success'];
+    if (isset($_POST['test_smtp'])) {
+        include 'mail_sender.php';
+        $res = send_test_email($conn);
+        if ($res === true) {
+            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ทดสอบการเชื่อมต่อ SMTP สำเร็จแล้ว! มีอีเมลทดสอบส่งไปยังกล่องจดหมายของคุณเรียบร้อย', 'icon'=>'success'];
+        } else {
+            $_SESSION['swal'] = ['title'=>'เกิดข้อผิดพลาด', 'text'=>'เชื่อมต่อล้มเหลว: ' . $res, 'icon'=>'error'];
+        }
+    } else {
+        $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกข้อมูลร้านค้าเรียบร้อยแล้ว', 'icon'=>'success'];
+    }
     header("Location: admin_settings.php"); exit();
 }
 
@@ -110,9 +137,52 @@ $icon_show = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "asset
                         <textarea name="print_remark" class="form-control" rows="2" placeholder="เช่น กรุณาถ่ายวิดีโอขณะเปิดกล่องพัสดุ"><?= htmlspecialchars($shop['print_remark']) ?></textarea>
                     </div>
 
-                    <button type="submit" name="save_settings" class="btn btn-pastel-blue rounded-pill px-4 w-100 py-2 fw-bold shadow-sm">
-                        <i class="bi bi-save me-1"></i> บันทึกข้อมูลทั้งหมด
-                    </button>
+                    <hr class="my-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-envelope-at-fill me-1"></i> ตั้งค่าอีเมลส่งแจ้งเตือน (SMTP Settings)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold text-muted">SMTP Server Host</label>
+                            <input type="text" name="smtp_host" class="form-control" value="<?= htmlspecialchars($shop['smtp_host'] ?? '') ?>" placeholder="เช่น smtp.gmail.com">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label small fw-bold text-muted">SMTP Port</label>
+                            <input type="number" name="smtp_port" class="form-control" value="<?= htmlspecialchars($shop['smtp_port'] ?? '587') ?>" placeholder="เช่น 587">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label small fw-bold text-muted">ประเภทความปลอดภัย</label>
+                            <select name="smtp_secure" class="form-select">
+                                <option value="tls" <?= ($shop['smtp_secure'] ?? '') == 'tls' ? 'selected' : '' ?>>TLS (แนะนำ)</option>
+                                <option value="ssl" <?= ($shop['smtp_secure'] ?? '') == 'ssl' ? 'selected' : '' ?>>SSL</option>
+                                <option value="none" <?= ($shop['smtp_secure'] ?? '') == 'none' ? 'selected' : '' ?>>ไม่มี (None)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold text-muted">SMTP Username (Email)</label>
+                            <input type="email" name="smtp_user" class="form-control" value="<?= htmlspecialchars($shop['smtp_user'] ?? '') ?>" placeholder="เช่น shop@gmail.com">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label small fw-bold text-muted">SMTP Password (หรือ App Password)</label>
+                            <div class="input-group">
+                                <input type="password" name="smtp_pass" id="smtpPassInput" class="form-control" value="<?= htmlspecialchars($shop['smtp_pass'] ?? '') ?>" placeholder="รหัสผ่านอีเมลจัดส่ง">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('smtpPassInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <button type="submit" name="save_settings" class="btn btn-pastel-blue rounded-pill px-4 w-100 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-save me-1"></i> บันทึกข้อมูลทั้งหมด
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" name="test_smtp" class="btn btn-outline-primary rounded-pill px-4 w-100 py-2 fw-bold shadow-sm bg-white" style="border-color: #AEE2FF; color: #444;">
+                                <i class="bi bi-send-check me-1"></i> ทดสอบการส่งอีเมล
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
@@ -135,6 +205,20 @@ $icon_show = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "asset
     function previewIcon(event) {
         const output = document.getElementById('iconPreview');
         output.src = URL.createObjectURL(event.target.files[0]);
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
     }
 </script>
 </body>

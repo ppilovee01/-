@@ -1,35 +1,63 @@
 <?php
 session_start();
 include 'db.php';
+include 'mail_sender.php';
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
-// --- Logic: อัปവสถานะ (Anti-F5 Fixed) ---
+// --- Logic: อัปวสถานะ (Anti-F5 Fixed) ---
 if (isset($_POST['update_status'])) {
     $oid = $_POST['order_id'];
     $status = $_POST['status'];
     
-    // คืนสตเน‡อเถ้าดยกเลิก
+    // คืนสต็อกกรณีที่ยกเลิกออเดอร์
     if ($status == 'cancelled') {
         $chk = mysqli_fetch_assoc(mysqli_query($conn, "SELECT status FROM orders WHERE id='$oid'"));
         if ($chk['status'] != 'cancelled') {
             $items = mysqli_query($conn, "SELECT product_id, quantity FROM order_items WHERE order_id='$oid'");
             while ($item = mysqli_fetch_assoc($items)) {
-                mysqli_query($conn, "UPDATE products SET stock = stock + {$item['quantity']} WHERE id='{$item['product_id']}'");
+                $pid = $item['product_id'];
+                $qty = $item['quantity'];
+                
+                // 1. คืนสต็อกลงในล็อตล่าสุดของสินค้าตัวนั้น
+                $lot_q = mysqli_query($conn, "SELECT id FROM product_lots WHERE product_id='$pid' ORDER BY imported_at DESC LIMIT 1");
+                if ($lot_q && mysqli_num_rows($lot_q) > 0) {
+                    $lot = mysqli_fetch_assoc($lot_q);
+                    $lot_id = $lot['id'];
+                    mysqli_query($conn, "UPDATE product_lots SET stock = stock + $qty WHERE id='$lot_id'");
+                } else {
+                    mysqli_query($conn, "INSERT INTO product_lots (product_id, lot_number, import_cost, price, stock, imported_at) VALUES ('$pid', 'RETURNED', 0, 0, $qty, NOW())");
+                }
+                
+                // 2. ซิงค์ตารางผลิตภัณฑ์หลัก (เหมือนฟังก์ชัน sync_product_stock ใน admin.php)
+                $q_stock = mysqli_query($conn, "SELECT SUM(stock) as total_stock FROM product_lots WHERE product_id='$pid' AND stock > 0");
+                $tot = mysqli_fetch_assoc($q_stock)['total_stock'] ?? 0;
+                
+                $q_price = mysqli_query($conn, "SELECT price FROM product_lots WHERE product_id='$pid' AND stock > 0 ORDER BY imported_at ASC LIMIT 1");
+                $r_price = mysqli_fetch_assoc($q_price);
+                
+                if ($tot > 0 && $r_price) {
+                    $price = $r_price['price'];
+                    mysqli_query($conn, "UPDATE products SET stock='$tot', price='$price' WHERE id='$pid'");
+                } else {
+                    mysqli_query($conn, "UPDATE products SET stock=0 WHERE id='$pid'");
+                }
             }
         }
     }
     mysqli_query($conn, "UPDATE orders SET status = '$status' WHERE id = '$oid'");
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปവสถานะเรียบร้อย', 'icon'=>'success'];
+    send_order_email($conn, $oid);
+    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปวสถานะเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
 
-// --- Logic: บันทึกเลขเžัสดุ ---
+// --- Logic: บันทึกเลขพัสดุ ---
 if (isset($_POST['save_tracking'])) {
     $oid = $_POST['order_id'];
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
     mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', status = 'shipping' WHERE id = '$oid'");
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกเลขเžัสดุเรียบร้อย', 'icon'=>'success'];
+    send_order_email($conn, $oid);
+    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกเลขพัสดุ', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
 
@@ -135,7 +163,6 @@ if (isset($_POST['save_note'])) {
                                 <div class="col-6">
                                     <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                                         <option value="pending" <?=$st=='pending'?'selected':''?>>รอตรวจ</option>
-                                        <option value="approved" <?=$st=='approved'?'selected':''?>>อนุมัติ</option>
                                         <option value="shipping" <?=$st=='shipping'?'selected':''?>>ส่งแล้ว</option>
                                         <option value="completed" <?=$st=='completed'?'selected':''?>>สำเร็จ</option>
                                         <option value="cancelled" <?=$st=='cancelled'?'selected':''?>>ยกเลิก</option>
@@ -145,7 +172,7 @@ if (isset($_POST['save_note'])) {
                                 <div class="col-6">
                                     <?php if($st != 'cancelled'): ?>
                                         <button type="button" class="btn btn-sm btn-dark w-100" data-bs-toggle="modal" data-bs-target="#trackingModal<?= $oid ?>">
-                                            <i class="bi bi-truck"></i> เลขเžัสดุ
+                                            <i class="bi bi-truck"></i> เลขพัสดุเรียบร้อย
                                         </button>
                                     <?php endif; ?>
                                 </div>

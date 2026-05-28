@@ -16,11 +16,34 @@ if (isset($_POST['apply_coupon'])) {
     $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND expiry_date >= '$today'");
     if (mysqli_num_rows($check) > 0) {
         $c = mysqli_fetch_assoc($check);
-        if ($current_total >= $c['min_spend']) { 
-            $_SESSION['coupon'] = ['code' => $c['code'], 'type' => $c['discount_type'], 'value' => $c['discount_value']]; 
-            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ใช้คูปองสำเร็จ!', 'icon'=>'success'];
-        } else { 
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>"ยอดซื้อขั้นต่ำไม่ถึง " . number_format($c['min_spend']) . " บาท", 'icon'=>'error'];
+        
+        $coupon_error = false;
+        
+        // ตรวจสอบลิมิตการใช้งานทั้งหมด (Global limit)
+        if ($c['usage_limit'] > 0) {
+            $total_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND status != 'cancelled'"))['count'];
+            if ($total_used >= $c['usage_limit']) {
+                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>"ขออภัย คูปองนี้สิทธิ์การใช้งานเต็มโควตาแล้ว", 'icon'=>'error'];
+                $coupon_error = true;
+            }
+        }
+        
+        // ตรวจสอบลิมิตการใช้งานต่อคน (User limit)
+        if (!$coupon_error && $c['user_limit'] > 0) {
+            $user_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
+            if ($user_used >= $c['user_limit']) {
+                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>"ขออภัย คุณใช้สิทธิ์คูปองนี้ครบโควตาของคุณแล้ว", 'icon'=>'error'];
+                $coupon_error = true;
+            }
+        }
+        
+        if (!$coupon_error) {
+            if ($current_total >= $c['min_spend']) { 
+                $_SESSION['coupon'] = ['code' => $c['code'], 'type' => $c['discount_type'], 'value' => $c['discount_value']]; 
+                $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ใช้คูปองสำเร็จ!', 'icon'=>'success'];
+            } else { 
+                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>"ยอดซื้อขั้นต่ำไม่ถึง " . number_format($c['min_spend']) . " บาท", 'icon'=>'error'];
+            }
         }
     } else { 
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>"คูปองใช้ไม่ได้หรือหมดอายุ", 'icon'=>'error'];
@@ -58,6 +81,26 @@ if (isset($_POST['confirm_order'])) {
             $disc = str_replace(',', '', $_POST['discount_hidden']);
             $final = str_replace(',', '', $_POST['final_price_hidden']);
             $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
+            
+            if (!empty($coupon)) {
+                $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active'"));
+                if ($chk_c) {
+                    if ($chk_c['usage_limit'] > 0) {
+                        $tot_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND status != 'cancelled'"))['count'];
+                        if ($tot_used >= $chk_c['usage_limit']) {
+                            $error_msg = "ขออภัย คูปองนี้สิทธิ์การใช้งานเต็มโควตาแล้ว";
+                        }
+                    }
+                    if (!isset($error_msg) && $chk_c['user_limit'] > 0) {
+                        $usr_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
+                        if ($usr_used >= $chk_c['user_limit']) {
+                            $error_msg = "ขออภัย คุณใช้สิทธิ์คูปองนี้ครบโควตาแล้ว";
+                        }
+                    }
+                } else {
+                    $error_msg = "ขออภัย คูปองนี้ใช้งานไม่ได้แล้ว";
+                }
+            }
             
             $slip = "";
             if ($pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {

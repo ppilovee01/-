@@ -111,13 +111,13 @@ if (isset($_POST['update'])) {
                             </div>
                             
                             <div class="mb-3">
-                                <label class="small text-muted">เลขบัญชี/แšอรเนŒ</label>
+                                <label class="small text-muted">เลขบัญชี/เบอร์พร้อมเพย์</label>
                                 <input type="text" name="account_number" class="form-control" value="<?= $edit_data['account_number'] ?? '' ?>">
                             </div>
                             
                             <?php if($edit_data): ?>
                                 <div class="d-flex gap-2">
-                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปവขเน‰อมูล</button>
+                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปเดตข้อมูล</button>
                                     <a href="admin_payments.php" class="btn btn-secondary rounded-3">ยกเลิก</a>
                                 </div>
                             <?php else: ?>
@@ -135,7 +135,7 @@ if (isset($_POST['update'])) {
                                     <tr>
                                         <th>ชื่อช่องทาง</th>
                                         <th>ประเภท</th>
-                                        <th>เลขบัญชี/แšอรเนŒ</th>
+                                        <th>เลขบัญชี/เบอร์พร้อมเพย์</th>
                                         <th class="text-end">จัดการ</th>
                                     </tr>
                                 </thead>

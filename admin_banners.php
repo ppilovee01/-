@@ -12,12 +12,12 @@ if (isset($_POST['upload_banner'])) {
         if (move_uploaded_file($_FILES['banner_img']['tmp_name'], "uploads/" . $new_name)) {
             $path = "uploads/" . $new_name;
             mysqli_query($conn, "INSERT INTO banners (image) VALUES ('$path')");
-            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปเน‚หลดเนบนแ™อรเนŒเรียบร้อย!', 'icon'=>'success'];
+            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปโหลดแบนเนอร์เรียบร้อย!', 'icon'=>'success'];
         } else { 
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัปเน‚หลดไฟล์ลเน‰มเหŧ', 'icon'=>'error'];
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัปโหลดไฟล์ล้มเหลว', 'icon'=>'error'];
         }
     } else { 
-        $_SESSION['swal'] = ['title'=>'เนจเน‰งเตือน', 'text'=>'เรุณาเลือกไฟล์รูปภาเž', 'icon'=>'warning'];
+        $_SESSION['swal'] = ['title'=>'แจ้งเตือน', 'text'=>'กรุณาเลือกไฟล์รูปภาพ', 'icon'=>'warning'];
     }
     header("Location: admin_banners.php"); exit();
 }

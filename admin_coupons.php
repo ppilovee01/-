@@ -12,14 +12,16 @@ if (isset($_POST['add'])) {
     $type = $_POST['discount_type'];
     $val = $_POST['discount_value'];
     $min = $_POST['min_spend'];
+    $usage_limit = intval($_POST['usage_limit'] ?? 0);
+    $user_limit = intval($_POST['user_limit'] ?? 0);
     $exp = $_POST['expiry_date'];
     
     $check = mysqli_query($conn, "SELECT id FROM coupons WHERE code='$code'");
     if(mysqli_num_rows($check) > 0) {
         echo "<script>alert('โค้ดนี้มีอยู่แล้ว!');</script>";
     } else {
-        $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, expiry_date) 
-                VALUES ('$code', '$type', '$val', '$min', '$exp')";
+        $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, usage_limit, user_limit, expiry_date) 
+                VALUES ('$code', '$type', '$val', '$min', '$usage_limit', '$user_limit', '$exp')";
         mysqli_query($conn, $sql);
         header("Location: admin_coupons.php"); exit();
     }
@@ -40,16 +42,18 @@ if (isset($_GET['edit'])) {
     $edit_data = mysqli_fetch_assoc($res);
 }
 
-// --- Logic 4: อัปവ (Update) ---
+// --- Logic 4: อัปเดต (Update) ---
 if (isset($_POST['update'])) {
     $id = $_POST['id'];
     $code = strtoupper(mysqli_real_escape_string($conn, $_POST['code']));
     $type = $_POST['discount_type'];
     $val = $_POST['discount_value'];
     $min = $_POST['min_spend'];
+    $usage_limit = intval($_POST['usage_limit'] ?? 0);
+    $user_limit = intval($_POST['user_limit'] ?? 0);
     $exp = $_POST['expiry_date'];
 
-    $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', expiry_date='$exp' WHERE id=$id";
+    $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', usage_limit='$usage_limit', user_limit='$user_limit', expiry_date='$exp' WHERE id=$id";
     mysqli_query($conn, $sql);
     header("Location: admin_coupons.php"); exit();
 }
@@ -91,7 +95,7 @@ if (isset($_POST['update'])) {
                             <?php if($edit_data): ?>
                                 <i class="bi bi-pencil-square text-warning"></i> แก้ไขคูปอง
                             <?php else: ?>
-                                <i class="bi bi-ticket-perforated text-blue" style="color:#AEE2FF"></i> สรเน‰างคูปองใหม่
+                                <i class="bi bi-ticket-perforated text-blue" style="color:#AEE2FF"></i> สร้างคูปองใหม่
                             <?php endif; ?>
                         </h5>
                         
@@ -122,6 +126,17 @@ if (isset($_POST['update'])) {
                                 <input type="number" name="min_spend" class="form-control" placeholder="0 = ไม่มีขั้นต่ำ" value="<?= $edit_data['min_spend'] ?? '0' ?>">
                             </div>
 
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="small text-muted">สิทธิ์รวมระบบ (ครั้ง)</label>
+                                    <input type="number" name="usage_limit" class="form-control" placeholder="0 = ไม่จำกัด" value="<?= $edit_data['usage_limit'] ?? '0' ?>">
+                                </div>
+                                <div class="col-6">
+                                    <label class="small text-muted">สิทธิ์ต่อคน (ครั้ง)</label>
+                                    <input type="number" name="user_limit" class="form-control" placeholder="0 = ไม่จำกัด" value="<?= $edit_data['user_limit'] ?? '0' ?>">
+                                </div>
+                            </div>
+
                             <div class="mb-4">
                                 <label class="small text-muted">วันหมดอายุ</label>
                                 <input type="date" name="expiry_date" class="form-control" value="<?= $edit_data['expiry_date'] ?? date('Y-m-d', strtotime('+1 month')) ?>" required>
@@ -129,11 +144,11 @@ if (isset($_POST['update'])) {
                             
                             <?php if($edit_data): ?>
                                 <div class="d-flex gap-2">
-                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปവ</button>
+                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปเดต</button>
                                     <a href="admin_coupons.php" class="btn btn-secondary rounded-3">ยกเลิก</a>
                                 </div>
                             <?php else: ?>
-                                <button type="submit" name="add" class="btn btn-dark w-100 rounded-3">สรเน‰างคูปอง</button>
+                                <button type="submit" name="add" class="btn btn-dark w-100 rounded-3">สร้างคูปอง</button>
                             <?php endif; ?>
                         </form>
                     </div>
@@ -169,9 +184,13 @@ if (isset($_POST['update'])) {
                                                 <?= $row['discount_type']=='fixed' ? '-฿'.number_format($row['discount_value']) : '-'.number_format($row['discount_value']).'%' ?>
                                             </span>
                                         </td>
-                                        <td class="small text-muted">
-                                            <?= $row['min_spend'] > 0 ? 'ขั้นต่ำ ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?>
-                                        </td>
+                                        <td class="small text-muted" style="line-height: 1.4;">
+                                             <div><?= $row['min_spend'] > 0 ? 'ขั้นต่ำ: ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?></div>
+                                             <div class="x-small" style="font-size: 0.75rem; color: #94a3b8;">
+                                                 สิทธิ์รวม: <?= $row['usage_limit'] > 0 ? number_format($row['usage_limit']).' ครั้ง' : 'ไม่จำกัด' ?><br>
+                                                 สิทธิ์ต่อคน: <?= $row['user_limit'] > 0 ? number_format($row['user_limit']).' ครั้ง' : 'ไม่จำกัด' ?>
+                                             </div>
+                                         </td>
                                         <td><?= date('d/m/Y', strtotime($row['expiry_date'])) ?></td>
                                         <td>
                                             <?php if($is_expired): ?>
