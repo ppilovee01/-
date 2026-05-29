@@ -118,7 +118,78 @@ elseif ($action == 'remove_item') {
     }
 }
 
-
+// 2.4 ดึงข้อมูลตะกร้าสินค้าสำหรับสไลด์ข้าง (Get Cart Drawer Data)
+elseif ($action == 'get_cart_drawer') {
+    $html = '';
+    $cart_data = calculate_cart_totals($conn);
+    
+    if (isset($_SESSION['cart']) && !empty($_SESSION['cart'])) {
+        foreach ($_SESSION['cart'] as $k => $item) {
+            $pid = is_array($item) ? $item['id'] : $k;
+            $qty = is_array($item) ? $item['qty'] : $item;
+            $opts = is_array($item) ? ($item['options'] ?? '') : '';
+            
+            // ดึงข้อมูลสินค้า
+            $q = mysqli_query($conn, "SELECT name, image, price FROM products WHERE id='$pid'");
+            $prod = mysqli_fetch_assoc($q);
+            if ($prod) {
+                // เช็คราคาโปรโมชัน ณ ปัจจุบัน (เช่น Flash Sale)
+                $price = getCurrentPrice($conn, $pid);
+                $original_price = $prod['price'];
+                $item_total = $price * $qty;
+                
+                $html .= '
+                <div class="cart-drawer-item" id="drawer-item-' . $k . '">
+                    <img src="' . htmlspecialchars($prod['image']) . '" alt="' . htmlspecialchars($prod['name']) . '">
+                    <div class="cart-drawer-item-info">
+                        <div class="cart-drawer-item-title" title="' . htmlspecialchars($prod['name']) . '">' . htmlspecialchars($prod['name']) . '</div>';
+                
+                if (!empty($opts)) {
+                    $html .= '<div class="cart-drawer-item-option">' . htmlspecialchars($opts) . '</div>';
+                }
+                
+                $html .= '
+                        <div class="d-flex align-items-center justify-content-between mt-1">
+                            <div class="cart-drawer-item-qty">
+                                <button type="button" class="btn-qty-drawer" onclick="updateQtyDrawer(\'' . $k . '\', \'dec\')">-</button>
+                                <span class="qty-drawer-val">' . $qty . '</span>
+                                <button type="button" class="btn-qty-drawer" onclick="updateQtyDrawer(\'' . $k . '\', \'inc\')">+</button>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold text-primary" style="font-size: 0.95rem;">฿' . number_format($item_total, 2) . '</div>';
+                
+                if ($price < $original_price) {
+                    $html .= '<div class="text-decoration-line-through text-muted" style="font-size: 0.75rem;">฿' . number_format($original_price, 2) . '</div>';
+                }
+                
+                $html .= '
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-remove-drawer" onclick="removeDrawerItem(\'' . $k . '\')" title="ลบรายการนี้">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>';
+            }
+        }
+    } else {
+        $html = '
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-bag-x display-4 mb-3 d-block opacity-25"></i>
+            <div>ไม่มีสินค้าในตะกร้าของคุณ</div>
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill mt-3 px-4" onclick="toggleCartDrawer()">ไปเลือกสินค้า</button>
+        </div>';
+    }
+    
+    $response = [
+        'status' => 'success',
+        'html' => $html,
+        'subtotal' => number_format($cart_data['subtotal'], 2),
+        'discount' => number_format($cart_data['discount'], 2),
+        'final_total' => number_format($cart_data['final'], 2),
+        'cart_count' => count_cart_items()
+    ];
+}
 
 // ==========================================
 // 3. ฟีเจอร์ที่เกี่ยวข้องกับบัญชีผู้ใช้ (Profile Actions)

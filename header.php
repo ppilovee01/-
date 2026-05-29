@@ -699,6 +699,120 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 }, 1);
             }
         });
+
+        // --- Interactive Cart Drawer Javascript Functions ---
+        window.toggleCartDrawer = function() {
+            const drawer = document.getElementById('cartDrawer');
+            const backdrop = document.getElementById('cartDrawerBackdrop');
+            if (drawer && backdrop) {
+                const isShowing = drawer.classList.contains('show');
+                if (!isShowing) {
+                    window.loadCartDrawer();
+                    drawer.classList.add('show');
+                    backdrop.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    drawer.classList.remove('show');
+                    backdrop.classList.remove('show');
+                    document.body.style.overflow = '';
+                }
+            }
+        };
+
+        window.loadCartDrawer = function() {
+            const body = document.getElementById('cart-drawer-body');
+            const subtotalEl = document.getElementById('cart-drawer-subtotal');
+            const badgeEl = document.getElementById('nav-cart-badge');
+            
+            fetch('ajax.php?action=get_cart_drawer')
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    if (body) body.innerHTML = res.html;
+                    if (subtotalEl) subtotalEl.innerText = '฿' + res.final_total;
+                    if (badgeEl) {
+                        badgeEl.innerText = res.cart_count;
+                        if (res.cart_count > 0) {
+                            badgeEl.classList.remove('hidden');
+                        } else {
+                            badgeEl.classList.add('hidden');
+                        }
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Error loading cart drawer:', err);
+                if (body) body.innerHTML = '<div class="text-center py-5 text-danger"><i class="bi bi-exclamation-triangle fs-2 mb-2 d-block"></i>เกิดข้อผิดพลาดในการโหลดตะกร้า</div>';
+            });
+        };
+
+        window.updateQtyDrawer = function(cartKey, type) {
+            const data = new FormData();
+            data.append('action', 'update_qty');
+            data.append('product_id', cartKey);
+            data.append('type', type);
+            
+            fetch('ajax.php', {
+                method: 'POST',
+                body: data
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    window.loadCartDrawer();
+                } else if (res.message) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'ข้อจำกัดสินค้า',
+                        text: res.message,
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            })
+            .catch(err => console.error('Error updating quantity:', err));
+        };
+
+        window.removeDrawerItem = function(cartKey) {
+            const data = new FormData();
+            data.append('action', 'remove_item');
+            data.append('product_id', cartKey);
+            
+            fetch('ajax.php', {
+                method: 'POST',
+                body: data
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    window.loadCartDrawer();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ลบสำเร็จ',
+                        text: res.message,
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                }
+            })
+            .catch(err => console.error('Error removing item:', err));
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('a[href="cart.php"]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const currentPath = window.location.pathname.split('/').pop() || 'index.php';
+                    if (currentPath !== 'cart.php') {
+                        e.preventDefault();
+                        window.toggleCartDrawer();
+                    }
+                });
+            });
+        });
     </script>
 </head>
 <body>
@@ -811,4 +925,31 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         </div>
     </div>
 </nav>
+
+<!-- Cart Drawer Structure -->
+<div id="cartDrawerBackdrop" class="cart-drawer-backdrop" onclick="toggleCartDrawer()"></div>
+<div id="cartDrawer" class="cart-drawer">
+    <div class="cart-drawer-header">
+        <h5 class="fw-bold mb-0 text-dark">🛍️ ตะกร้าสินค้าของคุณ</h5>
+        <button type="button" class="btn-close-drawer" onclick="toggleCartDrawer()">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <div class="cart-drawer-body" id="cart-drawer-body">
+        <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+            <div>กำลังโหลดสินค้า...</div>
+        </div>
+    </div>
+    <div class="cart-drawer-footer" id="cart-drawer-footer">
+        <div class="d-flex justify-content-between mb-3">
+            <span class="text-muted fw-bold">ยอดรวมสุทธิ:</span>
+            <span class="fw-bold text-primary fs-5" id="cart-drawer-subtotal">฿0.00</span>
+        </div>
+        <div class="d-grid gap-2">
+            <a href="cart.php" class="btn btn-outline-secondary rounded-pill">ดูตะกร้าสินค้าทั้งหมด</a>
+            <a href="cart.php?action=checkout" id="cart-drawer-checkout-btn" class="btn btn-blue rounded-pill text-white fw-bold">ดำเนินการชำระเงิน</a>
+        </div>
+    </div>
+</div>
 

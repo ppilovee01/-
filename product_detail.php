@@ -603,8 +603,18 @@ endif;
                     badge.innerText = data.cart_count;
                     badge.classList.remove('hidden'); 
                 }
-                const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true});
-                Toast.fire({icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว'});
+                // เปิดตะกร้าสไลด์ข้างทันทีเพื่อตอบสนองการกระทำของลูกค้า
+                if (typeof window.toggleCartDrawer === 'function') {
+                    const drawer = document.getElementById('cartDrawer');
+                    if (drawer && !drawer.classList.contains('show')) {
+                        window.toggleCartDrawer();
+                    } else {
+                        window.loadCartDrawer();
+                    }
+                } else {
+                    const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true});
+                    Toast.fire({icon: 'success', title: 'เพิ่มลงตะกร้าแล้ว'});
+                }
             } else {
                 Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาด', text: data.message});
             }
