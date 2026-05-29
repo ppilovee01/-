@@ -242,7 +242,95 @@ include 'header.php';
     </div>
 </section>
 
+
+<!-- สินค้าที่ดูล่าสุด (Recently Viewed Products) -->
+<?php
+$recently_viewed = [];
+if (isset($_COOKIE['recently_viewed'])) {
+    $recently_viewed = json_decode($_COOKIE['recently_viewed'], true);
+    if (!is_array($recently_viewed)) {
+        $recently_viewed = [];
+    }
+}
+
+if (!empty($recently_viewed)):
+    $ids_string = implode("','", array_map(function($val) use ($conn) {
+        return mysqli_real_escape_string($conn, $val);
+    }, $recently_viewed));
+
+    $rv_query = mysqli_query($conn, "SELECT p.*, 
+        (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
+        (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count
+        FROM products p WHERE p.id IN ('$ids_string')");
+
+    $rv_products = [];
+    while ($p = mysqli_fetch_assoc($rv_query)) {
+        $rv_products[$p['id']] = $p;
+    }
+
+    $ordered_rv_products = [];
+    foreach ($recently_viewed as $rv_id) {
+        if (isset($rv_products[$rv_id])) {
+            $ordered_rv_products[] = $rv_products[$rv_id];
+        }
+    }
+
+    if (!empty($ordered_rv_products)):
+?>
+<section class="container py-5 animate__animated animate__fadeInUp">
+    <div class="border-top pt-5">
+        <h2 class="fw-bold mb-4 text-dark">สินค้าที่คุณดูล่าสุด <span style="color:var(--blue-hover);">👀</span></h2>
+        <div class="scroll-menu py-2 px-1" style="flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 20px;">
+            <?php foreach ($ordered_rv_products as $p): 
+                $is_out = ($p['stock'] <= 0);
+                $rating = $p['avg_rating'] ? round($p['avg_rating'], 1) : 0;
+                $rv_count = $p['review_count'];
+                
+                // Wishlist check
+                $is_fav = in_array($p['id'], $wishlist_items);
+                $fav_class = $is_fav ? 'liked' : '';
+                $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
+            ?>
+            <div style="flex: 0 0 auto; width: 240px; position: relative;">
+                <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
+                    <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
+                        <i class="bi <?= $fav_icon ?>"></i>
+                    </button>
+                    <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
+                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100 text-center">
+                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            <?php if($is_out): ?>
+                                <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1">สินค้าหมด</span></div>
+                            <?php endif; ?>
+                        </a>
+                    </div>
+                    <div class="card-body d-flex flex-column text-center p-3">
+                        <h6 class="fw-bold mb-1 text-truncate mt-1">
+                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
+                                <?= $p['name'] ?>
+                            </a>
+                        </h6>
+                        <div class="small text-warning mb-2">
+                            <?php for($i=1; $i<=5; $i++) echo $i<=$rating ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star text-muted opacity-25"></i>'; ?>
+                            <span class="text-muted ms-1" style="font-size: 0.75rem;">(<?= $rv_count ?>)</span>
+                        </div>
+                        <div class="mt-auto">
+                            <span class="fw-bold" style="color:var(--blue-hover); font-size:1.1rem;">฿<?= number_format($p['price']) ?></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php 
+    endif;
+endif; 
+?>
+
 <footer class="py-5 bg-white border-top mt-5">
+
     <div class="container">
         <div class="row g-4 text-start justify-content-between">
             <div class="col-lg-5 col-md-6">

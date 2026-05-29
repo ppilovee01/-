@@ -618,3 +618,4 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         </div>
     </div>
 </nav>
+
