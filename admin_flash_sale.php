@@ -12,6 +12,26 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 $error_msg = "";
 $success_msg = "";
 
+// --- Logic 0: Update Auto Flash Settings ---
+if (isset($_POST['update_settings'])) {
+    $auto_flash_sale = isset($_POST['auto_flash_sale']) ? 1 : 0;
+    $auto_flash_discount = intval($_POST['auto_flash_discount']);
+    $auto_flash_duration = intval($_POST['auto_flash_duration']);
+    
+    $upd_s = mysqli_query($conn, "UPDATE shop_settings SET 
+        auto_flash_sale = '$auto_flash_sale', 
+        auto_flash_discount = '$auto_flash_discount', 
+        auto_flash_duration = '$auto_flash_duration' 
+        WHERE id = 1");
+    if ($upd_s) {
+        $success_msg = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
+        // Trigger generation check
+        checkAndGenerateAutoFlashSale($conn);
+    } else {
+        $error_msg = "บันทึกข้อมูลล้มเหลว: " . mysqli_error($conn);
+    }
+}
+
 // --- Logic 1: Add Campaign ---
 if (isset($_POST['add'])) {
     $product_id = intval($_POST['product_id']);
@@ -124,6 +144,10 @@ while ($p = mysqli_fetch_assoc($p_res)) {
     $products_list[] = $p;
 }
 
+// Fetch shop settings for auto flash sale
+$settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration FROM shop_settings WHERE id = 1");
+$shop_s = mysqli_fetch_assoc($settings_res);
+
 // Fetch flash sale campaigns
 $campaigns = [];
 $sql_c = "SELECT fs.*, p.name as product_name, p.image as product_image, p.price as original_price 
@@ -157,6 +181,13 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         .badge-expired { background: #f8d7da; color: #842029; }
         .progress-bar-flash { height: 8px; border-radius: 50px; background: linear-gradient(90deg, #AEE2FF, #7FB5FF); }
         .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; }
+        @media (min-width: 1200px) {
+            .sticky-column-wrapper {
+                position: sticky;
+                top: 30px;
+                z-index: 10;
+            }
+        }
     </style>
 </head>
 <body>
@@ -189,62 +220,98 @@ while ($c = mysqli_fetch_assoc($c_res)) {
             <div class="row">
                 <!-- Left: Form -->
                 <div class="col-xl-4 mb-4">
-                    <div class="card-modern p-4 sticky-top" style="top: 30px;">
-                        <h5 class="fw-bold mb-4">
-                            <?php if ($edit_data): ?>
-                                <i class="bi bi-pencil-square text-warning"></i> แก้ไขแคมเปญ Flash Sale
-                            <?php else: ?>
-                                <i class="bi bi-lightning-charge-fill text-blue"></i> สร้างแคมเปญใหม่
-                            <?php endif; ?>
-                        </h5>
-                        
-                        <form method="POST" action="admin_flash_sale.php">
-                            <?php if ($edit_data): ?>
-                                <input type="hidden" name="id" value="<?= $edit_data['id'] ?>">
-                            <?php endif; ?>
+                    <div class="sticky-column-wrapper">
+                        <!-- Create/Edit Campaign Card -->
+                        <div class="card-modern p-4">
+                            <h5 class="fw-bold mb-4">
+                                <?php if ($edit_data): ?>
+                                    <i class="bi bi-pencil-square text-warning"></i> แก้ไขแคมเปญ Flash Sale
+                                <?php else: ?>
+                                    <i class="bi bi-lightning-charge-fill text-blue"></i> สร้างแคมเปญใหม่
+                                <?php endif; ?>
+                            </h5>
+                            
+                            <form method="POST" action="admin_flash_sale.php">
+                                <?php if ($edit_data): ?>
+                                    <input type="hidden" name="id" value="<?= $edit_data['id'] ?>">
+                                <?php endif; ?>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold small text-muted">เลือกสินค้า</label>
-                                <select class="form-select rounded-3" name="product_id" required>
-                                    <option value="">-- กรุณาเลือกสินค้า --</option>
-                                    <?php foreach ($products_list as $prod): ?>
-                                        <option value="<?= $prod['id'] ?>" <?= ($edit_data && $edit_data['product_id'] == $prod['id']) ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($prod['name']) ?> (ปกติ ฿<?= number_format($prod['price']) ?>)
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold small text-muted">ราคา Flash Sale (บาท)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light text-muted">฿</span>
-                                    <input type="number" step="0.01" class="form-control" name="flash_price" value="<?= $edit_data ? $edit_data['flash_price'] : '' ?>" required min="0">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">เลือกสินค้า</label>
+                                    <select class="form-select rounded-3" name="product_id" required>
+                                        <option value="">-- กรุณาเลือกสินค้า --</option>
+                                        <?php foreach ($products_list as $prod): ?>
+                                            <option value="<?= $prod['id'] ?>" <?= ($edit_data && $edit_data['product_id'] == $prod['id']) ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($prod['name']) ?> (ปกติ ฿<?= number_format($prod['price']) ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
-                            </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold small text-muted">โควตาจำนวน (ชิ้น)</label>
-                                <input type="number" class="form-control" name="flash_stock" value="<?= $edit_data ? $edit_data['flash_stock'] : '' ?>" required min="1">
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">ราคา Flash Sale (บาท)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted">฿</span>
+                                        <input type="number" step="0.01" class="form-control" name="flash_price" value="<?= $edit_data ? $edit_data['flash_price'] : '' ?>" required min="0">
+                                    </div>
+                                </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold small text-muted">เวลาเริ่มต้น</label>
-                                <input type="datetime-local" class="form-control" name="start_time" value="<?= $edit_data ? date('Y-m-d\TH:i', strtotime($edit_data['start_time'])) : '' ?>" required>
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">โควตาจำนวน (ชิ้น)</label>
+                                    <input type="number" class="form-control" name="flash_stock" value="<?= $edit_data ? $edit_data['flash_stock'] : '' ?>" required min="1">
+                                </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold small text-muted">เวลาสิ้นสุด</label>
-                                <input type="datetime-local" class="form-control" name="end_time" value="<?= $edit_data ? date('Y-m-d\TH:i', strtotime($edit_data['end_time'])) : '' ?>" required>
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">เวลาเริ่มต้น</label>
+                                    <input type="datetime-local" class="form-control" name="start_time" value="<?= $edit_data ? date('Y-m-d\TH:i', strtotime($edit_data['start_time'])) : '' ?>" required>
+                                </div>
 
-                            <?php if ($edit_data): ?>
-                                <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 py-2 text-white fw-bold">อัปเดตข้อมูล</button>
-                                <a href="admin_flash_sale.php" class="btn btn-outline-secondary w-100 rounded-3 py-2 mt-2">ยกเลิกแก้ไข</a>
-                            <?php else: ?>
-                                <button type="submit" name="add" class="btn btn-blue w-100 rounded-3 py-2 fw-bold">สร้างแคมเปญ</button>
-                            <?php endif; ?>
-                        </form>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">เวลาสิ้นสุด</label>
+                                    <input type="datetime-local" class="form-control" name="end_time" value="<?= $edit_data ? date('Y-m-d\TH:i', strtotime($edit_data['end_time'])) : '' ?>" required>
+                                </div>
+
+                                <?php if ($edit_data): ?>
+                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 py-2 text-white fw-bold">อัปเดตข้อมูล</button>
+                                    <a href="admin_flash_sale.php" class="btn btn-outline-secondary w-100 rounded-3 py-2 mt-2">ยกเลิกแก้ไข</a>
+                                <?php else: ?>
+                                    <button type="submit" name="add" class="btn btn-blue w-100 rounded-3 py-2 fw-bold">สร้างแคมเปญ</button>
+                                <?php endif; ?>
+                            </form>
+                        </div>
+
+                        <!-- Auto Flash Settings Card -->
+                        <div class="card-modern p-4 mt-4">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-robot text-blue"></i> ระบบรันแคมเปญอัตโนมัติ</h5>
+                            <p class="text-muted small mb-3">เมื่อเปิดใช้งาน หากระบบตรวจไม่พบแคมเปญ Flash Sale ที่กำลังรันอยู่ ระบบจะสุ่มเลือกสินค้าขึ้นมาจัดแคมเปญอัตโนมัติทันที</p>
+                            
+                            <form method="POST" action="admin_flash_sale.php">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" name="auto_flash_sale" id="autoFlashCheck" value="1" <?= (isset($shop_s['auto_flash_sale']) && $shop_s['auto_flash_sale'] == 1) ? 'checked' : '' ?> style="cursor: pointer; width: 2.2em; height: 1.1em;">
+                                    <label class="form-check-label fw-bold text-dark small ms-2" for="autoFlashCheck" style="cursor: pointer;">เปิดใช้งานระบบอัตโนมัติ</label>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">ส่วนลดอัตโนมัติ (%)</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control" name="auto_flash_discount" value="<?= isset($shop_s['auto_flash_discount']) ? $shop_s['auto_flash_discount'] : '20' ?>" required min="10" max="85">
+                                        <span class="input-group-text bg-light text-muted">%</span>
+                                    </div>
+                                    <span class="text-muted" style="font-size: 0.75rem;">สัดส่วนการลดราคาจากราคาปกติ (10% - 85%)</span>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">ระยะเวลาแต่ละรอบ (ชั่วโมง)</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control" name="auto_flash_duration" value="<?= isset($shop_s['auto_flash_duration']) ? $shop_s['auto_flash_duration'] : '2' ?>" required min="1" max="24">
+                                        <span class="input-group-text bg-light text-muted">ชม.</span>
+                                    </div>
+                                    <span class="text-muted" style="font-size: 0.75rem;">ระยะเวลานับถอยหลังต่อหนึ่งรอบแคมเปญ</span>
+                                </div>
+                                
+                                <button type="submit" name="update_settings" class="btn btn-blue w-100 btn-sm py-2 fw-bold">บันทึกการตั้งค่าออโต้</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
@@ -281,16 +348,16 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                             $is_active = false;
                                             
                                             if ($now < $start) {
-                                                $status_text = "รอเริ่ม";
+                                                $status_text = "Waiting";
                                                 $status_class = "badge-scheduled";
                                             } elseif ($now > $end) {
-                                                $status_text = "หมดเวลา";
+                                                $status_text = "End";
                                                 $status_class = "badge-expired";
                                             } elseif ($camp['flash_sold'] >= $camp['flash_stock']) {
-                                                $status_text = "ของหมด";
+                                                $status_text = "Sold Out";
                                                 $status_class = "badge-expired";
                                             } else {
-                                                $status_text = "กำลังรัน";
+                                                $status_text = "Run";
                                                 $status_class = "badge-active";
                                                 $is_active = true;
                                             }

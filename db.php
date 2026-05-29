@@ -56,5 +56,55 @@ function getCurrentPrice($conn, $product_id) {
     $p = mysqli_fetch_assoc($pq);
     return $p['price'] ?? 0;
 }
+
+// --- Helper to check and automatically generate a flash sale campaign if enabled ---
+function checkAndGenerateAutoFlashSale($conn) {
+    $now_str = date('Y-m-d H:i:s');
+    // Check if there is an active flash sale campaign
+    $q = mysqli_query($conn, "SELECT id FROM flash_sales WHERE '$now_str' BETWEEN start_time AND end_time AND flash_sold < flash_stock LIMIT 1");
+    if ($q && mysqli_num_rows($q) > 0) {
+        return; // Campaign is already active
+    }
+
+    // Check if auto flash sale setting is enabled
+    $s_q = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration FROM shop_settings WHERE id = 1");
+    if ($s_q && mysqli_num_rows($s_q) > 0) {
+        $s = mysqli_fetch_assoc($s_q);
+        if ($s['auto_flash_sale'] == 1) {
+            // Find a product with stock > 5 and no upcoming campaigns
+            $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 5 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > '$now_str') ORDER BY RAND() LIMIT 1");
+            if (!$p_q || mysqli_num_rows($p_q) == 0) {
+                // Fallback: any product with stock > 0
+                $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 0 ORDER BY RAND() LIMIT 1");
+            }
+
+            if ($p_q && mysqli_num_rows($p_q) > 0) {
+                $product = mysqli_fetch_assoc($p_q);
+                $pid = $product['id'];
+                
+                // Calculate discount price
+                $discount_pct = intval($s['auto_flash_discount']);
+                $discount_pct = max(10, min(85, $discount_pct));
+                $flash_price = round($product['price'] * (1 - $discount_pct / 100));
+                
+                // Calculate stock quota: 30% of current stock, min 1, max 10
+                $flash_stock = min(10, max(1, round($product['stock'] * 0.3)));
+                
+                // Set start and end times
+                $duration_hours = intval($s['auto_flash_duration']);
+                if ($duration_hours <= 0) $duration_hours = 2;
+                
+                $start = date('Y-m-d H:i:s');
+                $end = date('Y-m-d H:i:s', time() + 3600 * $duration_hours);
+                
+                mysqli_query($conn, "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
+                    VALUES ('$pid', '$flash_price', '$flash_stock', 0, '$start', '$end')");
+            }
+        }
+    }
+}
+
+// Automatically check and trigger auto-campaign on load
+checkAndGenerateAutoFlashSale($conn);
 ?>
 <link rel="icon" type="image/x-icon" href="<?= $current_favicon ?>">
