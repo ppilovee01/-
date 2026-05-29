@@ -1,7 +1,6 @@
 <?php
 session_start();
 include 'db.php';
-include 'header.php';
 date_default_timezone_set('Asia/Bangkok');  
 // เช็ค Login
 if (!isset($_SESSION['user_id'])) {

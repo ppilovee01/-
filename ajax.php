@@ -263,6 +263,82 @@ elseif ($action == 'search_suggest') {
     $response = ['status' => 'success', 'data' => $products];
 }
 
+// 4.4 ดึงข้อมูลแจ้งเตือน (Get Notifications)
+elseif ($action == 'get_notifications') {
+    $notifications = [];
+    $unread_count = 0;
+    
+    $uid = $_SESSION['user_id'] ?? null;
+    $is_admin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? 1 : 0;
+    
+    if ($is_admin) {
+        $res = mysqli_query($conn, "SELECT * FROM notifications WHERE is_admin = 1 ORDER BY created_at DESC LIMIT 15");
+        $unread_res = mysqli_query($conn, "SELECT COUNT(*) as count FROM notifications WHERE is_admin = 1 AND is_read = 0");
+        $unread_count = mysqli_fetch_assoc($unread_res)['count'] ?? 0;
+    } elseif ($uid) {
+        $res = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id = '$uid' AND is_admin = 0 ORDER BY created_at DESC LIMIT 15");
+        $unread_res = mysqli_query($conn, "SELECT COUNT(*) as count FROM notifications WHERE user_id = '$uid' AND is_admin = 0 AND is_read = 0");
+        $unread_count = mysqli_fetch_assoc($unread_res)['count'] ?? 0;
+    } else {
+        $res = false;
+    }
+
+    if ($res) {
+        while ($row = mysqli_fetch_assoc($res)) {
+            $time_ago = time_elapsed_string($row['created_at']);
+            $notifications[] = [
+                'id' => $row['id'],
+                'title' => $row['title'],
+                'message' => $row['message'],
+                'url' => $row['url'],
+                'is_read' => intval($row['is_read']),
+                'time_ago' => $time_ago
+            ];
+        }
+    }
+    
+    $response = [
+        'status' => 'success',
+        'notifications' => $notifications,
+        'unread_count' => intval($unread_count)
+    ];
+}
+
+// 4.5 อ่านแจ้งเตือน (Mark Notifications as Read)
+elseif ($action == 'mark_read') {
+    $uid = $_SESSION['user_id'] ?? null;
+    $is_admin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? 1 : 0;
+    $nid = isset($_POST['notification_id']) ? intval($_POST['notification_id']) : 0;
+    
+    if ($nid > 0) {
+        if ($is_admin) {
+            mysqli_query($conn, "UPDATE notifications SET is_read = 1 WHERE id = '$nid' AND is_admin = 1");
+        } elseif ($uid) {
+            mysqli_query($conn, "UPDATE notifications SET is_read = 1 WHERE id = '$nid' AND user_id = '$uid' AND is_admin = 0");
+        }
+    } else {
+        if ($is_admin) {
+            mysqli_query($conn, "UPDATE notifications SET is_read = 1 WHERE is_admin = 1");
+        } elseif ($uid) {
+            mysqli_query($conn, "UPDATE notifications SET is_read = 1 WHERE user_id = '$uid' AND is_admin = 0");
+        }
+    }
+    $response = ['status' => 'success'];
+}
+
+// 4.6 ลบแจ้งเตือนทั้งหมด (Clear All Notifications)
+elseif ($action == 'clear_notifications') {
+    $uid = $_SESSION['user_id'] ?? null;
+    $is_admin = (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? 1 : 0;
+    
+    if ($is_admin) {
+        mysqli_query($conn, "DELETE FROM notifications WHERE is_admin = 1");
+    } elseif ($uid) {
+        mysqli_query($conn, "DELETE FROM notifications WHERE user_id = '$uid' AND is_admin = 0");
+    }
+    $response = ['status' => 'success'];
+}
+
 // ==========================================
 // 5. ปิดการส่งออกข้อมูลและส่ง JSON ตอบกลับ
 // ==========================================
@@ -304,5 +380,34 @@ function calculate_cart_totals($conn) {
     }
 
     return ['subtotal' => $subtotal, 'discount' => $discount, 'final' => $subtotal - $discount];
+}
+
+function time_elapsed_string($datetime, $full = false) {
+    $now = new DateTime;
+    $ago = new DateTime($datetime);
+    $diff = $now->diff($ago);
+
+    $diff->w = floor($diff->d / 7);
+    $diff->d -= $diff->w * 7;
+
+    $string = array(
+        'y' => 'ปี',
+        'm' => 'เดือน',
+        'w' => 'สัปดาห์',
+        'd' => 'วัน',
+        'h' => 'ชั่วโมง',
+        'i' => 'นาที',
+        's' => 'วินาที',
+    );
+    foreach ($string as $k => &$v) {
+        if ($diff->$k) {
+            $v = $diff->$k . ' ' . $v;
+        } else {
+            unset($string[$k]);
+        }
+    }
+
+    if (!$full) $string = array_slice($string, 0, 1);
+    return $string ? implode(', ', $string) . 'ที่แล้ว' : 'เมื่อครู่นี้';
 }
 ?>

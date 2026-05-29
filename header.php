@@ -308,7 +308,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     </style>
     
     <?php if(isset($extra_css)) echo $extra_css; ?>
-    <link rel="stylesheet" href="style.css?v=2.3">
+    <link rel="stylesheet" href="style.css?v=2.4">
     <script>
         // ฟังก์ชันแปลงชื่อไฟล์หน้าเว็บเป็นชื่อภาษาไทยที่เข้าใจง่าย
         window.getPageNameThai = (urlStr) => {
@@ -531,7 +531,139 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 }
             }
             document.body.classList.remove('fade-out');
+            
+            // Check notifications on load if element exists
+            if (document.getElementById('notification-badge')) {
+                checkNotificationsCount();
+                // Check every 30 seconds for new notifications
+                setInterval(checkNotificationsCount, 30000);
+            }
         });
+
+        window.loadNotifications = function() {
+            const list = document.getElementById('notification-list');
+            if(!list) return;
+            
+            list.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
+            
+            fetch('ajax.php?action=get_notifications')
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    updateNotificationBadge(res.unread_count);
+                    
+                    if (res.notifications.length === 0) {
+                        list.innerHTML = `
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-bell-slash fs-2 mb-2 d-block opacity-25"></i>
+                                ไม่มีแจ้งเตือนในขณะนี้
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    res.notifications.forEach(item => {
+                        const readClass = item.is_read ? 'bg-white opacity-75' : 'bg-light fw-bold';
+                        const titleColor = item.is_read ? 'text-secondary' : 'text-dark';
+                        const link = item.url ? item.url : '#';
+                        html += `
+                            <div class="p-3 border-bottom notification-item ${readClass}" style="transition: background 0.2s; cursor: pointer;" onclick="handleNotificationClick(${item.id}, '${link}')">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <span class="${titleColor} small d-block mb-1">${item.title}</span>
+                                    <span class="text-muted text-nowrap ms-2" style="font-size: 0.7rem;">${item.time_ago}</span>
+                                </div>
+                                <p class="text-muted mb-0 small text-truncate" style="font-size: 0.8rem; font-weight: normal;">${item.message}</p>
+                            </div>
+                        `;
+                    });
+                    list.innerHTML = html;
+                }
+            })
+            .catch(err => console.error(err));
+        };
+
+        window.updateNotificationBadge = function(count) {
+            const badge = document.getElementById('notification-badge');
+            if(!badge) return;
+            if (count > 0) {
+                badge.innerText = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.innerText = 0;
+                badge.classList.add('hidden');
+            }
+        };
+
+        window.handleNotificationClick = function(id, url) {
+            let fd = new FormData();
+            fd.append('action', 'mark_read');
+            fd.append('notification_id', id);
+            
+            fetch('ajax.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if (url !== '#') {
+                    window.location.href = url;
+                } else {
+                    loadNotifications();
+                }
+            })
+            .catch(() => {
+                if (url !== '#') window.location.href = url;
+            });
+        };
+
+        window.markAllNotificationsAsRead = function() {
+            let fd = new FormData();
+            fd.append('action', 'mark_read');
+            
+            fetch('ajax.php', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    updateNotificationBadge(0);
+                    loadNotifications();
+                }
+            });
+        };
+
+        window.clearAllNotifications = function() {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "คุณต้องการล้างประวัติการแจ้งเตือนทั้งหมดใช่หรือไม่?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#AEE2FF',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'ใช่, ลบทั้งหมด',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    let fd = new FormData();
+                    fd.append('action', 'clear_notifications');
+                    fetch('ajax.php', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if(data.status === 'success') {
+                            updateNotificationBadge(0);
+                            loadNotifications();
+                        }
+                    });
+                }
+            });
+        };
+
+        window.checkNotificationsCount = function() {
+            fetch('ajax.php?action=get_notifications')
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    updateNotificationBadge(res.unread_count);
+                }
+            })
+            .catch(err => console.error(err));
+        };
     </script>
 </head>
 <body>
@@ -589,6 +721,32 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                         <i class="bi bi-bag"></i>
                         <span id="nav-cart-badge" class="badge-count <?= $cart_count > 0 ? '' : 'hidden' ?>"><?= $cart_count ?></span>
                     </a>
+
+                    <!-- Notification Bell Dropdown -->
+                    <?php if(isset($_SESSION['user_id']) || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin')): ?>
+                        <div class="dropdown" id="notificationDropdown">
+                            <a class="icon-btn dropdown-toggle hide-arrow" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="loadNotifications()">
+                                <i class="bi bi-bell"></i>
+                                <span id="notification-badge" class="badge-count hidden">0</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn p-0 shadow-lg border-0" style="width: 320px; border-radius: var(--radius-md); overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); z-index: 9999;">
+                                <div class="p-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-soft);">
+                                    <span class="fw-bold text-dark mb-0" style="font-size: 0.95rem;">การแจ้งเตือน</span>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-link p-0 text-decoration-none text-muted small" onclick="markAllNotificationsAsRead()" style="font-size: 0.75rem;">อ่านทั้งหมด</button>
+                                        <span class="text-muted" style="font-size: 0.75rem;">|</span>
+                                        <button class="btn btn-link p-0 text-decoration-none text-danger small" onclick="clearAllNotifications()" style="font-size: 0.75rem;">ล้างทั้งหมด</button>
+                                    </div>
+                                </div>
+                                <div id="notification-list" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="text-center py-4 text-muted">
+                                        <i class="bi bi-bell-slash fs-2 mb-2 d-block opacity-25"></i>
+                                        ไม่มีแจ้งเตือนในขณะนี้
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if(isset($_SESSION['user_id'])): ?>
                         <div class="dropdown">

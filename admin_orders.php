@@ -46,6 +46,24 @@ if (isset($_POST['update_status'])) {
         }
     }
     mysqli_query($conn, "UPDATE orders SET status = '$status' WHERE id = '$oid'");
+    
+    // Insert user notification
+    $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
+    if ($order_data) {
+        $uid = $order_data['user_id'];
+        $ono = $order_data['id'];
+        $status_th = '';
+        if ($status == 'pending') $status_th = 'รอการตรวจสอบชำระเงิน';
+        elseif ($status == 'shipping') $status_th = 'กำลังจัดส่งสินค้า';
+        elseif ($status == 'completed') $status_th = 'สำเร็จแล้ว';
+        elseif ($status == 'cancelled') $status_th = 'ถูกยกเลิกแล้ว';
+        
+        $title = "อัปเดตสถานะคำสั่งซื้อ #$ono";
+        $message = "คำสั่งซื้อหมายเลข #$ono ของคุณเปลี่ยนสถานะเป็น: $status_th";
+        $url = "my_orders.php";
+        mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES ('$uid', '$title', '$message', '$url', 0, 0)");
+    }
+
     send_order_email($conn, $oid);
     $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปวสถานะเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
@@ -56,6 +74,18 @@ if (isset($_POST['save_tracking'])) {
     $oid = $_POST['order_id'];
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
     mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', status = 'shipping' WHERE id = '$oid'");
+    
+    // Insert user notification for tracking number
+    $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
+    if ($order_data) {
+        $uid = $order_data['user_id'];
+        $ono = $order_data['id'];
+        $title = "คำสั่งซื้อ #$ono ถูกจัดส่งแล้ว";
+        $message = "คำสั่งซื้อหมายเลข #$ono ของคุณได้รับการจัดส่งแล้ว! เลขพัสดุของคุณคือ: $track";
+        $url = "my_orders.php";
+        mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES ('$uid', '$title', '$message', '$url', 0, 0)");
+    }
+
     send_order_email($conn, $oid);
     $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกเลขพัสดุ', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();

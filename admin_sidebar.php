@@ -101,7 +101,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a class="nav-link <?= $current_page == 'admin_dashboard.php' ? 'active' : '' ?>" href="admin_dashboard.php"><i class="bi bi-grid-1x2-fill"></i> ภาพรวมร้านค้า</a>
         <a class="nav-link <?= $current_page == 'admin.php' ? 'active' : '' ?>" href="admin.php"><i class="bi bi-box-seam"></i> จัดการสินค้า</a>
         <a class="nav-link <?= $current_page == 'admin_categories.php' ? 'active' : '' ?>" href="admin_categories.php"><i class="bi bi-tags-fill"></i> หมวดหมู่สินค้า</a>
-        <a class="nav-link <?= $current_page == 'admin_orders.php' ? 'active' : '' ?>" href="admin_orders.php"><i class="bi bi-clipboard-check"></i> รายการสั่งซื้อ</a>
+        <?php
+        $pending_orders_count = 0;
+        if (isset($conn)) {
+            $q_pending = mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status = 'pending'");
+            if ($q_pending) {
+                $pending_orders_count = mysqli_fetch_assoc($q_pending)['count'] ?? 0;
+            }
+        }
+        ?>
+        <a class="nav-link <?= $current_page == 'admin_orders.php' ? 'active' : '' ?>" href="admin_orders.php">
+            <i class="bi bi-clipboard-check"></i> รายการสั่งซื้อ
+            <?php if($pending_orders_count > 0): ?>
+                <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 700;"><?= $pending_orders_count ?></span>
+            <?php endif; ?>
+        </a>
         <a class="nav-link <?= $current_page == 'admin_payments.php' ? 'active' : '' ?>" href="admin_payments.php"><i class="bi bi-credit-card"></i> ช่องทางชำระเงิน</a>
         <a class="nav-link <?= $current_page == 'admin_coupons.php' ? 'active' : '' ?>" href="admin_coupons.php"><i class="bi bi-ticket-perforated"></i> จัดการคูปอง</a>
         <a class="nav-link <?= $current_page == 'admin_banners.php' ? 'active' : '' ?>" href="admin_banners.php"><i class="bi bi-images"></i> จัดการแบนเนอร์</a>

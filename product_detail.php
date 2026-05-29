@@ -259,6 +259,115 @@ include 'header.php';
     </div>
 </div>
 
+<!-- สินค้าแนะนำสำหรับคุณ (Recommended Products) -->
+<?php
+$cat_id = $product['category_id'];
+$recommended_products = [];
+$recommended_ids = [];
+
+// 1. ดึงสินค้าหมวดหมู่เดียวกันก่อน (ยกเว้นสินค้าตัวปัจจุบัน)
+$rel_query = mysqli_query($conn, "SELECT p.*, 
+    (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
+    (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count
+    FROM products p 
+    WHERE p.category_id = '$cat_id' AND p.id != '$id' 
+    LIMIT 4");
+
+while ($p = mysqli_fetch_assoc($rel_query)) {
+    $recommended_products[] = $p;
+    $recommended_ids[] = $p['id'];
+}
+
+// 2. ถ้าหากสินค้าใกล้เคียงยังมีไม่ครบ 4 ชิ้น ให้ดึงสินค้าขายดีจากร้านมาเติมให้เต็ม
+$count_fetched = count($recommended_products);
+if ($count_fetched < 4) {
+    $needed = 4 - $count_fetched;
+    $not_in_clause = "";
+    if (!empty($recommended_ids)) {
+        $not_in_clause = "AND p.id NOT IN ('" . implode("','", $recommended_ids) . "')";
+    }
+    
+    // ดึงสินค้าขายดีที่สุด (ยอดขายรวมจาก order_items) หรือเรียงตามคะแนนดาว/รหัสสินค้าถ้าไม่มียอดขาย
+    $best_query = mysqli_query($conn, "SELECT p.*, 
+        (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
+        (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count,
+        (SELECT IFNULL(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.product_id = p.id) as sales_volume
+        FROM products p 
+        WHERE p.id != '$id' $not_in_clause 
+        ORDER BY sales_volume DESC, p.id DESC 
+        LIMIT $needed");
+        
+    while ($p = mysqli_fetch_assoc($best_query)) {
+        $recommended_products[] = $p;
+    }
+}
+
+if (!empty($recommended_products)):
+?>
+<div class="container pb-4 animate__animated animate__fadeInUp">
+    <div class="border-top pt-5">
+        <h3 class="fw-bold mb-4 text-dark" style="font-size: 1.5rem;">สินค้าแนะนำสำหรับคุณ <span style="color:var(--blue-hover);">✨</span></h3>
+        <div class="row g-3 g-md-4">
+            <?php foreach ($recommended_products as $p): 
+                $is_out = ($p['stock'] <= 0);
+                $rating = $p['avg_rating'] ? round($p['avg_rating'], 1) : 0;
+                $rv_count = $p['review_count'];
+                
+                // Wishlist check
+                $is_fav = false;
+                if (isset($_SESSION['user_id'])) {
+                    $uid = $_SESSION['user_id'];
+                    $check_fav = mysqli_query($conn, "SELECT id FROM wishlist WHERE user_id='$uid' AND product_id='{$p['id']}'");
+                    if (mysqli_num_rows($check_fav) > 0) { $is_fav = true; }
+                }
+                $fav_class = $is_fav ? 'liked' : '';
+                $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
+            ?>
+            <div class="col-6 col-md-3">
+                <div class="card card-product">
+                    <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด">
+                        <i class="bi <?= $fav_icon ?>"></i>
+                    </button>
+                    <div class="product-img-wrapper">
+                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
+                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>">
+                            <?php if($is_out): ?>
+                                <div class="out-stock-overlay"><span class="badge-out">สินค้าหมด</span></div>
+                            <?php endif; ?>
+                        </a>
+                    </div>
+                    
+                    <div class="card-body d-flex flex-column text-center pt-0">
+                        <h6 class="fw-bold mb-1 text-truncate mt-3">
+                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name stretched-link">
+                                <?= $p['name'] ?>
+                            </a>
+                        </h6>
+                        <div class="small text-warning mb-2">
+                            <?php for($i=1; $i<=5; $i++) echo $i<=$rating ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star text-muted opacity-25"></i>'; ?>
+                            <span class="text-muted ms-1" style="font-size: 0.8rem;">(<?= $rv_count ?>)</span>
+                        </div>
+                        <div class="mt-auto">
+                            <div class="mb-3">
+                                <span class="fw-bold" style="color:var(--blue-dark); font-size:1.2rem;">฿<?= number_format($p['price']) ?></span>
+                            </div>
+                            <?php if($is_out): ?>
+                                <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2" disabled>สินค้าหมด</button>
+                            <?php else: ?>
+                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2" style="z-index:2;">
+                                    <i class="bi bi-cart-plus"></i> เลือก
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- สินค้าที่ดูล่าสุด (Recently Viewed Products) -->
 <?php
 $display_recently_viewed = array_filter($recently_viewed, function($val) use ($id) {
@@ -292,7 +401,7 @@ if (!empty($display_recently_viewed)):
 <div class="container pb-5 animate__animated animate__fadeInUp">
     <div class="border-top pt-5">
         <h3 class="fw-bold mb-4 text-dark" style="font-size: 1.5rem;">สินค้าที่คุณดูล่าสุด <span style="color:var(--blue-hover);">👀</span></h3>
-        <div class="scroll-menu py-2 px-1" style="flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 20px;">
+        <div class="scroll-menu py-2 px-1" style="display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 20px;">
             <?php foreach ($ordered_rv_products as $p): 
                 $is_out = ($p['stock'] <= 0);
                 $rating = $p['avg_rating'] ? round($p['avg_rating'], 1) : 0;
@@ -308,16 +417,16 @@ if (!empty($display_recently_viewed)):
                 $fav_class = $is_fav ? 'liked' : '';
                 $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
             ?>
-            <div style="flex: 0 0 auto; width: 240px; position: relative;">
+            <div style="flex: 0 0 auto; width: 220px; height: 300px; position: relative;">
                 <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
                     <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
-                    <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
+                    <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100 text-center">
                             <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($is_out): ?>
-                                <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1">สินค้าหมด</span></div>
+                                <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1" style="font-size:0.7rem;">สินค้าหมด</span></div>
                             <?php endif; ?>
                         </a>
                     </div>

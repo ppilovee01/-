@@ -414,4 +414,31 @@ body.fade-out {
     color: var(--text-secondary);
 }
 
+/* Horizontal Scroll Menu with styled scrollbars */
+.scroll-menu {
+    display: flex !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 20px;
+    padding-bottom: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue-hover) #f1f5f9;
+}
+.scroll-menu::-webkit-scrollbar {
+    height: 6px;
+}
+.scroll-menu::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+.scroll-menu::-webkit-scrollbar-thumb {
+    background: var(--blue-main);
+    border-radius: 10px;
+}
+.scroll-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--blue-hover);
+}
+
+
 

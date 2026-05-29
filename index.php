@@ -2,6 +2,25 @@
 session_start();
 include 'db.php'; 
 
+// --- Helper for Filters URL Generation ---
+function buildFilterUrl($paramsToUpdate) {
+    $currentParams = $_GET;
+    foreach ($paramsToUpdate as $key => $val) {
+        if ($val === null) {
+            unset($currentParams[$key]);
+        } else {
+            $currentParams[$key] = $val;
+        }
+    }
+    // Remove empty parameters
+    foreach ($currentParams as $key => $val) {
+        if ($val === '') {
+            unset($currentParams[$key]);
+        }
+    }
+    return 'index.php?' . http_build_query($currentParams) . '#shop';
+}
+
 // --- Feedback Logic (Anti-F5 Fixed) ---
 if (isset($_POST['send_feedback'])) {
     if (!isset($_SESSION['user_id'])) {
@@ -10,6 +29,14 @@ if (isset($_POST['send_feedback'])) {
         $msg = mysqli_real_escape_string($conn, $_POST['message']);
         $uid = $_SESSION['user_id'];
         if(mysqli_query($conn, "INSERT INTO feedback (user_id, message) VALUES ('$uid', '$msg')")) {
+            // Insert admin notification for feedback
+            $u_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT fullname FROM users WHERE id='$uid'"));
+            $fullname = mysqli_real_escape_string($conn, $u_data['fullname'] ?? 'ผู้ใช้งาน');
+            $title = "ข้อเสนอแนะใหม่จากคุณ $fullname";
+            $message = "คุณได้รับข้อเสนอแนะใหม่: " . mysqli_real_escape_string($conn, mb_strimwidth($msg, 0, 80, '...'));
+            $url = "admin_feedback.php";
+            mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$title', '$message', '$url', 0, 1)");
+
             $_SESSION['swal'] = ['title'=>'ขอบคุณครับ!', 'text'=>'เราได้รับข้อเสนอแนะของคุณแล้ว', 'icon'=>'success'];
         } else {
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
@@ -156,31 +183,123 @@ include 'header.php';
 <?php endif; ?>
 
 <section id="shop" class="container py-5">
+    <?php 
+    $search = isset($_GET['q']) ? mysqli_real_escape_string($conn, $_GET['q']) : '';
+    $cat_id = isset($_GET['cat']) ? mysqli_real_escape_string($conn, $_GET['cat']) : '';
+    $min_price = isset($_GET['min_price']) && $_GET['min_price'] !== '' ? floatval($_GET['min_price']) : null;
+    $max_price = isset($_GET['max_price']) && $_GET['max_price'] !== '' ? floatval($_GET['max_price']) : null;
+    $in_stock = isset($_GET['in_stock']) ? intval($_GET['in_stock']) : 0;
+    $sort = isset($_GET['sort']) ? mysqli_real_escape_string($conn, $_GET['sort']) : 'newest';
+
+    $sql = "SELECT p.*, 
+            (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
+            (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count 
+            FROM products p WHERE 1=1 ";
+    if ($search) $sql .= "AND p.name LIKE '%$search%' ";
+    if ($cat_id) $sql .= "AND p.category_id = '$cat_id' ";
+    if ($min_price !== null) $sql .= "AND p.price >= $min_price ";
+    if ($max_price !== null) $sql .= "AND p.price <= $max_price ";
+    if ($in_stock) $sql .= "AND p.stock > 0 ";
+
+    $order_by = "ORDER BY p.id DESC";
+    if ($sort === 'price_asc') {
+        $order_by = "ORDER BY p.price ASC";
+    } elseif ($sort === 'price_desc') {
+        $order_by = "ORDER BY p.price DESC";
+    } elseif ($sort === 'rating') {
+        $order_by = "ORDER BY COALESCE(avg_rating, 0) DESC, p.id DESC";
+    }
+
+    $result = mysqli_query($conn, $sql . $order_by);
+    $total_found = mysqli_num_rows($result);
+    ?>
+
     <div class="mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="fw-bold mb-0 text-dark">สินค้าแนะนำ <span style="color:var(--blue-dark)">🔥</span></h2>
+            <h2 class="fw-bold mb-0 text-dark">สินค้าทั้งหมด <span style="color:var(--blue-hover)">🛒</span></h2>
         </div>
         <div class="scroll-menu" id="categoryMenu">
-            <a href="index.php#shop" class="cat-btn <?= !isset($_GET['cat']) ? 'active' : '' ?>">ทั้งหมด</a>
+            <a href="<?= buildFilterUrl(['cat' => null]) ?>" class="cat-btn <?= !isset($_GET['cat']) ? 'active' : '' ?>">ทั้งหมด</a>
             <?php foreach($categories as $c): ?>
-                <a href="?cat=<?= $c['id'] ?>#shop" class="cat-btn <?= (isset($_GET['cat']) && $_GET['cat'] == $c['id']) ? 'active' : '' ?>"><?= $c['name'] ?></a>
+                <a href="<?= buildFilterUrl(['cat' => $c['id']]) ?>" class="cat-btn <?= (isset($_GET['cat']) && $_GET['cat'] == $c['id']) ? 'active' : '' ?>"><?= $c['name'] ?></a>
             <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- คอนโทรลบาร์สำหรับตัวกรองและเรียงลำดับ -->
+    <div class="row align-items-center mb-4">
+        <div class="col-12 col-md-6 text-center text-md-start mb-3 mb-md-0">
+            <span class="text-muted" style="font-size: 0.95rem;">
+                พบสินค้าทั้งหมด <strong class="text-dark"><?= $total_found ?></strong> รายการ
+            </span>
+        </div>
+        <div class="col-12 col-md-6 d-flex justify-content-center justify-content-md-end gap-2">
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse" style="border-color: #E2E8F0; color: var(--text-secondary); background: white; font-weight: 500;">
+                <i class="bi bi-sliders"></i> ตัวกรองขั้นสูง
+                <?php if (($min_price !== null) || ($max_price !== null) || $in_stock): ?>
+                    <span class="badge bg-primary rounded-circle" style="width: 8px; height: 8px; padding: 0;"></span>
+                <?php endif; ?>
+            </button>
+            
+            <div class="d-flex align-items-center gap-2">
+                <select name="sort" class="form-select form-select-sm rounded-pill px-3" style="width: 170px; border-color: #E2E8F0; color: var(--text-secondary); cursor: pointer; font-weight: 500;" onchange="applySorting(this.value)">
+                    <option value="newest" <?= ($sort=='newest')?'selected':'' ?>>ล่าสุด</option>
+                    <option value="price_asc" <?= ($sort=='price_asc')?'selected':'' ?>>ราคา: ต่ำ - สูง</option>
+                    <option value="price_desc" <?= ($sort=='price_desc')?'selected':'' ?>>ราคา: สูง - ต่ำ</option>
+                    <option value="rating" <?= ($sort=='rating')?'selected':'' ?>>คะแนนรีวิวสูงสุด</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ลิ้นชักตัวกรองแบบพับได้ (Filter Collapse Drawer) -->
+    <div class="collapse <?= (($min_price !== null) || ($max_price !== null) || $in_stock) ? 'show' : '' ?> mb-4" id="filterCollapse">
+        <div class="card card-body shadow-sm border-0 p-4" style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.5);">
+            <form method="GET" action="index.php#shop">
+                <!-- รักษาตัวแปรที่มีอยู่ -->
+                <?php if($cat_id): ?>
+                    <input type="hidden" name="cat" value="<?= htmlspecialchars($cat_id) ?>">
+                <?php endif; ?>
+                <?php if($search): ?>
+                    <input type="hidden" name="q" value="<?= htmlspecialchars($search) ?>">
+                <?php endif; ?>
+                <input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>">
+                
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-5">
+                        <label class="form-label fw-bold text-dark small mb-2 d-block">ช่วงราคา (บาท)</label>
+                        <div class="d-flex align-items-center gap-2">
+                          <input type="number" name="min_price" class="form-control form-control-sm rounded-pill text-center py-2" placeholder="ต่ำสุด" value="<?= $min_price !== null ? htmlspecialchars($min_price) : '' ?>" style="border-color: #E2E8F0; font-size: 0.9rem;" min="0">
+                          <span class="text-muted">—</span>
+                          <input type="number" name="max_price" class="form-control form-control-sm rounded-pill text-center py-2" placeholder="สูงสุด" value="<?= $max_price !== null ? htmlspecialchars($max_price) : '' ?>" style="border-color: #E2E8F0; font-size: 0.9rem;" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-4">
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" name="in_stock" id="inStockCheck" value="1" <?= $in_stock ? 'checked' : '' ?> style="cursor: pointer; width: 2.2em; height: 1.1em;">
+                          <label class="form-check-label fw-bold text-dark small ms-2" for="inStockCheck" style="cursor: pointer;">แสดงเฉพาะสินค้าที่มีในสต๊อก</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-gradient btn-sm rounded-pill flex-grow-1 py-2 font-weight-bold" style="font-size: 0.85rem; height: 38px;">
+                            นำไปใช้
+                        </button>
+                        <?php if (($min_price !== null) || ($max_price !== null) || $in_stock): ?>
+                            <a href="index.php?<?= $cat_id ? 'cat='.urlencode($cat_id) : '' ?><?= $search ? '&q='.urlencode($search) : '' ?>#shop" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center justify-content-center" style="border-color: #E2E8F0; width: 38px; height: 38px; padding: 0; background: white;" title="ล้างตัวกรอง">
+                                <i class="bi bi-trash3"></i>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
     <div class="row g-3 g-md-4">
         <?php 
-        $search = isset($_GET['q']) ? mysqli_real_escape_string($conn, $_GET['q']) : '';
-        $cat_id = isset($_GET['cat']) ? mysqli_real_escape_string($conn, $_GET['cat']) : '';
-        $sql = "SELECT p.*, 
-                (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
-                (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count 
-                FROM products p WHERE 1=1 ";
-        if ($search) $sql .= "AND name LIKE '%$search%' ";
-        if ($cat_id) $sql .= "AND category_id = '$cat_id' ";
-        $result = mysqli_query($conn, $sql . "ORDER BY id DESC");
-        
-        if(mysqli_num_rows($result) > 0):
+        if($total_found > 0):
             while ($p = mysqli_fetch_assoc($result)):
                 $is_out = ($p['stock'] <= 0);
                 $rating = $p['avg_rating'] ? round($p['avg_rating'], 1) : 0;
@@ -280,7 +399,7 @@ if (!empty($recently_viewed)):
 <section class="container py-5 animate__animated animate__fadeInUp">
     <div class="border-top pt-5">
         <h2 class="fw-bold mb-4 text-dark">สินค้าที่คุณดูล่าสุด <span style="color:var(--blue-hover);">👀</span></h2>
-        <div class="scroll-menu py-2 px-1" style="flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 20px;">
+        <div class="scroll-menu py-2 px-1" style="display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 20px;">
             <?php foreach ($ordered_rv_products as $p): 
                 $is_out = ($p['stock'] <= 0);
                 $rating = $p['avg_rating'] ? round($p['avg_rating'], 1) : 0;
@@ -291,7 +410,7 @@ if (!empty($recently_viewed)):
                 $fav_class = $is_fav ? 'liked' : '';
                 $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
             ?>
-            <div style="flex: 0 0 auto; width: 240px; position: relative;">
+            <div style="flex: 0 0 auto; width: 240px; height: 320px; position: relative;">
                 <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
                     <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
                         <i class="bi <?= $fav_icon ?>"></i>
@@ -384,6 +503,16 @@ endif;
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    function applySorting(sortVal) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('sort', sortVal);
+        if(urlParams.toString()) {
+            window.location.href = 'index.php?' + urlParams.toString() + '#shop';
+        } else {
+            window.location.href = 'index.php#shop';
+        }
+    }
+
     const scrollContainer = document.getElementById('categoryMenu');
     if(scrollContainer){
         scrollContainer.addEventListener("wheel", (evt) => { evt.preventDefault(); scrollContainer.scrollLeft += evt.deltaY; });

@@ -188,6 +188,13 @@ if (isset($_POST['confirm_order'])) {
                         curl_exec($ch); curl_close($ch);
                     }
 
+                    // Insert admin notification for new order
+                    $cust_name = mysqli_real_escape_string($conn, $a['recipient_name']);
+                    $title = "มีคำสั่งซื้อใหม่เข้ามา #$order_id";
+                    $message = "มีคำสั่งซื้อใหม่เข้ามา #$order_id จากคุณ $cust_name ยอดชำระ ฿" . number_format($final);
+                    $url = "admin_orders.php";
+                    mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$title', '$message', '$url', 0, 1)");
+
                     unset($_SESSION['cart']); unset($_SESSION['coupon']);
                     $_SESSION['swal'] = [
                         'title' => 'สั่งซื้อสำเร็จ!',
