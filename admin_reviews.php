@@ -8,6 +8,20 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 // --- Logic: ลบรีวิว ---
 if (isset($_GET['delete'])) {
     $id = mysqli_real_escape_string($conn, $_GET['delete']);
+    
+    // ดึงข้อมูลรูปภาพเพื่อลบไฟล์จากโฟลเดอร์ uploads/
+    $q_img = mysqli_query($conn, "SELECT image FROM product_reviews WHERE id = '$id'");
+    if ($q_img && mysqli_num_rows($q_img) > 0) {
+        $row_img = mysqli_fetch_assoc($q_img);
+        if (!empty($row_img['image'])) {
+            $file_path = $row_img['image'];
+            // ตรวจสอบว่ามีไฟล์อยู่จริงแล้วทำการลบ
+            if (file_exists($file_path)) {
+                @unlink($file_path);
+            }
+        }
+    }
+    
     mysqli_query($conn, "DELETE FROM product_reviews WHERE id = '$id'");
     header("Location: admin_reviews.php"); exit();
 }
@@ -59,8 +73,8 @@ if (isset($_GET['delete'])) {
                         </thead>
                         <tbody>
                             <?php 
-                            // ดึงรีวิว + ชื่อสินค้า + ชื่อคนรีวิว
-                            $sql = "SELECT r.*, p.name as product_name, p.image, u.fullname 
+                            // ดึงรีวิว + ชื่อสินค้า + ชื่อคนรีวิว (เลี่ยงคอลัมน์ image ชนกัน)
+                            $sql = "SELECT r.*, r.image as review_image, p.name as product_name, p.image as product_image, u.fullname 
                                     FROM product_reviews r 
                                     JOIN products p ON r.product_id = p.id 
                                     JOIN users u ON r.user_id = u.id 
@@ -73,18 +87,25 @@ if (isset($_GET['delete'])) {
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <img src="<?= $row['image'] ?>" class="rounded me-2" style="width:35px; height:35px; object-fit:cover;">
+                                        <img src="<?= $row['product_image'] ?>" class="rounded me-2" style="width:35px; height:35px; object-fit:cover;">
                                         <span class="text-truncate small" style="max-width: 150px;"><?= $row['product_name'] ?></span>
                                     </div>
                                 </td>
                                 <td class="small fw-bold"><?= $row['fullname'] ?></td>
                                 <td>
                                     <span class="text-warning small">
-                                        <?php for($i=1;$i<=5;$i++) echo $i<=$row['rating'] ? 'โ˜…' : 'โ˜†'; ?>
+                                        <?php for($i=1;$i<=5;$i++) echo $i<=$row['rating'] ? '★' : '☆'; ?>
                                     </span>
                                     <span class="small text-muted">(<?= $row['rating'] ?>)</span>
                                 </td>
-                                <td class="text-secondary small"><?= $row['comment'] ?></td>
+                                <td class="text-secondary small">
+                                    <div class="mb-1"><?= htmlspecialchars($row['comment']) ?></div>
+                                    <?php if (!empty($row['review_image']) && file_exists($row['review_image'])): ?>
+                                        <div>
+                                            <img src="<?= htmlspecialchars($row['review_image']) ?>" class="rounded border shadow-sm" style="width:45px; height:45px; object-fit:cover; cursor:pointer;" onclick="showReviewImage('<?= htmlspecialchars($row['review_image']) ?>', '<?= htmlspecialchars($row['fullname']) ?>')" title="คลิกเพื่อดูรูปภาพขนาดใหญ่">
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="small text-muted"><?= date('d/m/Y H:i', strtotime($row['created_at'])) ?></td>
                                 <td class="text-end">
                                     <button onclick="confirmDelete(<?= $row['id'] ?>)" class="btn btn-sm btn-outline-danger rounded-circle">
@@ -118,6 +139,19 @@ if (isset($_GET['delete'])) {
                 window.location.href = '?delete=' + id;
             }
         })
+    }
+
+    function showReviewImage(src, name) {
+        Swal.fire({
+            title: 'รูปภาพรีวิวจากคุณ ' + name,
+            imageUrl: src,
+            imageAlt: 'รีวิวสินค้า',
+            confirmButtonText: 'ปิด',
+            confirmButtonColor: 'var(--blue-hover)',
+            customClass: {
+                image: 'img-fluid rounded shadow-sm'
+            }
+        });
     }
 </script>
 </body>

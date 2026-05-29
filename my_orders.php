@@ -13,6 +13,48 @@ $action_status = "";
 // คำนวณจำนวนสินค้าในตะกร้า
 $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ? array_column($_SESSION['cart'], 'qty') : $_SESSION['cart']) : 0;
 
+// --- Logic: ลูกค้ารีวิวสินค้าผ่าน Modal ---
+if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
+    $uid = $_SESSION['user_id'];
+    $pid = mysqli_real_escape_string($conn, $_POST['product_id']);
+    $rating = intval($_POST['rating']);
+    $comment = mysqli_real_escape_string($conn, $_POST['comment']);
+    
+    // ป้องกันการรีวิวซ้ำ
+    $check_reviewed = mysqli_query($conn, "SELECT id FROM product_reviews WHERE user_id = '$uid' AND product_id = '$pid'");
+    if (mysqli_num_rows($check_reviewed) == 0) {
+        $review_image = null;
+        if (isset($_FILES['review_image']) && $_FILES['review_image']['error'] === UPLOAD_ERR_OK) {
+            $fileTmpPath = $_FILES['review_image']['tmp_name'];
+            $fileName = $_FILES['review_image']['name'];
+            $fileNameCmps = explode(".", $fileName);
+            $fileExtension = strtolower(end($fileNameCmps));
+            
+            $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg', 'webp');
+            if (in_array($fileExtension, $allowedfileExtensions)) {
+                $newFileName = 'review_' . uniqid() . '.' . $fileExtension;
+                $uploadFileDir = 'uploads/';
+                if (!is_dir($uploadFileDir)) {
+                    mkdir($uploadFileDir, 0755, true);
+                }
+                $dest_path = $uploadFileDir . $newFileName;
+                if(move_uploaded_file($fileTmpPath, $dest_path)) {
+                    $review_image = $dest_path;
+                }
+            }
+        }
+        $review_image_val = $review_image ? "'" . mysqli_real_escape_string($conn, $review_image) . "'" : "NULL";
+        $sql_review = "INSERT INTO product_reviews (product_id, user_id, rating, comment, image) VALUES ('$pid', '$uid', '$rating', '$comment', $review_image_val)";
+        if(mysqli_query($conn, $sql_review)) {
+             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
+        } else {
+             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+        }
+    }
+    header("Location: my_orders.php");
+    exit();
+}
+
 // --- Logic: ลูกค้ายกเลิกออเดอร์ ---
 if (isset($_GET['cancel_my_order'])) {
     $oid = mysqli_real_escape_string($conn, $_GET['cancel_my_order']);
@@ -176,25 +218,35 @@ date_default_timezone_set('Asia/Bangkok');
                         while($item = mysqli_fetch_assoc($items_res)):
                         ?>
                         <div class="product-item">
-                            <img src="<?= $item['image'] ?>" class="product-img">
-                            <div style="flex:1; min-width:0;">
-                                <div class="fw-bold text-dark text-truncate small"><?= $item['name'] ?></div>
-                                <?php if(!empty($item['selected_option'])): ?>
-                                    <small class="text-muted bg-light border px-2 py-0 rounded-pill d-inline-block mt-1 mb-1">
-                                        <?= $item['selected_option'] ?>
-                                    </small>
-                                    <br>
-                                <?php endif; ?>
-                                <span class="small text-muted" style="font-size:0.75rem;">x<?= $item['quantity'] ?></span>
-                            </div>
+                            <a href="product_detail.php?id=<?= $item['product_id'] ?>" class="text-decoration-none d-flex align-items-center" style="flex:1; min-width:0; color:inherit;">
+                                <img src="<?= $item['image'] ?>" class="product-img">
+                                <div style="flex:1; min-width:0;">
+                                    <div class="fw-bold text-dark text-truncate small"><?= $item['name'] ?></div>
+                                    <?php if(!empty($item['selected_option'])): ?>
+                                        <small class="text-muted bg-light border px-2 py-0 rounded-pill d-inline-block mt-1 mb-1">
+                                            <?= $item['selected_option'] ?>
+                                        </small>
+                                        <br>
+                                    <?php endif; ?>
+                                    <span class="small text-muted" style="font-size:0.75rem;">x<?= $item['quantity'] ?></span>
+                                </div>
+                            </a>
                             
                             <div class="text-end">
                                 <div class="fw-bold small mb-1">฿<?= number_format($item['price'] * $item['quantity']) ?></div>
                                 
                                 <?php if($status == 'completed' || $status == 'shipping'): ?>
-                                    <a href="product_detail.php?id=<?= $item['product_id'] ?>#review" class="btn-action btn-review text-decoration-none">
-                                        <i class="bi bi-star"></i> รีวิว
-                                    </a>
+                                    <?php
+                                    $check_reviewed = mysqli_query($conn, "SELECT id FROM product_reviews WHERE user_id = '$user_id' AND product_id = '{$item['product_id']}'");
+                                    $has_reviewed = mysqli_num_rows($check_reviewed) > 0;
+                                    if ($has_reviewed):
+                                    ?>
+                                        <span class="text-success small"><i class="bi bi-check-circle-fill"></i> รีวิวแล้ว</span>
+                                    <?php else: ?>
+                                        <button type="button" onclick="openReviewModal('<?= $item['product_id'] ?>', '<?= htmlspecialchars($item['name']) ?>', '<?= htmlspecialchars($item['image']) ?>')" class="btn-action btn-review border-0 text-decoration-none">
+                                            <i class="bi bi-star"></i> รีวิว
+                                        </button>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -231,11 +283,106 @@ date_default_timezone_set('Asia/Bangkok');
 
 <div class="modal fade" id="slipModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-transparent border-0"><div class="modal-body p-0 text-center"><button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button><img id="slipImage" src="" class="img-fluid rounded-3 shadow-lg" style="max-height: 85vh;"></div></div></div></div>
 
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-star-fill text-warning me-2"></i>รีวิวสินค้า</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data" id="modalReviewForm">
+                <div class="modal-body py-4">
+                    <input type="hidden" name="product_id" id="review-product-id">
+                    <input type="hidden" name="rating" id="modal-rating-val" value="5">
+                    
+                    <div class="d-flex align-items-center gap-3 bg-light p-3 rounded-3 mb-4">
+                        <img id="review-product-img" src="" class="rounded" style="width: 60px; height: 60px; object-fit: cover; border: 1px solid #eee;">
+                        <div class="fw-bold text-dark text-truncate small" id="review-product-name">ชื่อสินค้า</div>
+                    </div>
+                    
+                    <div class="mb-3 text-center">
+                        <label class="small text-muted mb-2 d-block fw-bold">ระดับความพึงพอใจ</label>
+                        <div class="d-flex justify-content-center gap-2">
+                            <i class="bi bi-star-fill text-warning fs-2 star-select" data-value="1" style="cursor: pointer;"></i>
+                            <i class="bi bi-star-fill text-warning fs-2 star-select" data-value="2" style="cursor: pointer;"></i>
+                            <i class="bi bi-star-fill text-warning fs-2 star-select" data-value="3" style="cursor: pointer;"></i>
+                            <i class="bi bi-star-fill text-warning fs-2 star-select" data-value="4" style="cursor: pointer;"></i>
+                            <i class="bi bi-star-fill text-warning fs-2 star-select" data-value="5" style="cursor: pointer;"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1 d-block fw-bold">ความคิดเห็นของคุณ</label>
+                        <textarea name="comment" class="form-control border shadow-sm rounded-3" rows="3" placeholder="บอกเล่าประสบการณ์ของคุณหลังการใช้งาน..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1 d-block fw-bold"><i class="bi bi-camera me-1"></i>แนบรูปภาพสินค้า (รูปถ่ายจริง - ทางเลือก)</label>
+                        <input type="file" name="review_image" class="form-control border shadow-sm rounded-3" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" name="submit_modal_review" class="btn btn-blue rounded-pill px-4 text-white fw-bold">ส่งรีวิว</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     function viewSlip(url){ new bootstrap.Modal(document.getElementById('slipModal')).show(); document.getElementById('slipImage').src = url; }
     function confirmCancel(id){ Swal.fire({title:'ยืนยันยกเลิก?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'ยกเลิกออเดอร์'}).then((r)=>{if(r.isConfirmed) window.location.href='?cancel_my_order='+id;}) }
-    <?php if($action_status == 'success'): ?>Swal.fire({icon:'success',title:'สำเร็จ',text:'ยกเลิกรายการแล้ว',confirmButtonColor:'#AEE2FF'}).then(()=>{location.href='my_orders.php'});<?php endif; ?>
+    
+    function openReviewModal(pid, name, img) {
+        document.getElementById('review-product-id').value = pid;
+        document.getElementById('review-product-name').innerText = name;
+        document.getElementById('review-product-img').src = img;
+        
+        // Reset rating values and stars
+        document.getElementById('modal-rating-val').value = 5;
+        document.querySelectorAll('.star-select').forEach(star => {
+            star.classList.remove('bi-star');
+            star.classList.add('bi-star-fill');
+        });
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('reviewModal')).show();
+    }
+    
+    // Bind star selection click listeners
+    document.querySelectorAll('.star-select').forEach(star => {
+        star.addEventListener('click', function() {
+            const val = parseInt(this.getAttribute('data-value'));
+            document.getElementById('modal-rating-val').value = val;
+            
+            document.querySelectorAll('.star-select').forEach(s => {
+                const sVal = parseInt(s.getAttribute('data-value'));
+                if (sVal <= val) {
+                    s.classList.remove('bi-star');
+                    s.classList.add('bi-star-fill');
+                } else {
+                    s.classList.remove('bi-star-fill');
+                    s.classList.add('bi-star');
+                }
+            });
+        });
+    });
+
+    <?php if($action_status == 'success'): ?>
+        Swal.fire({icon:'success',title:'สำเร็จ',text:'ยกเลิกรายการแล้ว',confirmButtonColor:'#AEE2FF'}).then(()=>{location.href='my_orders.php'});
+    <?php endif; ?>
+
+    <?php if(isset($_SESSION['swal'])): ?>
+        Swal.fire({
+            icon: '<?= $_SESSION['swal']['icon'] ?>',
+            title: '<?= $_SESSION['swal']['title'] ?>',
+            text: '<?= $_SESSION['swal']['text'] ?>',
+            confirmButtonColor: '#AEE2FF'
+        });
+    <?php unset($_SESSION['swal']); endif; ?>
 </script>
 </body>
 </html>

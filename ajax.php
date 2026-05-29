@@ -85,13 +85,14 @@ elseif ($action == 'update_qty') {
         }
 
         $new_qty = is_array($_SESSION['cart'][$id]) ? $_SESSION['cart'][$id]['qty'] : $_SESSION['cart'][$id];
-        $line_total = $row['price'] * $new_qty;
+        $line_total = getProductTotalPrice($conn, $real_id, $new_qty);
         
         $cart_data = calculate_cart_totals($conn);
         $response = [
             'status' => 'success',
             'new_qty' => $new_qty,
             'line_total' => number_format($line_total),
+            'price_desc' => getProductPriceText($conn, $real_id, $new_qty),
             'subtotal' => number_format($cart_data['subtotal'], 2),
             'discount' => number_format($cart_data['discount'], 2),
             'final_total' => number_format($cart_data['final'], 2),
@@ -136,13 +137,15 @@ elseif ($action == 'get_cart_drawer') {
                 // เช็คราคาโปรโมชัน ณ ปัจจุบัน (เช่น Flash Sale)
                 $price = getCurrentPrice($conn, $pid);
                 $original_price = $prod['price'];
-                $item_total = $price * $qty;
+                $item_total = getProductTotalPrice($conn, $pid, $qty);
+                $price_desc = getProductPriceText($conn, $pid, $qty);
                 
                 $html .= '
                 <div class="cart-drawer-item" id="drawer-item-' . $k . '">
                     <img src="' . htmlspecialchars($prod['image']) . '" alt="' . htmlspecialchars($prod['name']) . '">
                     <div class="cart-drawer-item-info">
-                        <div class="cart-drawer-item-title" title="' . htmlspecialchars($prod['name']) . '">' . htmlspecialchars($prod['name']) . '</div>';
+                        <div class="cart-drawer-item-title" title="' . htmlspecialchars($prod['name']) . '">' . htmlspecialchars($prod['name']) . '</div>
+                        <div class="text-muted small mb-1" style="font-size: 0.75rem;">' . $price_desc . '</div>';
                 
                 if (!empty($opts)) {
                     $html .= '<div class="cart-drawer-item-option">' . htmlspecialchars($opts) . '</div>';
@@ -440,7 +443,7 @@ function calculate_cart_totals($conn) {
             $pid = is_array($item) ? $item['id'] : $k;
             $qty = is_array($item) ? $item['qty'] : $item;
             
-            $subtotal += getCurrentPrice($conn, $pid) * $qty;
+            $subtotal += getProductTotalPrice($conn, $pid, $qty);
         }
     }
 

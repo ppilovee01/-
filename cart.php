@@ -65,16 +65,7 @@ if (isset($_POST['confirm_order'])) {
             $stock_error = true; 
             break; 
         }
-        // ตรวจสอบโควตาคลังแคมเปญ Flash Sale
-        $active_fs = getActiveFlashSale($conn, $pid);
-        if ($active_fs !== null) {
-            $fs_remaining = $active_fs['flash_stock'] - $active_fs['flash_sold'];
-            if ($fs_remaining < $qty) {
-                $error_msg = "ขออภัย สินค้าโปรโมชัน Flash Sale ของ {$s_row['name']} มีโควตาเหลือไม่เพียงพอ (เหลือโควตา {$fs_remaining} ชิ้น)";
-                $stock_error = true;
-                break;
-            }
-        }
+        // คลายนโยบายความจำกัดโควตา (ลูกค้าสามารถซื้อเกินโควตาได้ โดยจะคำนวณแยกส่วนเป็นราคาทั่วไปแทน)
     }
 
     if (!$stock_error) {
@@ -178,18 +169,23 @@ if (isset($_POST['confirm_order'])) {
                         $unit_import_cost = $qty > 0 ? round($total_import_cost / $qty, 2) : 0;
 
                         $pr = mysqli_fetch_assoc(mysqli_query($conn, "SELECT name, price FROM products WHERE id='$pid'"));
-                        if ($pr) {
-                            $pr['price'] = getCurrentPrice($conn, $pid);
-                        }
                         $opts_esc = mysqli_real_escape_string($conn, $opts);
                         
-                        // บันทึกรายการลงบิล พร้อมทุนต้นทุน FIFO
-                        mysqli_query($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, import_cost, selected_option) VALUES ('$order_id', '$pid', '$qty', '{$pr['price']}', '$unit_import_cost', '$opts_esc')");
+                        // คำนวณราคาขายแบบแยกส่วน (ส่วนที่อยู่ในโควตา = ราคา Flash, ส่วนเกินโควตา = ราคาปกติ)
+                        $line_total_price = getProductTotalPrice($conn, $pid, $qty);
+                        $average_unit_price = $qty > 0 ? ($line_total_price / $qty) : 0;
                         
-                        // เพิ่มยอดขายในระบบ Flash Sale หากมีแคมเปญเปิดใช้งานอยู่
+                        // บันทึกรายการลงบิล พร้อมทุนต้นทุน FIFO
+                        mysqli_query($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, import_cost, selected_option) VALUES ('$order_id', '$pid', '$qty', '$average_unit_price', '$unit_import_cost', '$opts_esc')");
+                        
+                        // เพิ่มยอดขายในระบบ Flash Sale (ไม่เกินจำนวนโควตาที่เหลือในแคมเปญ)
                         $active_fs = getActiveFlashSale($conn, $pid);
                         if ($active_fs !== null) {
-                            mysqli_query($conn, "UPDATE flash_sales SET flash_sold = flash_sold + $qty WHERE id = '{$active_fs['id']}'");
+                            $fs_remaining = $active_fs['flash_stock'] - $active_fs['flash_sold'];
+                            $fs_sold_increment = min($qty, max(0, $fs_remaining));
+                            if ($fs_sold_increment > 0) {
+                                mysqli_query($conn, "UPDATE flash_sales SET flash_sold = flash_sold + $fs_sold_increment WHERE id = '{$active_fs['id']}'");
+                            }
                         }
                         
                         // ซิงค์ตารางสินค้าหลัก (อัปเดตราคาใหม่ล่าสุด และสต๊อกรวม)
@@ -315,9 +311,9 @@ include 'header.php';
                                         $row = mysqli_fetch_assoc($res);
                                         
                                         if($row) {
-                                            $row['price'] = getCurrentPrice($conn, $pid);
-                                            $line_total = $row['price'] * $qty;
+                                            $line_total = getProductTotalPrice($conn, $pid, $qty);
                                             $subtotal += $line_total;
+                                            $price_desc = getProductPriceText($conn, $pid, $qty);
                                 ?>
                                 <div class="item-row d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom" id="item-row-<?= $key ?>">
                                     <div class="d-flex align-items-center gap-3">
@@ -327,7 +323,7 @@ include 'header.php';
                                             <?php if($opts): ?>
                                                 <small class="text-muted bg-light px-2 py-0 rounded border d-inline-block mt-1"><?= $opts ?></small>
                                             <?php endif; ?>
-                                            <div class="text-muted small mt-1">฿<?= number_format($row['price']) ?> / ชิ้น</div>
+                                            <div class="text-muted small mt-1" id="price-desc-<?= $key ?>"><?= $price_desc ?></div>
                                             <button type="button" onclick="removeItem('<?= $key ?>')" class="text-danger small text-decoration-none mt-1 d-inline-block border-0 bg-transparent p-0"><i class="bi bi-trash"></i> ลบ</button>
                                         </div>
                                     </div>
@@ -571,6 +567,9 @@ function updateQty(id, type) {
         if(data.status === 'success') {
             document.getElementById('qty-'+id).innerText = data.new_qty;
             document.getElementById('line-total-'+id).innerText = data.line_total;
+            if(document.getElementById('price-desc-'+id)) {
+                document.getElementById('price-desc-'+id).innerText = data.price_desc;
+            }
             document.getElementById('subtotal').innerText = data.subtotal;
             document.getElementById('final_total').innerText = data.final_total;
             if(document.getElementById('discount_val')) document.getElementById('discount_val').innerText = data.discount;
@@ -587,6 +586,11 @@ function updateQty(id, type) {
             
             const pm = document.querySelector('input[name="payment_method_id"]:checked');
             if(pm) updatePaymentUI(pm);
+
+            // Sync with interactive cart drawer if available
+            if (typeof window.loadCartDrawer === 'function') {
+                window.loadCartDrawer();
+            }
         } else {
             Swal.fire('แจ้งเตือน', data.message, 'warning');
         }
@@ -623,6 +627,11 @@ function removeItem(id) {
                             
                             const badge = document.getElementById('nav-cart-badge');
                             badge.innerText = data.cart_count;
+
+                            // Sync with interactive cart drawer if available
+                            if (typeof window.loadCartDrawer === 'function') {
+                                window.loadCartDrawer();
+                            }
                         }, 300);
                     }
                 }

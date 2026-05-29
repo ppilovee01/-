@@ -723,6 +723,8 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             const body = document.getElementById('cart-drawer-body');
             const subtotalEl = document.getElementById('cart-drawer-subtotal');
             const badgeEl = document.getElementById('nav-cart-badge');
+            const floatBtn = document.getElementById('floatingCartBtn');
+            const floatBadge = document.getElementById('floating-cart-badge');
             
             fetch('ajax.php?action=get_cart_drawer')
             .then(r => r.json())
@@ -736,6 +738,14 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                             badgeEl.classList.remove('hidden');
                         } else {
                             badgeEl.classList.add('hidden');
+                        }
+                    }
+                    if (floatBtn && floatBadge) {
+                        floatBadge.innerText = res.cart_count;
+                        if (res.cart_count > 0) {
+                            floatBtn.classList.remove('hidden');
+                        } else {
+                            floatBtn.classList.add('hidden');
                         }
                     }
                 }
@@ -760,6 +770,41 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             .then(res => {
                 if (res.status === 'success') {
                     window.loadCartDrawer();
+                    
+                    // หากอยู่ในหน้า cart.php ให้ทำการอัปเดต UI ของหน้าหลักไปด้วยพร้อมกัน
+                    const isCartPage = window.location.pathname.endsWith('cart.php');
+                    if (isCartPage) {
+                        const qtyEl = document.getElementById('qty-' + cartKey);
+                        const totalEl = document.getElementById('line-total-' + cartKey);
+                        const priceDescEl = document.getElementById('price-desc-' + cartKey);
+                        const subtotalEl = document.getElementById('subtotal');
+                        const finalEl = document.getElementById('final_total');
+                        const discEl = document.getElementById('discount_val');
+                        const qrEl = document.getElementById('qr-total');
+                        
+                        if (qtyEl) qtyEl.innerText = res.new_qty;
+                        if (totalEl) totalEl.innerText = res.line_total;
+                        if (priceDescEl) priceDescEl.innerText = res.price_desc;
+                        if (subtotalEl) subtotalEl.innerText = res.subtotal;
+                        if (finalEl) finalEl.innerText = res.final_total;
+                        if (discEl) discEl.innerText = res.discount;
+                        if (qrEl) qrEl.innerText = res.final_total;
+                        
+                        const inTotal = document.getElementById('in_total');
+                        const inDisc = document.getElementById('in_disc');
+                        const inFinal = document.getElementById('in_final');
+                        const hiddenTotal = document.getElementById('hidden_total');
+                        
+                        if (inTotal) inTotal.value = res.subtotal.replace(/,/g, '');
+                        if (inDisc) inDisc.value = res.discount.replace(/,/g, '');
+                        if (inFinal) inFinal.value = res.final_total.replace(/,/g, '');
+                        if (hiddenTotal) hiddenTotal.value = res.subtotal.replace(/,/g, '');
+                        
+                        const pm = document.querySelector('input[name="payment_method_id"]:checked');
+                        if (pm && typeof updatePaymentUI === 'function') {
+                            updatePaymentUI(pm);
+                        }
+                    }
                 } else if (res.message) {
                     Swal.fire({
                         icon: 'warning',
@@ -788,6 +833,43 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             .then(res => {
                 if (res.status === 'success') {
                     window.loadCartDrawer();
+                    
+                    // หากอยู่ในหน้า cart.php ให้ทำการอัปเดต UI หน้าหลักไปด้วยพร้อมกัน
+                    const isCartPage = window.location.pathname.endsWith('cart.php');
+                    if (isCartPage) {
+                        const rowEl = document.getElementById('item-row-' + cartKey);
+                        if (rowEl) rowEl.remove();
+                        
+                        if (res.cart_count === 0) {
+                            window.location.reload();
+                        } else {
+                            const subtotalEl = document.getElementById('subtotal');
+                            const finalEl = document.getElementById('final_total');
+                            const discEl = document.getElementById('discount_val');
+                            const qrEl = document.getElementById('qr-total');
+                            
+                            if (subtotalEl) subtotalEl.innerText = res.subtotal;
+                            if (finalEl) finalEl.innerText = res.final_total;
+                            if (discEl) discEl.innerText = res.discount;
+                            if (qrEl) qrEl.innerText = res.final_total;
+                            
+                            const inTotal = document.getElementById('in_total');
+                            const inDisc = document.getElementById('in_disc');
+                            const inFinal = document.getElementById('in_final');
+                            const hiddenTotal = document.getElementById('hidden_total');
+                            
+                            if (inTotal) inTotal.value = res.subtotal.replace(/,/g, '');
+                            if (inDisc) inDisc.value = res.discount.replace(/,/g, '');
+                            if (inFinal) inFinal.value = res.final_total.replace(/,/g, '');
+                            if (hiddenTotal) hiddenTotal.value = res.subtotal.replace(/,/g, '');
+                            
+                            const pm = document.querySelector('input[name="payment_method_id"]:checked');
+                            if (pm && typeof updatePaymentUI === 'function') {
+                                updatePaymentUI(pm);
+                            }
+                        }
+                    }
+                    
                     Swal.fire({
                         icon: 'success',
                         title: 'ลบสำเร็จ',
@@ -867,7 +949,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     </a>
 
                     <a class="icon-btn" href="cart.php" title="ตะกร้าสินค้า">
-                        <i class="bi bi-bag"></i>
+                        <i class="bi bi-cart3"></i>
                         <span id="nav-cart-badge" class="badge-count <?= $cart_count > 0 ? '' : 'hidden' ?>"><?= $cart_count ?></span>
                     </a>
 
@@ -952,4 +1034,10 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         </div>
     </div>
 </div>
+
+<!-- Floating Cart Button -->
+<button type="button" id="floatingCartBtn" class="floating-cart-btn <?= $cart_count > 0 ? '' : 'hidden' ?>" onclick="toggleCartDrawer()" title="ดูตะกร้าสินค้า">
+    <i class="bi bi-cart3"></i>
+    <span id="floating-cart-badge" class="floating-badge-count"><?= $cart_count ?></span>
+</button>
 

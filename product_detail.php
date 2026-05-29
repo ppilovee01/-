@@ -41,9 +41,35 @@ $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
 // --- Logic Review (Anti-F5 Fixed) ---
 if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
     $uid = $_SESSION['user_id'];
-    $rating = $_POST['rating'];
+    $rating = intval($_POST['rating']);
     $comment = mysqli_real_escape_string($conn, $_POST['comment']);
-    $sql_review = "INSERT INTO product_reviews (product_id, user_id, rating, comment) VALUES ('$id', '$uid', '$rating', '$comment')";
+    
+    $review_image = null;
+    if (isset($_FILES['review_image']) && $_FILES['review_image']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['review_image']['tmp_name'];
+        $fileName = $_FILES['review_image']['name'];
+        $fileNameCmps = explode(".", $fileName);
+        $fileExtension = strtolower(end($fileNameCmps));
+        
+        $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg', 'webp');
+        if (in_array($fileExtension, $allowedfileExtensions)) {
+            $newFileName = 'review_' . uniqid() . '.' . $fileExtension;
+            $uploadFileDir = 'uploads/';
+            
+            if (!is_dir($uploadFileDir)) {
+                mkdir($uploadFileDir, 0755, true);
+            }
+            
+            $dest_path = $uploadFileDir . $newFileName;
+            if(move_uploaded_file($fileTmpPath, $dest_path)) {
+                $review_image = $dest_path;
+            }
+        }
+    }
+    
+    $review_image_val = $review_image ? "'" . mysqli_real_escape_string($conn, $review_image) . "'" : "NULL";
+    $sql_review = "INSERT INTO product_reviews (product_id, user_id, rating, comment, image) VALUES ('$id', '$uid', '$rating', '$comment', $review_image_val)";
+    
     if(mysqli_query($conn, $sql_review)) {
          $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
     } else {
@@ -97,9 +123,10 @@ $extra_css = "
     .detail-box { background: white; border-radius: var(--radius-md); padding: 40px; box-shadow: var(--shadow-sm); margin-top: 50px; border: 1px solid rgba(226, 232, 240, 0.8); }
     .nav-tabs { border-bottom: 2px solid #E2E8F0; }
     .nav-tabs .nav-link { color: var(--text-secondary); border: none; font-weight: 500; padding-bottom: 15px; margin-right: 20px; font-size: 1.1rem; }
-    .nav-tabs .nav-link.active { color: var(--blue-hover); border-bottom: 3px solid var(--blue-hover); background: transparent; font-weight: 700; }
     .review-item { border-bottom: 1px solid #E2E8F0; padding-bottom: 20px; margin-bottom: 20px; }
     .star-rating i { color: #FFC107; font-size: 0.9rem; }
+    .review-img-thumb { width: 100px; height: 100px; object-fit: cover; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid rgba(226, 232, 240, 0.8); transition: var(--transition-smooth); margin-top: 10px; }
+    .review-img-thumb:hover { transform: scale(1.05); box-shadow: var(--shadow-md); }
 </style>
 ";
 include 'header.php';
@@ -268,13 +295,13 @@ include 'header.php';
             
             <div class="tab-pane fade" id="review">
                 <?php if ($can_review): ?>
-                <div class="bg-light p-4 rounded-3 mb-4 border">
-                    <h6 class="fw-bold mb-3">เขียนรีวิวสินค้า</h6>
-                    <form method="POST">
+                <div class="bg-light p-4 rounded-3 mb-4 border shadow-sm">
+                    <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-pencil-square me-2 text-primary"></i>เขียนรีวิวสินค้า</h6>
+                    <form method="POST" enctype="multipart/form-data">
                         <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="small text-muted">ความพึงพอใจ</label>
-                                <select name="rating" class="form-select border-0 shadow-sm">
+                            <div class="col-md-4">
+                                <label class="small text-muted mb-1 d-block fw-bold">ความพึงพอใจ</label>
+                                <select name="rating" class="form-select border-0 shadow-sm rounded-3">
                                     <option value="5">⭐⭐⭐⭐⭐ (ดีเยี่ยม)</option>
                                     <option value="4">⭐⭐⭐⭐ (ดี)</option>
                                     <option value="3">⭐⭐⭐ (ปานกลาง)</option>
@@ -282,12 +309,18 @@ include 'header.php';
                                     <option value="1">⭐ (แย่)</option>
                                 </select>
                             </div>
-                            <div class="col-md-9">
-                                <label class="small text-muted">ความคิดเห็น</label>
-                                <textarea name="comment" class="form-control border-0 shadow-sm" rows="1" placeholder="บอกเล่าประสบการณ์ใช้งาน..." required></textarea>
+                            <div class="col-md-8">
+                                <label class="small text-muted mb-1 d-block fw-bold">ความคิดเห็น</label>
+                                <textarea name="comment" class="form-control border-0 shadow-sm rounded-3" rows="1" placeholder="บอกเล่าประสบการณ์ใช้งาน..." required></textarea>
                             </div>
-                            <div class="col-12 text-end">
-                                <button type="submit" name="submit_review" class="btn btn-dark rounded-pill px-4">ส่งรีวิว</button>
+                            <div class="col-12 col-md-8 offset-md-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                                <div class="flex-grow-1">
+                                    <label class="small text-muted mb-1 d-block fw-bold"><i class="bi bi-camera me-1"></i>แนบรูปภาพสินค้า (รูปถ่ายจริง)</label>
+                                    <input type="file" name="review_image" class="form-control form-control-sm border-0 shadow-sm rounded-3" accept="image/*">
+                                </div>
+                                <div class="text-end pt-sm-4">
+                                    <button type="submit" name="submit_review" class="btn btn-blue rounded-pill px-4 text-white fw-bold">ส่งรีวิว</button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -295,7 +328,7 @@ include 'header.php';
                 <?php endif; ?>
 
                 <?php if(mysqli_num_rows($reviews) > 0): while($r = mysqli_fetch_assoc($reviews)): ?>
-                <div class="review-item">
+                <div class="review-item animate__animated animate__fadeIn">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <div>
                             <strong class="text-dark me-2"><?= $r['fullname'] ?></strong>
@@ -305,7 +338,12 @@ include 'header.php';
                         </div>
                         <small class="text-muted" style="font-size:0.8rem;"><?= date('d/m/Y', strtotime($r['created_at'])) ?></small>
                     </div>
-                    <p class="mb-0 text-secondary"><?= $r['comment'] ?></p>
+                    <p class="mb-2 text-secondary"><?= $r['comment'] ?></p>
+                    <?php if(!empty($r['image']) && file_exists($r['image'])): ?>
+                        <div class="mt-2">
+                            <img src="<?= htmlspecialchars($r['image']) ?>" class="review-img-thumb img-thumbnail" onclick="showReviewImage('<?= htmlspecialchars($r['image']) ?>', '<?= htmlspecialchars($r['fullname']) ?>')" alt="รูปรีวิว">
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <?php endwhile; else: ?>
                     <div class="text-center py-5 text-muted opacity-50">
@@ -668,6 +706,19 @@ endif;
             }
         })
         .catch(err => console.error(err));
+    }
+
+    function showReviewImage(src, name) {
+        Swal.fire({
+            title: 'รูปภาพรีวิวจากคุณ ' + name,
+            imageUrl: src,
+            imageAlt: 'รีวิวสินค้า',
+            confirmButtonText: 'ปิด',
+            confirmButtonColor: 'var(--blue-hover)',
+            customClass: {
+                image: 'img-fluid rounded shadow-sm'
+            }
+        });
     }
 </script>
 

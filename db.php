@@ -57,6 +57,48 @@ function getCurrentPrice($conn, $product_id) {
     return $p['price'] ?? 0;
 }
 
+// --- Helper to get product total price with split flash/regular quota pricing ---
+function getProductTotalPrice($conn, $product_id, $qty) {
+    $fs = getActiveFlashSale($conn, $product_id);
+    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = '$product_id'");
+    $p = mysqli_fetch_assoc($pq);
+    $regular_price = floatval($p['price'] ?? 0);
+
+    if ($fs !== null) {
+        $fs_remaining = intval($fs['flash_stock']) - intval($fs['flash_sold']);
+        $flash_price = floatval($fs['flash_price']);
+        if ($fs_remaining <= 0) {
+            return $regular_price * $qty;
+        } elseif ($qty <= $fs_remaining) {
+            return $flash_price * $qty;
+        } else {
+            return ($flash_price * $fs_remaining) + ($regular_price * ($qty - $fs_remaining));
+        }
+    }
+    return $regular_price * $qty;
+}
+
+// --- Helper to get formatted split price description text ---
+function getProductPriceText($conn, $product_id, $qty) {
+    $fs = getActiveFlashSale($conn, $product_id);
+    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = '$product_id'");
+    $p = mysqli_fetch_assoc($pq);
+    $regular_price = floatval($p['price'] ?? 0);
+
+    if ($fs !== null) {
+        $fs_remaining = intval($fs['flash_stock']) - intval($fs['flash_sold']);
+        $flash_price = floatval($fs['flash_price']);
+        if ($fs_remaining <= 0) {
+            return '฿' . number_format($regular_price, 2) . ' / ชิ้น';
+        } elseif ($qty <= $fs_remaining) {
+            return '฿' . number_format($flash_price, 2) . ' (Flash Sale)';
+        } else {
+            return '฿' . number_format($flash_price, 2) . ' x ' . $fs_remaining . ' ชิ้น (Flash) + ฿' . number_format($regular_price, 2) . ' x ' . ($qty - $fs_remaining) . ' ชิ้น (ปกติ)';
+        }
+    }
+    return '฿' . number_format($regular_price, 2) . ' / ชิ้น';
+}
+
 // --- Helper to check and automatically generate a flash sale campaign if enabled ---
 function checkAndGenerateAutoFlashSale($conn) {
     $now_str = date('Y-m-d H:i:s');
