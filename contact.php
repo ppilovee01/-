@@ -51,16 +51,42 @@ include 'header.php';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+let isContactSubmitting = false;
 function sendContact() {
+    if (isContactSubmitting) return;
+    isContactSubmitting = true;
+    
+    const submitBtn = document.querySelector('#contactForm button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังส่ง...';
+    }
+    
     let fd = new FormData(document.getElementById('contactForm'));
     fd.append('action', 'send_contact');
-    fetch('ajax.php', { method: 'POST', body: fd }).then(r => r.json()).then(data => {
+    
+    fetch('ajax.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+        isContactSubmitting = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'ส่งข้อความ';
+        }
         if(data.status === 'success') {
             Swal.fire({icon: 'success', title: 'ส่งเรียบร้อย', text: data.message});
             document.getElementById('contactForm').reset();
         } else {
             Swal.fire({icon: 'error', title: 'ผิดพลาด', text: data.message});
         }
+    })
+    .catch(err => {
+        isContactSubmitting = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'ส่งข้อความ';
+        }
+        console.error(err);
     });
 }
 </script>

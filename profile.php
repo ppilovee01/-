@@ -244,44 +244,105 @@ include 'header.php';
 
 <script>
     // 1. อัปโหลดโปรไฟล์
+    let isProfileSubmitting = false;
     document.getElementById('form-profile').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (isProfileSubmitting) return;
+        isProfileSubmitting = true;
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+        }
+        
         const formData = new FormData(this);
         fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
+            isProfileSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'บันทึกข้อมูล';
+            }
             if(data.status === 'success') {
                 Swal.fire({ icon: 'success', title: 'สำเร็จ', text: data.message, confirmButtonColor: '#AEE2FF' });
             } else {
                 Swal.fire({ icon: 'error', title: 'แจ้งเตือน', text: data.message, confirmButtonColor: '#333' });
             }
+        })
+        .catch(err => {
+            isProfileSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'บันทึกข้อมูล';
+            }
+            console.error(err);
         });
     });
 
     // 2. เปลี่ยนรหัสผ่าน
+    let isPasswordSubmitting = false;
     document.getElementById('form-password').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (isPasswordSubmitting) return;
+        isPasswordSubmitting = true;
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+        }
+        
         const formData = new FormData(this);
         const form = this;
         fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
+            isPasswordSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'เปลี่ยนรหัสผ่าน';
+            }
             if(data.status === 'success') {
                 Swal.fire({ icon: 'success', title: 'สำเร็จ', text: data.message, confirmButtonColor: '#AEE2FF' });
                 form.reset();
             } else {
                 Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: data.message, confirmButtonColor: '#AEE2FF' });
             }
+        })
+        .catch(err => {
+            isPasswordSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'เปลี่ยนรหัสผ่าน';
+            }
+            console.error(err);
         });
     });
 
     // 3. เพิ่มที่อยู่
+    let isAddressSubmitting = false;
     document.getElementById('form-add-address').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (isAddressSubmitting) return;
+        isAddressSubmitting = true;
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+        }
+        
         const formData = new FormData(this);
         fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
+            isAddressSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'บันทึกที่อยู่';
+            }
             if(data.status === 'success') {
                 bootstrap.Modal.getInstance(document.getElementById('addAddressModal')).hide();
                 this.reset();
@@ -293,6 +354,14 @@ include 'header.php';
             } else {
                 Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: data.message });
             }
+        })
+        .catch(err => {
+            isAddressSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'บันทึกที่อยู่';
+            }
+            console.error(err);
         });
     });
 

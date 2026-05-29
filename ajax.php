@@ -69,6 +69,9 @@ elseif ($action == 'update_qty') {
         
         $q = mysqli_query($conn, "SELECT stock, price FROM products WHERE id='$real_id'");
         $row = mysqli_fetch_assoc($q);
+        if ($row) {
+            $row['price'] = getCurrentPrice($conn, $real_id);
+        }
 
         if ($type == 'inc' && $row['stock'] > $current_qty) {
             if(is_array($_SESSION['cart'][$id])) $_SESSION['cart'][$id]['qty']++;
@@ -366,9 +369,7 @@ function calculate_cart_totals($conn) {
             $pid = is_array($item) ? $item['id'] : $k;
             $qty = is_array($item) ? $item['qty'] : $item;
             
-            $res = mysqli_query($conn, "SELECT price FROM products WHERE id='$pid'");
-            $r = mysqli_fetch_assoc($res);
-            if($r) $subtotal += $r['price'] * $qty;
+            $subtotal += getCurrentPrice($conn, $pid) * $qty;
         }
     }
 

@@ -118,6 +118,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </a>
         <a class="nav-link <?= $current_page == 'admin_payments.php' ? 'active' : '' ?>" href="admin_payments.php"><i class="bi bi-credit-card"></i> ช่องทางชำระเงิน</a>
         <a class="nav-link <?= $current_page == 'admin_coupons.php' ? 'active' : '' ?>" href="admin_coupons.php"><i class="bi bi-ticket-perforated"></i> จัดการคูปอง</a>
+        <a class="nav-link <?= $current_page == 'admin_flash_sale.php' ? 'active' : '' ?>" href="admin_flash_sale.php"><i class="bi bi-lightning-charge-fill"></i> จัดการ Flash Sale</a>
         <a class="nav-link <?= $current_page == 'admin_banners.php' ? 'active' : '' ?>" href="admin_banners.php"><i class="bi bi-images"></i> จัดการแบนเนอร์</a>
         <a class="nav-link <?= $current_page == 'admin_users.php' ? 'active' : '' ?>" href="admin_users.php"><i class="bi bi-people-fill"></i> จัดการสมาชิก</a>
         <a class="nav-link <?= $current_page == 'admin_settings.php' ? 'active' : '' ?>" href="admin_settings.php"><i class="bi bi-gear-fill"></i> ตั้งค่าร้านค้า</a>
@@ -128,3 +129,27 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a class="nav-link text-danger" href="logout.php"><i class="bi bi-box-arrow-left"></i> ออกจากระบบ</a>
     </nav>
 </div>
+
+<script>
+    // ระบบป้องกันการส่งฟอร์มซ้ำ (Double-Submit Prevention) สำหรับแอดมิน
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (e.defaultPrevented) return;
+            if (form.classList.contains('is-submitting')) {
+                e.preventDefault();
+                return false;
+            }
+            form.classList.add('is-submitting');
+            var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                if (btn.tagName === 'INPUT') {
+                    btn.value = 'กำลังประมวลผล...';
+                } else {
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
+                }
+            }
+        });
+    });
+</script>

@@ -65,6 +65,16 @@ if (isset($_POST['confirm_order'])) {
             $stock_error = true; 
             break; 
         }
+        // ตรวจสอบโควตาคลังแคมเปญ Flash Sale
+        $active_fs = getActiveFlashSale($conn, $pid);
+        if ($active_fs !== null) {
+            $fs_remaining = $active_fs['flash_stock'] - $active_fs['flash_sold'];
+            if ($fs_remaining < $qty) {
+                $error_msg = "ขออภัย สินค้าโปรโมชัน Flash Sale ของ {$s_row['name']} มีโควตาเหลือไม่เพียงพอ (เหลือโควตา {$fs_remaining} ชิ้น)";
+                $stock_error = true;
+                break;
+            }
+        }
     }
 
     if (!$stock_error) {
@@ -132,10 +142,19 @@ if (isset($_POST['confirm_order'])) {
                         }
 
                         $pr = mysqli_fetch_assoc(mysqli_query($conn, "SELECT name, price FROM products WHERE id='$pid'"));
+                        if ($pr) {
+                            $pr['price'] = getCurrentPrice($conn, $pid);
+                        }
                         $opts_esc = mysqli_real_escape_string($conn, $opts);
                         
                         // บันทึกรายการลงบิล
                         mysqli_query($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, selected_option) VALUES ('$order_id', '$pid', '$qty', '{$pr['price']}', '$opts_esc')");
+                        
+                        // เพิ่มยอดขายในระบบ Flash Sale หากมีแคมเปญเปิดใช้งานอยู่
+                        $active_fs = getActiveFlashSale($conn, $pid);
+                        if ($active_fs !== null) {
+                            mysqli_query($conn, "UPDATE flash_sales SET flash_sold = flash_sold + $qty WHERE id = '{$active_fs['id']}'");
+                        }
                         
                         // === ระบบตัดสต๊อกแบบ FIFO ===
                         $qty_needed = $qty;
@@ -265,6 +284,7 @@ include 'header.php';
                                         $row = mysqli_fetch_assoc($res);
                                         
                                         if($row) {
+                                            $row['price'] = getCurrentPrice($conn, $pid);
                                             $line_total = $row['price'] * $qty;
                                             $subtotal += $line_total;
                                 ?>
@@ -451,13 +471,28 @@ include 'header.php';
 <?php unset($_SESSION['swal']); endif; ?>
 
 <script>
+let isSavingAddressCart = false;
 function saveAddressCart() {
+    if (isSavingAddressCart) return;
+    isSavingAddressCart = true;
+    
     const form = document.getElementById('form-add-address-cart');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+    }
+    
     const formData = new FormData(form);
 
     fetch('ajax.php', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(data => {
+        isSavingAddressCart = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'บันทึกที่อยู่';
+        }
         if(data.status === 'success') {
             bootstrap.Modal.getInstance(document.getElementById('addAddressModal')).hide();
             
@@ -660,6 +695,14 @@ function validateForm() {
         showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#AEE2FF'
     }).then((r)=>{
         if(r.isConfirmed){
+            Swal.fire({
+                title: 'กำลังประมวลผล...',
+                text: 'ระบบกำลังบันทึกคำสั่งซื้อของคุณ กรุณารอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
             const h=document.createElement('input'); h.type='hidden'; h.name='confirm_order'; h.value='true';
             document.getElementById('checkoutForm').appendChild(h);
             document.getElementById('checkoutForm').submit();

@@ -108,6 +108,27 @@ if (isset($_POST['request_reset'])) {
 <script>Swal.fire({icon: 'error', title: 'ขออภัย', text: '<?= $error_msg ?>', confirmButtonColor: '#333'});</script>
 <?php endif; ?>
 
+<script>
+// ระบบป้องกันการส่งฟอร์มซ้ำ (Double-Submit Prevention)
+document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (e.defaultPrevented) return;
+    if (form.classList.contains('is-submitting')) {
+        e.preventDefault();
+        return false;
+    }
+    form.classList.add('is-submitting');
+    var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        if (btn.tagName === 'INPUT') {
+            btn.value = 'กำลังประมวลผล...';
+        } else {
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
+        }
+    }
+});
+</script>
 </body>
 </html>
 

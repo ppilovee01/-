@@ -122,6 +122,60 @@ include 'header.php';
         </div>
 
         <div class="col-lg-6 animate__animated animate__fadeInRight">
+            <?php 
+            $active_fs = getActiveFlashSale($conn, $id); 
+            if ($active_fs !== null): 
+                $pct = $active_fs['flash_stock'] > 0 ? ($active_fs['flash_sold'] / $active_fs['flash_stock']) * 100 : 0;
+                if ($pct > 100) $pct = 100;
+                $remaining = max(0, $active_fs['flash_stock'] - $active_fs['flash_sold']);
+            ?>
+                <div class="alert border-0 rounded-4 mb-3 p-3 text-white d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 animate__animated animate__pulse" style="background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%); box-shadow: 0 4px 15px rgba(220, 53, 69, 0.2);">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-lightning-charge-fill animate__animated animate__flash animate__infinite animate__slower" style="font-size: 1.25rem;"></i>
+                        <div>
+                            <span class="fw-bold d-block">⚡ FLASH SALE โปรโมชันพิเศษ</span>
+                            <small style="opacity: 0.9;">ขายแล้ว <?= $active_fs['flash_sold'] ?> ชิ้น | เหลือโควตา <?= $remaining ?> ชิ้น</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-uppercase fw-bold" style="font-size: 0.75rem;">หมดเวลาใน</small>
+                        <div class="d-flex gap-1 align-items-center">
+                            <span class="badge bg-dark text-white px-2 py-1" id="fs-hours">00</span>:
+                            <span class="badge bg-dark text-white px-2 py-1" id="fs-mins">00</span>:
+                            <span class="badge bg-dark text-white px-2 py-1" id="fs-secs">00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    (function() {
+                        var endTime = new Date("<?= date('Y-m-d\TH:i:s', strtotime($active_fs['end_time'])) ?>").getTime();
+                        function updateTimer() {
+                            var now = new Date().getTime();
+                            var distance = endTime - now;
+                            if (distance < 0) {
+                                clearInterval(x);
+                                location.reload();
+                                return;
+                            }
+                            var hours = Math.floor(distance / (1000 * 60 * 60));
+                            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                            
+                            hours = (hours < 10) ? "0" + hours : hours;
+                            minutes = (minutes < 10) ? "0" + minutes : minutes;
+                            seconds = (seconds < 10) ? "0" + seconds : seconds;
+                            
+                            document.getElementById("fs-hours").innerText = hours;
+                            document.getElementById("fs-mins").innerText = minutes;
+                            document.getElementById("fs-secs").innerText = seconds;
+                        }
+                        updateTimer();
+                        var x = setInterval(updateTimer, 1000);
+                    })();
+                </script>
+            <?php endif; ?>
+
             <h1 class="product-title display-6 mb-2"><?= $product['name'] ?></h1>
             
             <div class="d-flex align-items-center mb-4">
@@ -132,7 +186,12 @@ include 'header.php';
             </div>
 
             <div class="d-flex align-items-center gap-3 mb-4">
-                <span class="price-tag">฿<?= number_format($product['price']) ?></span>
+                <?php if ($active_fs !== null): ?>
+                    <span class="price-tag text-danger">฿<?= number_format($active_fs['flash_price']) ?></span>
+                    <span class="text-muted text-decoration-line-through fs-5 mt-2">฿<?= number_format($product['price']) ?></span>
+                <?php else: ?>
+                    <span class="price-tag">฿<?= number_format($product['price']) ?></span>
+                <?php endif; ?>
                 <?php if($product['stock'] > 0): ?>
                     <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3">มีสินค้า <?= $product['stock'] ?> ชิ้น</span>
                 <?php else: ?>
@@ -328,9 +387,13 @@ if (!empty($recommended_products)):
                     <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
+                    <?php $rec_fs = getActiveFlashSale($conn, $p['id']); ?>
                     <div class="product-img-wrapper">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
                             <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>">
+                            <?php if($rec_fs !== null): ?>
+                                <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem;">⚡ FLASH</div>
+                            <?php endif; ?>
                             <?php if($is_out): ?>
                                 <div class="out-stock-overlay"><span class="badge-out">สินค้าหมด</span></div>
                             <?php endif; ?>
@@ -349,7 +412,12 @@ if (!empty($recommended_products)):
                         </div>
                         <div class="mt-auto">
                             <div class="mb-3">
-                                <span class="fw-bold" style="color:var(--blue-dark); font-size:1.2rem;">฿<?= number_format($p['price']) ?></span>
+                                <?php if ($rec_fs !== null): ?>
+                                    <span class="fw-bold text-danger" style="font-size:1.2rem;">฿<?= number_format($rec_fs['flash_price']) ?></span>
+                                    <span class="text-muted text-decoration-line-through small ms-1" style="font-size: 0.75rem;">฿<?= number_format($p['price']) ?></span>
+                                <?php else: ?>
+                                    <span class="fw-bold" style="color:var(--blue-dark); font-size:1.2rem;">฿<?= number_format($p['price']) ?></span>
+                                <?php endif; ?>
                             </div>
                             <?php if($is_out): ?>
                                 <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2" disabled>สินค้าหมด</button>
@@ -424,9 +492,13 @@ if (!empty($display_recently_viewed)):
                     </button>
                     <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100 text-center">
-                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="height: 120px; object-fit: cover;">
+                            <?php $rv_fs = getActiveFlashSale($conn, $p['id']); ?>
+                            <?php if($rv_fs !== null): ?>
+                                <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.65rem;">⚡ FLASH</div>
+                            <?php endif; ?>
                             <?php if($is_out): ?>
-                                <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1" style="font-size:0.7rem;">สินค้าหมด</span></div>
+                                <div class="out-stock-overlay" style="border-radius: var(--radius-md) var(--radius-md) 0 0;"><span class="badge-out" style="font-size: 0.75rem; padding: 4px 10px;">สินค้าหมด</span></div>
                             <?php endif; ?>
                         </a>
                     </div>
@@ -477,7 +549,10 @@ endif;
         }
     }
 
+    let isCartSubmitting = false;
     function submitCart() {
+        if (isCartSubmitting) return;
+
         const form = document.getElementById('addCartForm');
         const options = form.querySelectorAll('input[type="radio"]');
         let groups = {}; 
@@ -507,9 +582,21 @@ endif;
         if(!formData.has('action')) formData.append('action', 'add');
         formData.append('options', selectedOpts.join(', '));
 
+        isCartSubmitting = true;
+        const submitBtn = form.querySelector('.btn-add-cart');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังเพิ่ม...';
+        }
+
         fetch('ajax.php', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
+            isCartSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-cart-plus me-2"></i> เพิ่มลงตะกร้า';
+            }
             if(data.status === 'success') {
                 const badge = document.getElementById('nav-cart-badge'); 
                 if(badge) {
@@ -523,6 +610,11 @@ endif;
             }
         })
         .catch(error => {
+            isCartSubmitting = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-cart-plus me-2"></i> เพิ่มลงตะกร้า';
+            }
             console.error('Error:', error);
             Swal.fire({icon: 'error', title: 'Error', text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้'});
         });

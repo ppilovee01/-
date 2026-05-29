@@ -664,6 +664,26 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             })
             .catch(err => console.error(err));
         };
+
+        // ระบบป้องกันการส่งฟอร์มซ้ำ (Double-Submit Prevention) สำหรับฟอร์มทั่วไป
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            if (e.defaultPrevented) return;
+            if (form.classList.contains('is-submitting')) {
+                e.preventDefault();
+                return false;
+            }
+            form.classList.add('is-submitting');
+            var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                if (btn.tagName === 'INPUT') {
+                    btn.value = 'กำลังประมวลผล...';
+                } else {
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
+                }
+            }
+        });
     </script>
 </head>
 <body>

@@ -141,6 +141,18 @@ $extra_css = "
         border-color: var(--blue-hover); 
         box-shadow: 0 4px 12px rgba(127, 181, 255, 0.3);
     }
+    @keyframes pulse-lightning {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+    }
+    .flash-card-hover {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .flash-card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(220, 53, 69, 0.15) !important;
+    }
 </style>
 ";
 include 'header.php';
@@ -180,6 +192,132 @@ include 'header.php';
             </div>
         </div>
     </header>
+<?php endif; ?>
+
+<?php
+// --- Query Active Flash Sale Campaigns ---
+$active_flash_sales = [];
+$now_str = date('Y-m-d H:i:s');
+$fs_query = mysqli_query($conn, "SELECT fs.*, p.name, p.image, p.price as original_price 
+    FROM flash_sales fs 
+    JOIN products p ON fs.product_id = p.id 
+    WHERE '$now_str' BETWEEN fs.start_time AND fs.end_time 
+    AND fs.flash_sold < fs.flash_stock 
+    ORDER BY fs.end_time ASC");
+while ($fs_row = mysqli_fetch_assoc($fs_query)) {
+    $active_flash_sales[] = $fs_row;
+}
+
+if (!empty($active_flash_sales)):
+    $nearest_end_time = $active_flash_sales[0]['end_time'];
+?>
+    <div class="container mt-5 animate__animated animate__fadeIn">
+        <div class="card border-0 shadow-sm p-4 rounded-4" style="background: linear-gradient(135deg, rgba(174, 226, 255, 0.15) 0%, rgba(255, 255, 255, 0.75) 100%); border: 1px solid rgba(174, 226, 255, 0.35); backdrop-filter: blur(10px);">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="flash-icon-wrapper bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; animation: pulse-lightning 1.5s infinite;">
+                        <i class="bi bi-lightning-charge-fill fs-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.5px;">⚡ FLASH SALE</h3>
+                        <span class="text-muted small">สินค้าแคมเปญพิเศษ ลดจำกัดเวลาและจำนวน!</span>
+                    </div>
+                </div>
+                <!-- Countdown Clock -->
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-bold small text-muted text-uppercase me-2">เหลือเวลาอีก</span>
+                    <div class="d-flex gap-1 align-items-center" id="flash-countdown-container">
+                        <span class="badge bg-dark px-3 py-2 fs-6 rounded-3" id="fs-hours">00</span>
+                        <span class="fw-bold text-dark">:</span>
+                        <span class="badge bg-dark px-3 py-2 fs-6 rounded-3" id="fs-mins">00</span>
+                        <span class="fw-bold text-dark">:</span>
+                        <span class="badge bg-dark px-3 py-2 fs-6 rounded-3" id="fs-secs">00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flash Sale Products Grid -->
+            <div class="row g-3 g-md-4">
+                <?php foreach ($active_flash_sales as $fs): 
+                    $pct = $fs['flash_stock'] > 0 ? ($fs['flash_sold'] / $fs['flash_stock']) * 100 : 0;
+                    if ($pct > 100) $pct = 100;
+                    $remaining = max(0, $fs['flash_stock'] - $fs['flash_sold']);
+                    $discount_pct = round((($fs['original_price'] - $fs['flash_price']) / $fs['original_price']) * 100);
+                ?>
+                    <div class="col-6 col-md-3">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden position-relative flash-card-hover" style="background: white;">
+                            <!-- Floating Flash Discount Tag -->
+                            <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem;">
+                                -<?= $discount_pct ?>%
+                            </div>
+                            
+                            <div class="product-img-wrapper" style="height: 180px; overflow: hidden; position: relative;">
+                                <a href="product_detail.php?id=<?= $fs['product_id'] ?>" class="text-decoration-none">
+                                    <img src="<?= htmlspecialchars($fs['image']) ?>" class="w-100 h-100" style="object-fit: cover; transition: transform 0.5s ease;" alt="<?= htmlspecialchars($fs['name']) ?>" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                                </a>
+                            </div>
+                            
+                            <div class="card-body p-3 d-flex flex-column">
+                                <h6 class="card-title fw-bold text-dark mb-1 text-truncate" title="<?= htmlspecialchars($fs['name']) ?>"><?= htmlspecialchars($fs['name']) ?></h6>
+                                
+                                <div class="d-flex align-items-baseline gap-2 mb-2">
+                                    <span class="fs-5 fw-bold text-danger">฿<?= number_format($fs['flash_price']) ?></span>
+                                    <span class="text-muted text-decoration-line-through small" style="font-size: 0.8rem;">฿<?= number_format($fs['original_price']) ?></span>
+                                </div>
+                                
+                                <div class="mt-auto">
+                                    <!-- Stock Progress Bar -->
+                                    <div class="d-flex justify-content-between small text-muted mb-1" style="font-size: 0.75rem;">
+                                        <span>ขายไปแล้ว <?= $fs['flash_sold'] ?> ชิ้น</span>
+                                        <span>เหลือ <?= $remaining ?> ชิ้น</span>
+                                    </div>
+                                    <div class="progress mb-3" style="height: 6px; background-color: #f1f5f9; border-radius: 50px;">
+                                        <div class="progress-bar bg-danger rounded-5" role="progressbar" style="width: <?= $pct ?>%"></div>
+                                    </div>
+                                    
+                                    <a href="product_detail.php?id=<?= $fs['product_id'] ?>" class="btn btn-danger w-100 rounded-pill btn-sm fw-semibold py-2">ช้อปโปรนี้ <i class="bi bi-chevron-right"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Countdown Timer Script -->
+    <script>
+        (function() {
+            var endTime = new Date("<?= date('Y-m-d\TH:i:s', strtotime($nearest_end_time)) ?>").getTime();
+            
+            function updateTimer() {
+                var now = new Date().getTime();
+                var distance = endTime - now;
+                
+                if (distance < 0) {
+                    clearInterval(x);
+                    document.getElementById("flash-countdown-container").innerHTML = '<span class="badge bg-secondary px-3 py-2 fs-6 rounded-3">หมดเวลาแคมเปญ</span>';
+                    setTimeout(function() { location.reload(); }, 1500);
+                    return;
+                }
+                
+                var hours = Math.floor(distance / (1000 * 60 * 60));
+                var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                hours = (hours < 10) ? "0" + hours : hours;
+                minutes = (minutes < 10) ? "0" + minutes : minutes;
+                seconds = (seconds < 10) ? "0" + seconds : seconds;
+                
+                document.getElementById("fs-hours").innerText = hours;
+                document.getElementById("fs-mins").innerText = minutes;
+                document.getElementById("fs-secs").innerText = seconds;
+            }
+            
+            updateTimer();
+            var x = setInterval(updateTimer, 1000);
+        })();
+    </script>
 <?php endif; ?>
 
 <section id="shop" class="container py-5">
@@ -313,9 +451,13 @@ include 'header.php';
                 <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด">
                     <i class="bi <?= $fav_icon ?>"></i>
                 </button>
+                <?php $active_fs = getActiveFlashSale($conn, $p['id']); ?>
                 <div class="product-img-wrapper">
                     <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
                         <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>">
+                        <?php if($active_fs !== null): ?>
+                            <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem; box-shadow: 0 2px 6px rgba(220,53,69,0.3);">⚡ FLASH</div>
+                        <?php endif; ?>
                         <?php if($is_out): ?>
                             <div class="out-stock-overlay"><span class="badge-out">สินค้าหมด</span></div>
                         <?php endif; ?>
@@ -335,7 +477,12 @@ include 'header.php';
                     <p class="text-muted small mb-2 d-none d-md-block text-truncate"><?= $p['description'] ?></p>
                     <div class="mt-auto">
                         <div class="mb-3">
-                            <span class="fw-bold" style="color:var(--blue-dark); font-size:1.3rem;">฿<?= number_format($p['price']) ?></span>
+                            <?php if ($active_fs !== null): ?>
+                                <span class="fw-bold text-danger" style="font-size:1.3rem;">฿<?= number_format($active_fs['flash_price']) ?></span>
+                                <span class="text-muted text-decoration-line-through small ms-1" style="font-size: 0.8rem;">฿<?= number_format($p['price']) ?></span>
+                            <?php else: ?>
+                                <span class="fw-bold" style="color:var(--blue-dark); font-size:1.3rem;">฿<?= number_format($p['price']) ?></span>
+                            <?php endif; ?>
                             <?php if(!$is_out): ?>
                                 <div class="text-muted small" style="font-size:0.75rem;">คงเหลือ <?= $p['stock'] ?> ชิ้น</div>
                             <?php endif; ?>

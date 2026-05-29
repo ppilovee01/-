@@ -42,6 +42,9 @@ if (isset($_POST['update_status'])) {
                 } else {
                     mysqli_query($conn, "UPDATE products SET stock=0 WHERE id='$pid'");
                 }
+                
+                // 3. คืนสต็อกในระบบ Flash Sale หากแคมเปญยังไม่สิ้นสุด
+                mysqli_query($conn, "UPDATE flash_sales SET flash_sold = GREATEST(0, flash_sold - $qty) WHERE product_id = '$pid' AND NOW() < end_time");
             }
         }
     }
