@@ -5,7 +5,7 @@ include 'db.php';
 // 1. ตั้งค่า Timezone
 date_default_timezone_set('Asia/Bangkok');
 
-// --- Logic: สร้างลิงก์รีเซ็ต (แบบจำลอง) ---
+// --- Logic: สร้างรหัส OTP ส่งเข้าอีเมล ---
 if (isset($_POST['request_reset'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     
@@ -15,22 +15,27 @@ if (isset($_POST['request_reset'])) {
     if (mysqli_num_rows($check) > 0) {
         $user = mysqli_fetch_assoc($check);
         
-        // 2. สร้างรหัสลับ (Token) และวันหมดอายุ (1 ชม.)
-        $token = bin2hex(random_bytes(32)); 
-        $expiry = date('Y-m-d H:i:s', strtotime('+1 hour'));
+        // 2. สร้างรหัส OTP 6 หลัก และวันหมดอายุ (15 นาที)
+        $otp = sprintf("%06d", rand(100000, 999999));
+        $expiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
         
         // 3. บันทึกลงฐานข้อมูล
-        $sql = "UPDATE users SET reset_token='$token', reset_expiry='$expiry' WHERE email='$email'";
+        $sql = "UPDATE users SET reset_token='$otp', reset_expiry='$expiry' WHERE email='$email'";
         
         if (mysqli_query($conn, $sql)) {
-            // -----------------------------------------------------------
-            // ⚠️ จุดที่แก้ไข: เปลี่ยนจาก Por Mae Bet Taled เป็น FitGear ให้ตรงกับเครื่องคุณ
-            // -----------------------------------------------------------
-            $reset_link = "http://localhost/FitGear/reset_password.php?token=" . $token;
+            include 'mail_sender.php';
+            $_SESSION['reset_email'] = $email;
             
-            // เก็บลิงก์ไว้โชว์ใน Popup (Simulation Mode)
-            $success_msg = "ระบบสร้างลิงก์เรียบร้อย (จำลองการส่งเมล)";
-            $debug_link = $reset_link; 
+            // ส่งอีเมลจริง
+            $sent = send_password_reset_email($conn, $email, $otp);
+            if ($sent) {
+                $success_msg = "ระบบได้ส่งรหัส OTP ไปยังอีเมลของท่านเรียบร้อยแล้ว";
+                $otp_sent = true;
+            } else {
+                $success_msg = "ระบบสร้างรหัส OTP เรียบร้อย (จำลองเนื่องจากไม่ได้ตั้งค่า SMTP)";
+                $debug_otp = $otp;
+                $otp_sent = false;
+            }
         } else {
             $error_msg = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
         }
@@ -91,16 +96,32 @@ if (isset($_POST['request_reset'])) {
 
 <?php if(isset($success_msg)): ?>
 <script>
+    <?php if(isset($otp_sent) && $otp_sent): ?>
     Swal.fire({
         icon: 'success',
-        title: 'ตรวจสอบอีเมล (จำลอง)',
-        html: 'ระบบได้สร้างลิงก์รีเซ็ตรหัสผ่านแล้ว<br><br>' +
-              '<a href="<?= $debug_link ?>" class="btn btn-primary btn-sm px-4 rounded-pill">👉 คลิกที่นี่เพื่อตั้งรหัสใหม่</a>' +
-              '<br><br><span class="text-muted small">(บน Server จริง ลิงก์นี้จะถูกส่งเข้าอีเมล)</span>',
-        showConfirmButton: false,
+        title: 'ส่ง OTP สำเร็จ',
+        text: 'ระบบได้ส่งรหัส OTP ไปยังอีเมล <?= htmlspecialchars($email) ?> เรียบร้อยแล้ว (รหัสมีอายุ 15 นาที)',
+        confirmButtonText: 'ไปหน้าตั้งรหัสผ่านใหม่',
+        confirmButtonColor: '#7FB5FF',
+        allowOutsideClick: false
+    }).then(() => {
+        window.location.href = 'reset_password.php';
+    });
+    <?php else: ?>
+    Swal.fire({
+        icon: 'success',
+        title: 'ตรวจสอบ OTP (จำลอง)',
+        html: 'ระบบได้สร้างรหัส OTP รีเซ็ตรหัสผ่านแล้ว<br><br>' +
+              '<h2 class="text-primary fw-bold" style="letter-spacing: 4px;"><?= $debug_otp ?></h2>' +
+              '<br><span class="text-muted small">(บน Server จริง รหัสนี้จะถูกส่งเข้าอีเมลของท่าน)</span>',
+        confirmButtonText: 'ไปหน้าตั้งรหัสผ่านใหม่',
+        confirmButtonColor: '#7FB5FF',
         allowOutsideClick: false,
         showCloseButton: true
+    }).then(() => {
+        window.location.href = 'reset_password.php';
     });
+    <?php endif; ?>
 </script>
 <?php endif; ?>
 
@@ -117,15 +138,30 @@ document.addEventListener('submit', function(e) {
         e.preventDefault();
         return false;
     }
-    form.classList.add('is-submitting');
+    
+    var activeBtn = document.activeElement;
     var btn = form.querySelector('button[type="submit"], input[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        if (btn.tagName === 'INPUT') {
-            btn.value = 'กำลังประมวลผล...';
-        } else {
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
-        }
+    var submitBtn = (activeBtn && activeBtn.form === form && activeBtn.type === 'submit') ? activeBtn : btn;
+    
+    form.classList.add('is-submitting');
+    
+    if (submitBtn && submitBtn.name) {
+        var hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = submitBtn.name;
+        hiddenInput.value = submitBtn.value;
+        form.appendChild(hiddenInput);
+    }
+    
+    if (submitBtn) {
+        setTimeout(function() {
+            submitBtn.disabled = true;
+            if (submitBtn.tagName === 'INPUT') {
+                submitBtn.value = 'กำลังประมวลผล...';
+            } else {
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
+            }
+        }, 1);
     }
 });
 </script>

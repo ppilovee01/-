@@ -64,7 +64,7 @@ $extra_css = "
     /* Timeline */
     .step-progress { display: flex; justify-content: space-between; position: relative; margin: 30px 0; padding: 0 10px; }
     .step-progress::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 3px; background: #e5e7eb; z-index: 1; }
-    .step-item { position: relative; z-index: 2; text-align: center; width: 33.33%; }
+    .step-item { position: relative; z-index: 2; text-align: center; width: 25%; }
     .step-circle { width: 32px; height: 32px; background: #fff; border: 3px solid #e5e7eb; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: transparent; font-size: 14px; transition: 0.3s; }
     .step-item.active .step-circle { background: var(--blue-hover); border-color: var(--blue-hover); color: white; box-shadow: 0 0 0 4px rgba(174,226,255,0.2); }
     .step-text { font-size: 0.8rem; color: #9ca3af; font-weight: 500; }
@@ -123,10 +123,11 @@ date_default_timezone_set('Asia/Bangkok');
                     $oid = $row['id'];
                     $status = $row['status'];
                     
-                    // Logic Timeline
+                    // Logic Timeline (4 Steps)
                     $s1 = ($status != 'cancelled') ? 'active' : ''; 
                     $s2 = ($status == 'approved' || $status == 'shipping' || $status == 'completed') ? 'active' : '';
                     $s3 = ($status == 'shipping' || $status == 'completed') ? 'active' : '';
+                    $s4 = ($status == 'completed') ? 'active' : '';
             ?>
             
             <div class="order-card animate__animated animate__fadeInUp <?= $status == 'cancelled' ? 'cancelled' : '' ?>">
@@ -149,9 +150,10 @@ date_default_timezone_set('Asia/Bangkok');
                 <div class="p-3">
                     <?php if($status != 'cancelled'): ?>
                         <div class="step-progress">
-                            <div class="step-item <?= $s1 ?>"><div class="step-circle"><i class="bi bi-check"></i></div><div class="step-text">สั่งซื้อ</div></div>
+                            <div class="step-item <?= $s1 ?>"><div class="step-circle"><i class="bi bi-cart-check"></i></div><div class="step-text">สั่งซื้อ</div></div>
                             <div class="step-item <?= $s2 ?>"><div class="step-circle"><i class="bi bi-box-seam"></i></div><div class="step-text">เตรียมของ</div></div>
                             <div class="step-item <?= $s3 ?>"><div class="step-circle"><i class="bi bi-truck"></i></div><div class="step-text">ขนส่ง</div></div>
+                            <div class="step-item <?= $s4 ?>"><div class="step-circle"><i class="bi bi-check-circle"></i></div><div class="step-text">สำเร็จ</div></div>
                         </div>
 
                         <?php if(($status == 'shipping' || $status == 'completed') && !empty($row['tracking_no'])): ?>

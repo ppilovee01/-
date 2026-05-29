@@ -5,6 +5,7 @@
     /* Color Palette */
     --blue-main: #AEE2FF;      /* Light pastel blue */
     --blue-hover: #7FB5FF;     /* Darker pastel blue */
+    --blue-dark: #1d4ed8;      /* Deep premium blue for high-contrast text */
     --blue-light: #F0F8FF;     /* Soft blue background tint */
     --slate-dark: #1E293B;     /* Elegant dark slate */
     --slate-medium: #475569;   /* Subtle slate text */

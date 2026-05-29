@@ -74,8 +74,8 @@ function checkAndGenerateAutoFlashSale($conn) {
             // Find a product with stock > 5 and no upcoming campaigns
             $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 5 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > '$now_str') ORDER BY RAND() LIMIT 1");
             if (!$p_q || mysqli_num_rows($p_q) == 0) {
-                // Fallback: any product with stock > 0
-                $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 0 ORDER BY RAND() LIMIT 1");
+                // Fallback: any product with stock > 0 and no upcoming campaigns
+                $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 0 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > '$now_str') ORDER BY RAND() LIMIT 1");
             }
 
             if ($p_q && mysqli_num_rows($p_q) > 0) {

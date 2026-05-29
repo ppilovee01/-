@@ -176,15 +176,30 @@ document.addEventListener('submit', function(e) {
         e.preventDefault();
         return false;
     }
-    form.classList.add('is-submitting');
+    
+    var activeBtn = document.activeElement;
     var btn = form.querySelector('button[type="submit"], input[type="submit"]');
-    if (btn) {
-        btn.disabled = true;
-        if (btn.tagName === 'INPUT') {
-            btn.value = 'กำลังประมวลผล...';
-        } else {
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
-        }
+    var submitBtn = (activeBtn && activeBtn.form === form && activeBtn.type === 'submit') ? activeBtn : btn;
+    
+    form.classList.add('is-submitting');
+    
+    if (submitBtn && submitBtn.name) {
+        var hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = submitBtn.name;
+        hiddenInput.value = submitBtn.value;
+        form.appendChild(hiddenInput);
+    }
+    
+    if (submitBtn) {
+        setTimeout(function() {
+            submitBtn.disabled = true;
+            if (submitBtn.tagName === 'INPUT') {
+                submitBtn.value = 'กำลังประมวลผล...';
+            } else {
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังส่งข้อมูล...';
+            }
+        }, 1);
     }
 });
 </script>

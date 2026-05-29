@@ -12,6 +12,15 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 $error_msg = "";
 $success_msg = "";
 
+if (isset($_SESSION['success_msg'])) {
+    $success_msg = $_SESSION['success_msg'];
+    unset($_SESSION['success_msg']);
+}
+if (isset($_SESSION['error_msg'])) {
+    $error_msg = $_SESSION['error_msg'];
+    unset($_SESSION['error_msg']);
+}
+
 // --- Logic 0: Update Auto Flash Settings ---
 if (isset($_POST['update_settings'])) {
     $auto_flash_sale = isset($_POST['auto_flash_sale']) ? 1 : 0;
@@ -24,9 +33,11 @@ if (isset($_POST['update_settings'])) {
         auto_flash_duration = '$auto_flash_duration' 
         WHERE id = 1");
     if ($upd_s) {
-        $success_msg = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
+        $_SESSION['success_msg'] = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
         // Trigger generation check
         checkAndGenerateAutoFlashSale($conn);
+        header("Location: admin_flash_sale.php");
+        exit();
     } else {
         $error_msg = "บันทึกข้อมูลล้มเหลว: " . mysqli_error($conn);
     }
@@ -58,7 +69,9 @@ if (isset($_POST['add'])) {
             $sql = "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
                     VALUES ('$product_id', '$flash_price', '$flash_stock', 0, '$start_time', '$end_time')";
             if (mysqli_query($conn, $sql)) {
-                $success_msg = "สร้างแคมเปญ Flash Sale สำเร็จ!";
+                $_SESSION['success_msg'] = "สร้างแคมเปญ Flash Sale สำเร็จ!";
+                header("Location: admin_flash_sale.php");
+                exit();
             } else {
                 $error_msg = "ไม่สามารถบันทึกข้อมูลได้: " . mysqli_error($conn);
             }
@@ -70,10 +83,12 @@ if (isset($_POST['add'])) {
 if (isset($_GET['del'])) {
     $id = intval($_GET['del']);
     if (mysqli_query($conn, "DELETE FROM flash_sales WHERE id = $id")) {
-        $success_msg = "ลบแคมเปญเรียบร้อยแล้ว";
+        $_SESSION['success_msg'] = "ลบแคมเปญเรียบร้อยแล้ว";
     } else {
-        $error_msg = "ลบแคมเปญไม่สำเร็จ";
+        $_SESSION['error_msg'] = "ลบแคมเปญไม่สำเร็จ";
     }
+    header("Location: admin_flash_sale.php");
+    exit();
 }
 
 // --- Logic 3: Cancel Active Campaign Early ---
@@ -81,10 +96,12 @@ if (isset($_GET['cancel_campaign'])) {
     $id = intval($_GET['cancel_campaign']);
     // Set end_time to current time
     if (mysqli_query($conn, "UPDATE flash_sales SET end_time = NOW() WHERE id = $id")) {
-        $success_msg = "สิ้นสุดแคมเปญดังกล่าวทันทีเรียบร้อยแล้ว";
+        $_SESSION['success_msg'] = "สิ้นสุดแคมเปญดังกล่าวทันทีเรียบร้อยแล้ว";
     } else {
-        $error_msg = "ไม่สามารถปิดแคมเปญได้";
+        $_SESSION['error_msg'] = "ไม่สามารถปิดแคมเปญได้";
     }
+    header("Location: admin_flash_sale.php");
+    exit();
 }
 
 // --- Logic 4: Fetch Edit Data ---
@@ -127,7 +144,7 @@ if (isset($_POST['update'])) {
                     end_time = '$end_time' 
                     WHERE id = $id";
             if (mysqli_query($conn, $sql)) {
-                $success_msg = "อัปเดตแคมเปญเรียบร้อย!";
+                $_SESSION['success_msg'] = "อัปเดตแคมเปญเรียบร้อย!";
                 header("Location: admin_flash_sale.php");
                 exit();
             } else {
@@ -175,7 +192,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         .btn-blue { background: #7FB5FF; color: white; border: none; border-radius: 12px; font-weight: 500; transition: all 0.3s; }
         .btn-blue:hover { background: #5c9dfc; color: white; box-shadow: 0 4px 15px rgba(127, 181, 255, 0.4); }
         .card-modern { background: white; border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.02); }
-        .flash-badge { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 50px; }
+        .flash-badge { font-size: 0.75rem; font-weight: 600; padding: 5px 12px; border-radius: 50px; display: inline-block; white-space: nowrap; text-align: center; min-width: 80px; }
         .badge-active { background: #d1e7dd; color: #0f5132; }
         .badge-scheduled { background: #fff3cd; color: #664d03; }
         .badge-expired { background: #f8d7da; color: #842029; }
@@ -311,6 +328,20 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                 
                                 <button type="submit" name="update_settings" class="btn btn-blue w-100 btn-sm py-2 fw-bold">บันทึกการตั้งค่าออโต้</button>
                             </form>
+                            
+                            <div class="mt-3 p-3 bg-light rounded-3 border-0 small text-muted">
+                                <div class="fw-bold text-dark mb-2 d-flex align-items-center gap-1">
+                                    <i class="bi bi-info-circle-fill text-blue"></i>
+                                    <span>เกณฑ์การเลือกสินค้าอัตโนมัติ:</span>
+                                </div>
+                                <ul class="ps-3 mb-0" style="font-size: 0.8rem; line-height: 1.5;">
+                                    <li>เลือกสินค้าที่มีสต็อกมากกว่า 5 ชิ้นเป็นลำดับแรก</li>
+                                    <li>ต้องเป็นสินค้าที่ยังไม่มีแคมเปญ Flash Sale อื่นที่ยังไม่สิ้นสุดครอบคลุมอยู่</li>
+                                    <li>หากไม่มีสินค้าตรงตามเงื่อนไขด้านบน จะสุ่มเลือกจากสินค้าใดก็ได้ที่มีสต็อก > 0 และไม่มีแคมเปญทับซ้อน</li>
+                                    <li>โควตาสินค้าอัตโนมัติคิดเป็น 30% ของสต็อกจริง (ขั้นต่ำ 1 ชิ้น, สูงสุด 10 ชิ้น)</li>
+                                    <li>ส่วนลดจะอิงตามร้อยละที่ตั้งค่าไว้ข้างต้น</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>

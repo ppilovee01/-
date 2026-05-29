@@ -141,39 +141,55 @@ if (isset($_POST['confirm_order'])) {
                             $opts = '';
                         }
 
+                        // === ระบบตัดสต๊อกแบบ FIFO และคำนวณราคาทุน ===
+                        $qty_needed = $qty;
+                        $lot_query = mysqli_query($conn, "SELECT id, stock, import_cost FROM product_lots WHERE product_id='$pid' AND stock > 0 ORDER BY imported_at ASC");
+                        $total_import_cost = 0;
+                        
+                        while ($lot = mysqli_fetch_assoc($lot_query)) {
+                            if ($qty_needed <= 0) break;
+                            $lot_id = $lot['id'];
+                            $lot_stock = $lot['stock'];
+                            $lot_cost = floatval($lot['import_cost']);
+                            
+                            if ($lot_stock >= $qty_needed) {
+                                // ล็อตนี้ของพอ ตัดสต๊อกและจบการทำงาน
+                                mysqli_query($conn, "UPDATE product_lots SET stock = stock - $qty_needed WHERE id='$lot_id'");
+                                $total_import_cost += $qty_needed * $lot_cost;
+                                $qty_needed = 0;
+                            } else {
+                                // ล็อตนี้ของไม่พอ ตัดจนเหลือ 0 แล้วไปเอาล็อตถัดไปต่อ
+                                mysqli_query($conn, "UPDATE product_lots SET stock = 0 WHERE id='$lot_id'");
+                                $total_import_cost += $lot_stock * $lot_cost;
+                                $qty_needed -= $lot_stock;
+                            }
+                        }
+                        
+                        // หากมีส่วนต่างที่หลงเหลือ (เช่น สต๊อกไม่ตรงกัน) ให้ดึงทุนจากล็อตล่าสุด
+                        if ($qty_needed > 0) {
+                            $last_lot_q = mysqli_query($conn, "SELECT import_cost FROM product_lots WHERE product_id='$pid' ORDER BY id DESC LIMIT 1");
+                            $last_cost = 0;
+                            if ($last_lot_q && mysqli_num_rows($last_lot_q) > 0) {
+                                $last_cost = floatval(mysqli_fetch_assoc($last_lot_q)['import_cost']);
+                            }
+                            $total_import_cost += $qty_needed * $last_cost;
+                        }
+                        
+                        $unit_import_cost = $qty > 0 ? round($total_import_cost / $qty, 2) : 0;
+
                         $pr = mysqli_fetch_assoc(mysqli_query($conn, "SELECT name, price FROM products WHERE id='$pid'"));
                         if ($pr) {
                             $pr['price'] = getCurrentPrice($conn, $pid);
                         }
                         $opts_esc = mysqli_real_escape_string($conn, $opts);
                         
-                        // บันทึกรายการลงบิล
-                        mysqli_query($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, selected_option) VALUES ('$order_id', '$pid', '$qty', '{$pr['price']}', '$opts_esc')");
+                        // บันทึกรายการลงบิล พร้อมทุนต้นทุน FIFO
+                        mysqli_query($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, import_cost, selected_option) VALUES ('$order_id', '$pid', '$qty', '{$pr['price']}', '$unit_import_cost', '$opts_esc')");
                         
                         // เพิ่มยอดขายในระบบ Flash Sale หากมีแคมเปญเปิดใช้งานอยู่
                         $active_fs = getActiveFlashSale($conn, $pid);
                         if ($active_fs !== null) {
                             mysqli_query($conn, "UPDATE flash_sales SET flash_sold = flash_sold + $qty WHERE id = '{$active_fs['id']}'");
-                        }
-                        
-                        // === ระบบตัดสต๊อกแบบ FIFO ===
-                        $qty_needed = $qty;
-                        $lot_query = mysqli_query($conn, "SELECT id, stock FROM product_lots WHERE product_id='$pid' AND stock > 0 ORDER BY imported_at ASC");
-                        
-                        while ($lot = mysqli_fetch_assoc($lot_query)) {
-                            if ($qty_needed <= 0) break;
-                            $lot_id = $lot['id'];
-                            $lot_stock = $lot['stock'];
-                            
-                            if ($lot_stock >= $qty_needed) {
-                                // ล็อตนี้ของพอ ตัดสต๊อกและจบการทำงาน
-                                mysqli_query($conn, "UPDATE product_lots SET stock = stock - $qty_needed WHERE id='$lot_id'");
-                                $qty_needed = 0;
-                            } else {
-                                // ล็อตนี้ของไม่พอ ตัดจนเหลือ 0 แล้วไปเอาล็อตถัดไปต่อ
-                                mysqli_query($conn, "UPDATE product_lots SET stock = 0 WHERE id='$lot_id'");
-                                $qty_needed -= $lot_stock;
-                            }
                         }
                         
                         // ซิงค์ตารางสินค้าหลัก (อัปเดตราคาใหม่ล่าสุด และสต๊อกรวม)
@@ -183,11 +199,26 @@ if (isset($_POST['confirm_order'])) {
                         $q_price = mysqli_query($conn, "SELECT price FROM product_lots WHERE product_id='$pid' AND stock > 0 ORDER BY imported_at ASC LIMIT 1");
                         $r_price = mysqli_fetch_assoc($q_price);
 
+                        $final_stock = ($tot > 0) ? intval($tot) : 0;
                         if ($tot > 0 && $r_price) {
                             $new_price = $r_price['price'];
-                            mysqli_query($conn, "UPDATE products SET stock='$tot', price='$new_price' WHERE id='$pid'");
+                            mysqli_query($conn, "UPDATE products SET stock='$final_stock', price='$new_price' WHERE id='$pid'");
                         } else {
                             mysqli_query($conn, "UPDATE products SET stock=0 WHERE id='$pid'");
+                        }
+
+                        // ระบบแจ้งเตือนสินค้าใกล้หมดเข้ากระดิ่งแอดมินอัตโนมัติ (ต่ำกว่า 5 ชิ้น)
+                        if ($final_stock < 5) {
+                            $p_name_esc = mysqli_real_escape_string($conn, $pr['name']);
+                            $title_alert = "สินค้าใกล้หมดคลัง: " . $p_name_esc;
+                            
+                            // เช็กป้องกันการแจ้งเตือนซ้ำซ้อน หากรายการแจ้งเตือนก่อนหน้านี้ของสินค้าชิ้นนี้ยังไม่ได้อ่าน
+                            $chk_notif = mysqli_query($conn, "SELECT id FROM notifications WHERE title = '$title_alert' AND is_read = 0 AND is_admin = 1");
+                            if (mysqli_num_rows($chk_notif) == 0) {
+                                $msg_alert = "สินค้า " . $p_name_esc . " เหลือในคลังเพียง " . $final_stock . " ชิ้น กรุณาตรวจสอบและเติมสต๊อก";
+                                $url_alert = "admin.php";
+                                mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$title_alert', '$msg_alert', '$url_alert', 0, 1)");
+                            }
                         }
                         // =============================
                         
