@@ -10,10 +10,37 @@ if (isset($_POST['update_status'])) {
     $oid = $_POST['order_id'];
     $status = $_POST['status'];
     
-    // คืนสต็อกกรณีที่ยกเลิกออเดอร์
-    if ($status == 'cancelled') {
-        $chk = mysqli_fetch_assoc(mysqli_query($conn, "SELECT status FROM orders WHERE id='$oid'"));
-        if ($chk['status'] != 'cancelled') {
+    // ดึงสถานะและค่าแต้มของออเดอร์เดิมก่อนทำการอัปเดต
+    $order_q = mysqli_query($conn, "SELECT status, user_id, points_earned, points_spent FROM orders WHERE id='$oid'");
+    $old_order = mysqli_fetch_assoc($order_q);
+    
+    if ($old_order) {
+        $old_status = $old_order['status'];
+        $user_id = $old_order['user_id'];
+        $points_earned = intval($old_order['points_earned']);
+        $points_spent = intval($old_order['points_spent']);
+
+        // 1. ถ้าปรับสถานะเป็น completed (และเดิมไม่ใช่ completed)
+        if ($status == 'completed' && $old_status != 'completed') {
+            if ($points_earned > 0) {
+                mysqli_query($conn, "UPDATE users SET points = points + $points_earned WHERE id='$user_id'");
+            }
+        }
+        
+        // 2. ถ้าเปลี่ยนสถานะจาก completed เป็นอย่างอื่น
+        if ($old_status == 'completed' && $status != 'completed') {
+            if ($points_earned > 0) {
+                mysqli_query($conn, "UPDATE users SET points = GREATEST(0, points - $points_earned) WHERE id='$user_id'");
+            }
+        }
+
+        // 3. คืนสต็อกและคืนแต้มที่ใช้ไปกรณีที่ยกเลิกออเดอร์
+        if ($status == 'cancelled' && $old_status != 'cancelled') {
+            // คืนแต้มสะสมที่เคยใช้ไป
+            if ($points_spent > 0) {
+                mysqli_query($conn, "UPDATE users SET points = points + $points_spent WHERE id='$user_id'");
+            }
+            
             $items = mysqli_query($conn, "SELECT product_id, quantity FROM order_items WHERE order_id='$oid'");
             while ($item = mysqli_fetch_assoc($items)) {
                 $pid = $item['product_id'];
@@ -76,6 +103,18 @@ if (isset($_POST['update_status'])) {
 if (isset($_POST['save_tracking'])) {
     $oid = $_POST['order_id'];
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
+    
+    // ตรวจสอบสถานะเดิมก่อนเปลี่ยนสถานะเป็น shipping
+    $order_q = mysqli_query($conn, "SELECT status, user_id, points_earned FROM orders WHERE id='$oid'");
+    $old_order = mysqli_fetch_assoc($order_q);
+    if ($old_order && $old_order['status'] == 'completed') {
+        $points_earned = intval($old_order['points_earned']);
+        $user_id = $old_order['user_id'];
+        if ($points_earned > 0) {
+            mysqli_query($conn, "UPDATE users SET points = GREATEST(0, points - $points_earned) WHERE id='$user_id'");
+        }
+    }
+    
     mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', status = 'shipping' WHERE id = '$oid'");
     
     // Insert user notification for tracking number

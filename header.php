@@ -39,6 +39,27 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         }
         body { font-family: 'Kanit', sans-serif; background-color: var(--bg-soft); color: var(--text-main); }
         
+        /* Cart Badge Update Animations */
+        @keyframes cartBadgeBounce {
+            0%, 100% { transform: scale(1); }
+            30% { transform: scale(1.4); }
+            50% { transform: scale(0.9); }
+            80% { transform: scale(1.15); }
+        }
+        @keyframes floatingCartTada {
+            0% { transform: scale(1); }
+            10%, 20% { transform: scale(0.9) rotate(-3deg); }
+            30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
+            40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        .cart-badge-bounce {
+            animation: cartBadgeBounce 0.5s ease-in-out;
+        }
+        .cart-float-tada {
+            animation: floatingCartTada 0.6s ease-in-out;
+        }
+        
         /* Navbar Glassmorphism Styling */
         .navbar { 
             background: rgba(255, 255, 255, 0.8) !important; 
@@ -807,6 +828,9 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                         }
                     }
                     
+                    const prevCount = parseInt(badgeEl ? badgeEl.innerText : '0') || 0;
+                    const newCount = parseInt(res.cart_count) || 0;
+
                     if (badgeEl) {
                         badgeEl.innerText = res.cart_count;
                         if (res.cart_count > 0) {
@@ -821,6 +845,20 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                             floatBtn.classList.remove('hidden');
                         } else {
                             floatBtn.classList.add('hidden');
+                        }
+                    }
+
+                    // Trigger animations if count changed
+                    if (prevCount !== newCount && newCount > 0) {
+                        if (badgeEl) {
+                            badgeEl.classList.remove('cart-badge-bounce');
+                            void badgeEl.offsetWidth; // trigger reflow
+                            badgeEl.classList.add('cart-badge-bounce');
+                        }
+                        if (floatBtn) {
+                            floatBtn.classList.remove('cart-float-tada');
+                            void floatBtn.offsetWidth; // trigger reflow
+                            floatBtn.classList.add('cart-float-tada');
                         }
                     }
                 }
@@ -1067,12 +1105,29 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     <?php endif; ?>
 
                     <?php if(isset($_SESSION['user_id'])): ?>
+                        <?php 
+                        $user_points_nav = 0;
+                        if (isset($conn)) {
+                            $uid_nav = $_SESSION['user_id'];
+                            $up_q = mysqli_query($conn, "SELECT points FROM users WHERE id = '$uid_nav'");
+                            if ($up_q && mysqli_num_rows($up_q) > 0) {
+                                $user_points_nav = intval(mysqli_fetch_assoc($up_q)['points']);
+                            }
+                        }
+                        ?>
                         <div class="dropdown">
                             <a class="icon-btn dropdown-toggle hide-arrow" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-person"></i>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn">
-                                <li><h6 class="dropdown-header text-truncate fw-bold">สวัสดี, <?= htmlspecialchars($_SESSION['fullname']) ?></h6></li>
+                                <li>
+                                    <h6 class="dropdown-header text-truncate fw-bold" style="color: var(--text-main);">
+                                        สวัสดี, <?= htmlspecialchars($_SESSION['fullname']) ?>
+                                        <div class="text-warning mt-1" style="font-size:0.8rem; font-weight:normal;">
+                                            <i class="bi bi-coin me-1"></i>🪙 <?= number_format($user_points_nav) ?> แต้มสะสม
+                                        </div>
+                                    </h6>
+                                </li>
                                 <li><a class="dropdown-item" href="my_orders.php"><i class="bi bi-box-seam me-2"></i> รายการสั่งซื้อ</a></li>
                                 <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person-gear me-2"></i> ข้อมูลส่วนตัว</a></li>
                                 <li><a class="dropdown-item" href="contact.php"><i class=" bi bi-telephone-fill me-2"></i> ติดต่อสอบถาม</a></li>

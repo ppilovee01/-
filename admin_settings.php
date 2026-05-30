@@ -21,6 +21,8 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $welcome_promo_coupon = mysqli_real_escape_string($conn, $_POST['welcome_promo_coupon'] ?? '');
     $shipping_fee_fixed = floatval($_POST['shipping_fee_fixed'] ?? 40.00);
     $shipping_free_threshold = floatval($_POST['shipping_free_threshold'] ?? 350.00);
+    $points_earn_rate = intval($_POST['points_earn_rate'] ?? 100);
+    $points_spend_rate = intval($_POST['points_spend_rate'] ?? 1);
     
     // 1. อัปเดตข้อมูลข้อความ
     $sql = "UPDATE shop_settings SET 
@@ -37,7 +39,9 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             welcome_promo_enabled='$welcome_promo_enabled', 
             welcome_promo_coupon='$welcome_promo_coupon', 
             shipping_fee_fixed='$shipping_fee_fixed', 
-            shipping_free_threshold='$shipping_free_threshold' 
+            shipping_free_threshold='$shipping_free_threshold',
+            points_earn_rate='$points_earn_rate',
+            points_spend_rate='$points_spend_rate'
             WHERE id=1";
     mysqli_query($conn, $sql);
 
@@ -188,6 +192,21 @@ if ($coupons_query) {
                         <div class="col-md-6 mb-3">
                             <label class="form-label small fw-bold text-muted">ยอดซื้อขั้นต่ำเพื่อจัดส่งฟรี (บาท)</label>
                             <input type="number" step="0.01" name="shipping_free_threshold" class="form-control" value="<?= htmlspecialchars(number_format($shop['shipping_free_threshold'] ?? 350.00, 2, '.', '')) ?>" placeholder="เช่น 350.00" required>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-coin me-1"></i> ตั้งค่าแต้มสะสมสมาชิก (Membership Reward Points Settings)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">อัตราส่วนการได้รับแต้ม (บาทต่อ 1 แต้ม)</label>
+                            <input type="number" name="points_earn_rate" class="form-control" value="<?= intval($shop['points_earn_rate'] ?? 100) ?>" placeholder="เช่น 100" required min="1">
+                            <div class="form-text">ซื้อสินค้าครบทุกๆ กี่บาท ถึงจะได้รับคะแนนสะสม 1 แต้ม</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">อัตราส่วนการใช้แต้ม (1 แต้มต่อส่วนลดกี่บาท)</label>
+                            <input type="number" name="points_spend_rate" class="form-control" value="<?= intval($shop['points_spend_rate'] ?? 1) ?>" placeholder="เช่น 1" required min="1">
+                            <div class="form-text">เมื่อลูกค้าแลกแต้ม 1 แต้ม จะได้รับส่วนลดแทนเงินสดกี่บาท</div>
                         </div>
                     </div>
 

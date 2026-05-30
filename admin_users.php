@@ -37,12 +37,13 @@ if (isset($_POST['edit_user'])) {
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $role = $_POST['role'];
+    $points = intval($_POST['points']);
     
     if (!empty($_POST['password'])) {
         $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        $sql = "UPDATE users SET fullname='$name', email='$email', role='$role', password='$pass' WHERE id='$id'";
+        $sql = "UPDATE users SET fullname='$name', email='$email', role='$role', password='$pass', points='$points' WHERE id='$id'";
     } else {
-        $sql = "UPDATE users SET fullname='$name', email='$email', role='$role' WHERE id='$id'";
+        $sql = "UPDATE users SET fullname='$name', email='$email', role='$role', points='$points' WHERE id='$id'";
     }
 
     if(mysqli_query($conn, $sql)) {
@@ -124,6 +125,7 @@ if (isset($_GET['delete'])) {
                                 <th>ชื่อผู้ใช้งาน</th>
                                 <th>อีเมล</th>
                                 <th>สถานะ</th>
+                                <th>แต้มสะสม</th>
                                 <th>วันที่สมัคร</th>
                                 <th class="text-end pe-4">จัดการ</th>
                             </tr>
@@ -149,6 +151,7 @@ if (isset($_GET['delete'])) {
                                 </td>
                                 <td><?= $row['email'] ?></td>
                                 <td><?= $role_badge ?></td>
+                                <td>🪙 <span class="fw-bold text-warning"><?= number_format($row['points'] ?? 0) ?></span> แต้ม</td>
                                 <td class="text-muted small">
                                     <?= isset($row['created_at']) ? date('d/m/Y', strtotime($row['created_at'])) : '-' ?>
                                 </td>
@@ -257,6 +260,10 @@ if (isset($_GET['delete'])) {
                             <option value="admin">Admin</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">แต้มสะสมสมาชิก</label>
+                        <input type="number" name="points" id="edit_points" class="form-control" required min="0">
+                    </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="submit" name="edit_user" class="btn btn-warning w-100 rounded-pill text-white">อัปเดตข้อมูล</button>
@@ -273,6 +280,7 @@ if (isset($_GET['delete'])) {
         document.getElementById('edit_fullname').value = data.fullname;
         document.getElementById('edit_email').value = data.email;
         document.getElementById('edit_role').value = data.role;
+        document.getElementById('edit_points').value = data.points || 0;
     }
 
     function confirmBan(id, name) {

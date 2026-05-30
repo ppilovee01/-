@@ -119,8 +119,37 @@ if (isset($_POST['confirm_order'])) {
             }
 
             if (!isset($error_msg)) {
-                $sql = "INSERT INTO orders (user_id, total_price, discount_amount, final_price, coupon_code, status, address, payment_slip, payment_method, order_date) 
-                        VALUES ('$user_id', '$total', '$disc', '$final', '$coupon', 'pending', '$full_addr', '$slip', '{$pm['name']}', NOW())";
+                // คำนวณแต้มสะสมที่ใช้ลดราคา
+                $points_spent = 0;
+                $points_discount = 0.00;
+                if (isset($_POST['use_points']) && $_POST['use_points'] == '1') {
+                    $up_chk = mysqli_fetch_assoc(mysqli_query($conn, "SELECT points FROM users WHERE id = '$user_id'"));
+                    $db_points = $up_chk ? intval($up_chk['points']) : 0;
+                    
+                    $shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
+                    $shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
+                    $is_free_shipping_coupon = false;
+                    if (isset($_SESSION['coupon']) && $_SESSION['coupon']['type'] == 'free_shipping') {
+                        $is_free_shipping_coupon = true;
+                    }
+                    $shipping_fee = ($total >= $shipping_free_threshold || $total == 0 || $is_free_shipping_coupon) ? 0 : $shipping_fee_fixed;
+                    $base_final = max(0, $total - $disc + $shipping_fee);
+                    
+                    $points_spent = min($db_points, intval($base_final));
+                    $points_discount = floatval($points_spent);
+                    $final = max(0, $base_final - $points_discount);
+                }
+
+                // คำนวณแต้มที่จะได้รับเมื่อจัดส่งสำเร็จ
+                $points_earned = floor($final / 100);
+
+                // ทำการหักแต้มสะสมออกจากโปรไฟล์ผู้ใช้
+                if ($points_spent > 0) {
+                    mysqli_query($conn, "UPDATE users SET points = points - $points_spent WHERE id = '$user_id'");
+                }
+
+                $sql = "INSERT INTO orders (user_id, total_price, discount_amount, final_price, coupon_code, status, address, payment_slip, payment_method, order_date, points_earned, points_spent, points_discount) 
+                        VALUES ('$user_id', '$total', '$disc', '$final', '$coupon', 'pending', '$full_addr', '$slip', '{$pm['name']}', NOW(), '$points_earned', '$points_spent', '$points_discount')";
                 
                 if(mysqli_query($conn, $sql)){
                     $order_id = mysqli_insert_id($conn);
@@ -288,10 +317,23 @@ include 'header.php';
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 $shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
 $shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
+$user_points = 0;
+if (isset($_SESSION['user_id'])) {
+    $uid = $_SESSION['user_id'];
+    $up_q = mysqli_query($conn, "SELECT points FROM users WHERE id = '$uid'");
+    if ($up_q && mysqli_num_rows($up_q) > 0) {
+        $user_points = intval(mysqli_fetch_assoc($up_q)['points']);
+    }
+}
+$points_earn_rate = intval($shop['points_earn_rate'] ?? 100);
+$points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
 ?>
 <script>
     window.shippingThreshold = <?= $shipping_free_threshold ?>;
     window.shippingFeeFixed = <?= $shipping_fee_fixed ?>;
+    window.userPointsAvailable = <?= $user_points ?>;
+    window.pointsEarnRate = <?= $points_earn_rate ?>;
+    window.pointsSpendRate = <?= $points_spend_rate ?>;
 </script>
 
 <div class="container py-5">
@@ -481,20 +523,41 @@ $shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
                                     <i class="bi bi-ticket-perforated me-1"></i> ดูคูปองส่วนลดที่มีทั้งหมด
                                 </button>
                             </div>
+
+                            <!-- ส่วนของแต้มสะสม -->
+                            <?php if ($user_points > 0): ?>
+                                <div class="p-3 mb-3 rounded-4 border bg-light" style="border-style: dashed !important; border-color: var(--blue-hover) !important;">
+                                    <div class="form-check form-switch d-flex align-items-center justify-content-between p-0 mb-2">
+                                        <div style="padding-left: 0;">
+                                            <label class="form-check-label fw-bold text-dark" for="use_points_toggle" style="cursor: pointer; font-size: 0.85rem;">
+                                                🪙 ใช้แต้มสะสมของฉัน
+                                            </label>
+                                            <div class="text-muted" style="font-size: 0.72rem;">คุณมี <?= number_format($user_points) ?> แต้ม (ลดได้ ฿<?= number_format($user_points * $points_spend_rate) ?>)</div>
+                                        </div>
+                                        <input class="form-check-input" type="checkbox" name="use_points" id="use_points_toggle" value="1" onchange="togglePointsRedemption(this)" style="width: 2.2em; height: 1.2em; cursor: pointer; margin-left: 10px;">
+                                    </div>
+                                    <div class="text-muted p-2 rounded-3 bg-white" style="font-size: 0.68rem; border: 1px solid rgba(226,232,240,0.6);">
+                                        <i class="bi bi-info-circle text-primary me-1"></i> <strong>กติกาแต้ม:</strong> 1 แต้ม = ฿<?= number_format($points_spend_rate) ?> ส่วนลด<br>
+                                        (จะได้รับ 1 แต้ม สำหรับทุกยอดซื้อครบ ฿<?= number_format($points_earn_rate) ?> เมื่อจัดส่งออเดอร์สำเร็จ)
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
                             <?php if(isset($_SESSION['coupon'])): ?>
                                 <?php if($_SESSION['coupon']['type'] !== 'free_shipping'): ?>
-                                    <div class="d-flex justify-content-between small mb-2 text-success" id="cart-discount-row"><span>ส่วนลด</span><span>-฿<span id="discount_val"><?=number_format($disc,2)?></span></span></div>
+                                    <div class="d-flex justify-content-between small mb-2 text-success" id="cart-discount-row"><span>ส่วนลดคูปอง</span><span>-฿<span id="discount_val"><?=number_format($disc,2)?></span></span></div>
                                 <?php endif; ?>
                                 <div class="text-end mb-2"><a href="?remove_coupon=1" class="text-danger small text-decoration-none"><i class="bi bi-x-circle me-1"></i>ยกเลิกคูปอง</a></div>
                             <?php endif; ?>
 
-                            <div class="d-flex justify-content-between small mb-2 text-muted"><span>ยอดรวม</span><span>฿<span id="subtotal"><?=number_format($subtotal,2)?></span></span></div>
+                            <div class="d-flex justify-content-between small mb-2 text-muted"><span>ยอดรวมสินค้า</span><span>฿<span id="subtotal"><?=number_format($subtotal,2)?></span></span></div>
                             <div class="d-flex justify-content-between small mb-2 text-muted">
                                 <span>ค่าจัดส่ง</span>
                                 <span id="shipping_fee_val" class="fw-bold <?= $shipping_fee == 0 ? 'text-success' : '' ?>">
                                     <?= $shipping_fee == 0 ? 'ส่งฟรี' : '฿' . number_format($shipping_fee, 2) ?>
                                 </span>
                             </div>
+                            <div class="d-none justify-content-between small mb-2 text-success" id="points_applied_row"><span>ส่วนลดจากแต้ม</span><span>-฿<span id="points_discount_val">0.00</span></span></div>
                             <hr class="my-2 opacity-25">
                             <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span>สุทธิ</span><span style="color:#AEE2FF">฿<span id="final_total"><?=number_format($final,2)?></span></span></div>
 
@@ -698,6 +761,11 @@ function updateQty(id, type) {
             const isFreeCoupon = parseFloat(data.shipping_fee.replace(/,/g, '')) === 0;
             updateFreeShippingProgressBar(subFloat, isFreeCoupon);
 
+            // Recalculate points redemption if checked
+            if (typeof recalculateCheckoutSummary === 'function') {
+                recalculateCheckoutSummary();
+            }
+
             // Sync with interactive cart drawer if available
             if (typeof window.loadCartDrawer === 'function') {
                 window.loadCartDrawer();
@@ -735,6 +803,11 @@ function removeItem(id) {
                             document.getElementById('subtotal').innerText = data.subtotal;
                             document.getElementById('final_total').innerText = data.final_total;
                             if(document.getElementById('discount_val')) document.getElementById('discount_val').innerText = data.discount;
+
+                            document.getElementById('in_total').value = data.subtotal.replace(/,/g, '');
+                            document.getElementById('in_disc').value = data.discount.replace(/,/g, '');
+                            document.getElementById('in_final').value = data.final_total.replace(/,/g, '');
+                            document.getElementById('hidden_total').value = data.subtotal.replace(/,/g, '');
                             
                             const badge = document.getElementById('nav-cart-badge');
                             badge.innerText = data.cart_count;
@@ -742,6 +815,11 @@ function removeItem(id) {
                             let subFloat = parseFloat(data.subtotal.replace(/,/g, ''));
                             const isFreeCoupon = parseFloat(data.shipping_fee.replace(/,/g, '')) === 0;
                             updateFreeShippingProgressBar(subFloat, isFreeCoupon);
+
+                            // Recalculate points redemption if checked
+                            if (typeof recalculateCheckoutSummary === 'function') {
+                                recalculateCheckoutSummary();
+                            }
 
                             // Sync with interactive cart drawer if available
                             if (typeof window.loadCartDrawer === 'function') {
@@ -863,6 +941,41 @@ function validateForm() {
             document.getElementById('checkoutForm').submit();
         }
     });
+}
+
+function togglePointsRedemption(checkbox) {
+    recalculateCheckoutSummary();
+}
+
+function recalculateCheckoutSummary() {
+    const subtotal = parseFloat(document.getElementById('in_total').value) || 0;
+    const disc = parseFloat(document.getElementById('in_disc').value) || 0;
+    const shippingFeeText = document.getElementById('shipping_fee_val').innerText.trim();
+    const shipping = shippingFeeText === 'ส่งฟรี' ? 0 : parseFloat(shippingFeeText.replace(/[^\d.]/g, '')) || 0;
+    
+    const baseFinalPrice = Math.max(0, subtotal - disc + shipping);
+    const pointsToggle = document.getElementById('use_points_toggle');
+    let pointsDiscount = 0;
+
+    if (pointsToggle && pointsToggle.checked) {
+        const maxPoints = window.userPointsAvailable || 0;
+        pointsDiscount = Math.min(maxPoints, baseFinalPrice);
+        
+        document.getElementById('points_discount_val').innerText = pointsDiscount.toFixed(2);
+        document.getElementById('points_applied_row').classList.remove('d-none');
+        document.getElementById('points_applied_row').classList.add('d-flex');
+    } else {
+        document.getElementById('points_applied_row').classList.add('d-none');
+        document.getElementById('points_applied_row').classList.remove('d-flex');
+    }
+
+    const finalPrice = Math.max(0, baseFinalPrice - pointsDiscount);
+    document.getElementById('final_total').innerText = finalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('in_final').value = finalPrice.toFixed(2);
+    
+    // Update QR payment UI if a radio is selected
+    const pm = document.querySelector('input[name="payment_method_id"]:checked');
+    if (pm) updatePaymentUI(pm);
 }
 </script>
 

@@ -520,7 +520,14 @@ if (!empty($active_flash_sales)):
                         <?php if($is_out): ?>
                             <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2 position-relative" style="z-index:2;" disabled>สินค้าหมดแล้ว</button>
                         <?php else: ?>
-                            <button type="button" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2 btn-quick-add" style="z-index:2;" data-pid="<?= $p['id'] ?>" data-options="<?= htmlspecialchars($p['options'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <button type="button" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2 btn-quick-add" style="z-index:2;" 
+                                    data-pid="<?= $p['id'] ?>" 
+                                    data-name="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>"
+                                    data-image="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>"
+                                    data-price="<?= $p['price'] ?>"
+                                    data-flash-price="<?= $active_fs !== null ? $active_fs['flash_price'] : '' ?>"
+                                    data-stock="<?= $p['stock'] ?>"
+                                    data-options="<?= htmlspecialchars($p['options'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                                 <i class="bi bi-cart-plus"></i> <span class="d-none d-md-inline"><?= !empty($p['options']) ? 'เลือกตัวเลือก' : 'เพิ่มลงตะกร้า' ?></span><span class="d-inline d-md-none"><?= !empty($p['options']) ? 'เลือก' : 'หยิบใส่' ?></span>
                             </button>
                         <?php endif; ?>
@@ -675,15 +682,44 @@ endif;
 
 <!-- Quick Add to Cart Option Modal -->
 <div class="modal fade" id="quickOptionModal" tabindex="-1" aria-labelledby="quickOptionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px; width: 95%;">
         <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255,255,255,0.98); backdrop-filter: blur(15px);">
             <div class="modal-header border-0 pb-0 px-4 pt-4">
                 <h6 class="modal-title fw-bold text-dark" id="quickOptionModalLabel"><i class="bi bi-bag-plus me-2" style="color: var(--blue-hover);"></i>เลือกตัวเลือกสินค้า</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body px-4 pb-4 pt-3">
+                <!-- Product Preview Section -->
+                <div class="d-flex align-items-center mb-3">
+                    <div class="me-3 position-relative" style="width: 80px; height: 80px; flex-shrink: 0;">
+                        <img id="quickOptionProductImage" src="" alt="" class="img-fluid rounded-3 border w-100 h-100" style="object-fit: cover;">
+                        <span id="quickOptionFlashBadge" class="position-absolute top-0 start-0 badge bg-danger text-white d-none" style="font-size: 0.65rem; transform: translate(-5px, -5px); z-index: 5;">⚡ FLASH</span>
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <h6 id="quickOptionProductName" class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.95rem;"></h6>
+                        <div id="quickOptionProductPrice"></div>
+                    </div>
+                </div>
+                
+                <hr class="my-3 text-muted opacity-25">
+                
                 <div id="quickOptionBody"></div>
-                <button type="button" class="btn btn-gradient w-100 rounded-pill py-2 mt-3 fw-bold shadow-sm" id="quickOptionSubmitBtn" onclick="submitQuickOption()">
+                
+                <!-- Quantity Selector Section -->
+                <div class="d-flex align-items-center justify-content-between mt-3 mb-4">
+                    <span class="fw-bold text-secondary" style="font-size: 0.85rem;">จำนวน</span>
+                    <div class="d-flex align-items-center bg-light rounded-pill p-1" style="border: 1px solid #E2E8F0;">
+                        <button type="button" class="btn quick-qty-btn" onclick="changeQuickQty(-1)">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <input type="number" id="quickOptionQty" value="1" min="1" max="99" class="form-control form-control-sm text-center border-0 bg-transparent p-0 fw-bold text-dark" style="width: 40px; box-shadow: none; font-size: 0.95rem;" readonly>
+                        <button type="button" class="btn quick-qty-btn" onclick="changeQuickQty(1)">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-gradient w-100 rounded-pill py-2 fw-bold shadow-sm" id="quickOptionSubmitBtn" onclick="submitQuickOption()">
                     <i class="bi bi-cart-plus me-2"></i>เพิ่มลงตะกร้า
                 </button>
             </div>
@@ -727,6 +763,28 @@ endif;
     @keyframes modalSlideUp {
         from { transform: translateY(30px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
+    }
+    .quick-qty-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50% !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #CBD5E1 !important;
+        background: white !important;
+        color: var(--slate-dark) !important;
+        font-size: 0.95rem;
+        font-weight: bold;
+        padding: 0;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .quick-qty-btn:hover {
+        background: var(--blue-hover) !important;
+        color: white !important;
+        border-color: var(--blue-hover) !important;
+        box-shadow: 0 3px 10px rgba(127, 181, 255, 0.25);
     }
 </style>
 
@@ -792,15 +850,59 @@ endif;
         _quickAddProductId = productId;
         _quickAddBtn = btn;
 
-        // If product has NO options, add to cart immediately
+        // Retrieve datasets
+        const name = btn.dataset.name || '';
+        const img = btn.dataset.image || '';
+        const price = parseFloat(btn.dataset.price) || 0;
+        const flashPriceStr = btn.dataset.flashPrice || '';
+        const stock = parseInt(btn.dataset.stock) || 0;
+
+        // If product has NO options, add to cart immediately with qty = 1
         if (!optionsStr || optionsStr.trim() === '') {
-            doQuickAdd(productId, '', btn);
+            doQuickAdd(productId, '', btn, 1);
             return;
         }
 
         // Product HAS options — show the popup
         const body = document.getElementById('quickOptionBody');
         body.innerHTML = ''; // reset
+
+        // Reset Qty input to 1 and cache max stock
+        const qtyInput = document.getElementById('quickOptionQty');
+        if (qtyInput) {
+            qtyInput.value = 1;
+            qtyInput.dataset.maxStock = stock;
+        }
+
+        // Render preview header
+        const modalImg = document.getElementById('quickOptionProductImage');
+        if (modalImg) {
+            modalImg.src = img;
+            modalImg.alt = name;
+        }
+
+        const modalName = document.getElementById('quickOptionProductName');
+        if (modalName) {
+            modalName.textContent = name;
+        }
+
+        const modalPrice = document.getElementById('quickOptionProductPrice');
+        const flashBadge = document.getElementById('quickOptionFlashBadge');
+        if (modalPrice) {
+            if (flashPriceStr !== '') {
+                const fPrice = parseFloat(flashPriceStr);
+                modalPrice.innerHTML = `
+                    <span class="fw-bold text-danger" style="font-size:1.15rem;">฿${formatNumber(fPrice)}</span>
+                    <span class="text-muted text-decoration-line-through small ms-1" style="font-size: 0.8rem;">฿${formatNumber(price)}</span>
+                `;
+                if (flashBadge) flashBadge.classList.remove('d-none');
+            } else {
+                modalPrice.innerHTML = `
+                    <span class="fw-bold" style="color:var(--blue-dark); font-size:1.15rem;">฿${formatNumber(price)}</span>
+                `;
+                if (flashBadge) flashBadge.classList.add('d-none');
+            }
+        }
 
         const groups = optionsStr.split('|');
         groups.forEach((group, gi) => {
@@ -831,6 +933,25 @@ endif;
             _quickOptionModalInstance = new bootstrap.Modal(modalEl);
         }
         _quickOptionModalInstance.show();
+    }
+
+    function formatNumber(num) {
+        return new Intl.NumberFormat('th-TH').format(num);
+    }
+
+    function changeQuickQty(amount) {
+        const qtyInput = document.getElementById('quickOptionQty');
+        if (!qtyInput) return;
+        let val = parseInt(qtyInput.value) || 1;
+        const maxStock = parseInt(qtyInput.dataset.maxStock) || 99;
+        
+        val += amount;
+        if (val < 1) val = 1;
+        if (val > maxStock) {
+            val = maxStock;
+            Swal.fire({ icon: 'warning', title: `มีสินค้าในสต็อกเพียง ${maxStock} ชิ้น`, toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+        }
+        qtyInput.value = val;
     }
 
     function escapeHtml(str) {
@@ -870,16 +991,20 @@ endif;
         }
 
         const opts = selectedOpts.join(', ');
+        
+        // Get quantity
+        const qtyInput = document.getElementById('quickOptionQty');
+        const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
 
         // Close modal
         const modalEl = document.getElementById('quickOptionModal');
         const modal = bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();
 
-        doQuickAdd(_quickAddProductId, opts, _quickAddBtn);
+        doQuickAdd(_quickAddProductId, opts, _quickAddBtn, qty);
     }
 
-    function doQuickAdd(productId, options, btn) {
+    function doQuickAdd(productId, options, btn, qty = 1) {
         // Show loading state on button
         const origHTML = btn.innerHTML;
         btn.disabled = true;
@@ -888,7 +1013,7 @@ endif;
         const fd = new FormData();
         fd.append('action', 'add');
         fd.append('product_id', productId);
-        fd.append('qty', 1);
+        fd.append('qty', qty);
         fd.append('options', options);
 
         fetch('ajax.php', { method: 'POST', body: fd })
