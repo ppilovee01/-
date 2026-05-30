@@ -8,7 +8,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 
 // Logic: ลบ Feedback
 if (isset($_GET['delete'])) {
-    $id = $_GET['delete'];
+    $id = intval($_GET['delete']);
     mysqli_query($conn, "DELETE FROM feedback WHERE id=$id");
     header("Location: admin_feedback.php"); exit();
 }
@@ -63,17 +63,17 @@ if (isset($_GET['delete'])) {
                 <div class="col-12 col-md-6 col-lg-4">
                     <div class="card card-feed p-4 h-100">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="user-avatar me-3 shadow-sm"><?= $initial ?></div>
+                            <div class="user-avatar me-3 shadow-sm"><?= htmlspecialchars($initial) ?></div>
                             <div style="overflow: hidden;">
-                                <h6 class="fw-bold m-0 text-truncate"><?= $row['fullname'] ?></h6>
-                                <small class="text-muted text-truncate d-block"><?= $row['email'] ?></small>
+                                <h6 class="fw-bold m-0 text-truncate"><?= htmlspecialchars($row['fullname']) ?></h6>
+                                <small class="text-muted text-truncate d-block"><?= htmlspecialchars($row['email']) ?></small>
                             </div>
-                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-light text-danger btn-sm rounded-circle ms-auto" onclick="return confirm('ลบข้อความนี้?')">
+                            <a href="?delete=<?= intval($row['id']) ?>" class="btn btn-light text-danger btn-sm rounded-circle ms-auto" onclick="return confirm('ลบข้อความนี้?')">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </div>
                         <div class="bg-light p-3 rounded-3 text-secondary mb-2" style="font-style: italic; min-height: 80px;">
-                            "<?= $row['message'] ?>"
+                            "<?= htmlspecialchars($row['message']) ?>"
                         </div>
                         <div class="text-end">
                             <small class="text-muted" style="font-size: 0.8rem;">

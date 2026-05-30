@@ -19,8 +19,8 @@ function get_stats_counts($conn) {
 
 // --- Logic: อัปวสถานะ (Anti-F5 Fixed) ---
 if (isset($_POST['update_status'])) {
-    $oid = $_POST['order_id'];
-    $status = $_POST['status'];
+    $oid = intval($_POST['order_id']);
+    $status = mysqli_real_escape_string($conn, $_POST['status']);
     
     // ดึงสถานะและค่าแต้มของออเดอร์เดิมก่อนทำการอัปเดต
     $order_q = mysqli_query($conn, "SELECT status, user_id, points_earned, points_spent FROM orders WHERE id='$oid'");
@@ -126,7 +126,7 @@ if (isset($_POST['update_status'])) {
 
 // --- Logic: บันทึกเลขพัสดุ ---
 if (isset($_POST['save_tracking'])) {
-    $oid = $_POST['order_id'];
+    $oid = intval($_POST['order_id']);
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
     $carrier = mysqli_real_escape_string($conn, $_POST['shipping_carrier'] ?? 'other');
     
@@ -180,7 +180,7 @@ if (isset($_POST['save_tracking'])) {
 
 // --- Logic: บันทึกหมายเหตุ ---
 if (isset($_POST['save_note'])) {
-    $oid = $_POST['order_id'];
+    $oid = intval($_POST['order_id']);
     $note = mysqli_real_escape_string($conn, $_POST['admin_note']);
     mysqli_query($conn, "UPDATE orders SET admin_note = '$note' WHERE id = '$oid'");
     log_admin_action($conn, 'บันทึกหมายเหตุ', "บันทึกหมายเหตุสำหรับออเดอร์ #$oid: $note");

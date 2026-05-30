@@ -9,13 +9,13 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 // --- Logic 1: เพิ่มคูปอง (Add) ---
 if (isset($_POST['add'])) {
     $code = strtoupper(mysqli_real_escape_string($conn, $_POST['code']));
-    $type = $_POST['discount_type'];
-    $val = $_POST['discount_value'];
-    $min = $_POST['min_spend'];
+    $type = mysqli_real_escape_string($conn, $_POST['discount_type']);
+    $val = floatval($_POST['discount_value']);
+    $min = floatval($_POST['min_spend'] ?? 0);
     $max_discount = floatval($_POST['max_discount'] ?? 0);
     $usage_limit = intval($_POST['usage_limit'] ?? 0);
     $user_limit = intval($_POST['user_limit'] ?? 0);
-    $exp = $_POST['expiry_date'];
+    $exp = mysqli_real_escape_string($conn, $_POST['expiry_date']);
     
     $check = mysqli_query($conn, "SELECT id FROM coupons WHERE code='$code'");
     if(mysqli_num_rows($check) > 0) {
@@ -31,7 +31,7 @@ if (isset($_POST['add'])) {
 
 // --- Logic 2: ลบ (Delete) ---
 if (isset($_GET['del'])) {
-    $id = $_GET['del'];
+    $id = intval($_GET['del']);
     $c_q = mysqli_query($conn, "SELECT code FROM coupons WHERE id=$id");
     $c_info = mysqli_fetch_assoc($c_q);
     $c_code = $c_info ? $c_info['code'] : "ไม่ทราบ ID";
@@ -40,25 +40,25 @@ if (isset($_GET['del'])) {
     header("Location: admin_coupons.php"); exit();
 }
 
-// --- Logic 3: เตรียมขเน‰อมูลเนเเน‰เน„ข (Edit Fetch) ---
+// --- Logic 3: เตรียมข้อมูลแก้ไข (Edit Fetch) ---
 $edit_data = null;
 if (isset($_GET['edit'])) {
-    $id = $_GET['edit'];
+    $id = intval($_GET['edit']);
     $res = mysqli_query($conn, "SELECT * FROM coupons WHERE id=$id");
     $edit_data = mysqli_fetch_assoc($res);
 }
 
 // --- Logic 4: อัปเดต (Update) ---
 if (isset($_POST['update'])) {
-    $id = $_POST['id'];
+    $id = intval($_POST['id']);
     $code = strtoupper(mysqli_real_escape_string($conn, $_POST['code']));
-    $type = $_POST['discount_type'];
-    $val = $_POST['discount_value'];
-    $min = $_POST['min_spend'];
+    $type = mysqli_real_escape_string($conn, $_POST['discount_type']);
+    $val = floatval($_POST['discount_value']);
+    $min = floatval($_POST['min_spend'] ?? 0);
     $max_discount = floatval($_POST['max_discount'] ?? 0);
     $usage_limit = intval($_POST['usage_limit'] ?? 0);
     $user_limit = intval($_POST['user_limit'] ?? 0);
-    $exp = $_POST['expiry_date'];
+    $exp = mysqli_real_escape_string($conn, $_POST['expiry_date']);
 
     $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', max_discount='$max_discount', usage_limit='$usage_limit', user_limit='$user_limit', expiry_date='$exp' WHERE id=$id";
     mysqli_query($conn, $sql);

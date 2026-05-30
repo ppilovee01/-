@@ -158,15 +158,15 @@ include 'header.php';
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label text-muted small fw-bold">ชื่อผู้ใช้ (Username)</label>
-                                    <input type="text" class="form-control bg-light text-secondary" value="<?= $user['username'] ?>" readonly>
+                                    <input type="text" class="form-control bg-light text-secondary" value="<?= htmlspecialchars($user['username'] ?? '') ?>" readonly>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label text-muted small fw-bold">อีเมล</label>
-                                    <input type="email" name="email" class="form-control" value="<?= $user['email'] ?>" required>
+                                    <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label text-muted small fw-bold">ชื่อ-นามสกุล</label>
-                                    <input type="text" name="fullname" class="form-control" value="<?= $user['fullname'] ?>" required>
+                                    <input type="text" name="fullname" class="form-control" value="<?= htmlspecialchars($user['fullname'] ?? '') ?>" required>
                                 </div>
                                 <div class="col-12 text-end">
                                     <button type="submit" class="btn btn-save">บันทึกข้อมูล</button>
@@ -189,16 +189,16 @@ include 'header.php';
                             if(mysqli_num_rows($aq) > 0):
                                 while($addr = mysqli_fetch_assoc($aq)):
                             ?>
-                            <div class="col-md-6 animate__animated animate__fadeIn" id="addr-<?= $addr['id'] ?>">
+                            <div class="col-md-6 animate__animated animate__fadeIn" id="addr-<?= intval($addr['id']) ?>">
                                 <div class="address-item">
-                                    <div class="fw-bold text-dark mb-1 fs-5"><?= $addr['recipient_name'] ?></div>
-                                    <div class="text-muted small mb-2"><i class="bi bi-telephone"></i> <?= $addr['phone'] ?></div>
+                                    <div class="fw-bold text-dark mb-1 fs-5"><?= htmlspecialchars($addr['recipient_name'] ?? '') ?></div>
+                                    <div class="text-muted small mb-2"><i class="bi bi-telephone"></i> <?= htmlspecialchars($addr['phone'] ?? '') ?></div>
                                     <div class="text-secondary small" style="line-height: 1.5;">
-                                        <?= $addr['address_line1'] ?><br>
-                                        <?= $addr['subdistrict'] ?> <?= $addr['district'] ?><br>
-                                        <?= $addr['province'] ?> <?= $addr['zipcode'] ?>
+                                        <?= htmlspecialchars($addr['address_line1'] ?? '') ?><br>
+                                        <?= htmlspecialchars($addr['subdistrict'] ?? '') ?> <?= htmlspecialchars($addr['district'] ?? '') ?><br>
+                                        <?= htmlspecialchars($addr['province'] ?? '') ?> <?= htmlspecialchars($addr['zipcode'] ?? '') ?>
                                     </div>
-                                    <div class="btn-del-addr" onclick="deleteAddress(<?= $addr['id'] ?>)">
+                                    <div class="btn-del-addr" onclick="deleteAddress(<?= intval($addr['id']) ?>)">
                                         <i class="bi bi-trash"></i>
                                     </div>
                                 </div>

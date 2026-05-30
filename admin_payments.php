@@ -10,10 +10,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 // --- Logic 1: เพิ่มข้อมูล (Add) ---
 if (isset($_POST['add'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $type = $_POST['type'];
+    $type = mysqli_real_escape_string($conn, $_POST['type']);
     $num = mysqli_real_escape_string($conn, $_POST['account_number']);
     $acc_name = mysqli_real_escape_string($conn, $_POST['account_name']);
-    $status = $_POST['status'];
+    $status = mysqli_real_escape_string($conn, $_POST['status']);
     
     $sql = "INSERT INTO payment_methods (name, type, account_number, account_name, status) VALUES ('$name', '$type', '$num', '$acc_name', '$status')";
     if(mysqli_query($conn, $sql)) {
@@ -24,7 +24,7 @@ if (isset($_POST['add'])) {
 
 // --- Logic 2: ลบข้อมูล (Delete) ---
 if (isset($_GET['del'])) {
-    $id = $_GET['del'];
+    $id = intval($_GET['del']);
     $p_q = mysqli_query($conn, "SELECT name, account_number FROM payment_methods WHERE id=$id");
     $p_info = mysqli_fetch_assoc($p_q);
     $p_name = $p_info['name'] ?? 'ไม่ระบุ';
@@ -37,19 +37,19 @@ if (isset($_GET['del'])) {
 // --- Logic 3: เตรียมข้อมูลแก้ไข (Fetch for Edit) ---
 $edit_data = null;
 if (isset($_GET['edit'])) {
-    $id = $_GET['edit'];
+    $id = intval($_GET['edit']);
     $res = mysqli_query($conn, "SELECT * FROM payment_methods WHERE id=$id");
     $edit_data = mysqli_fetch_assoc($res);
 }
 
 // --- Logic 4: อัปเดตข้อมูล (Update) ---
 if (isset($_POST['update'])) {
-    $id = $_POST['id'];
+    $id = intval($_POST['id']);
     $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $type = $_POST['type'];
+    $type = mysqli_real_escape_string($conn, $_POST['type']);
     $num = mysqli_real_escape_string($conn, $_POST['account_number']);
     $acc_name = mysqli_real_escape_string($conn, $_POST['account_name']);
-    $status = $_POST['status'];
+    $status = mysqli_real_escape_string($conn, $_POST['status']);
 
     $sql = "UPDATE payment_methods SET name='$name', type='$type', account_number='$num', account_name='$acc_name', status='$status' WHERE id=$id";
     if(mysqli_query($conn, $sql)) {

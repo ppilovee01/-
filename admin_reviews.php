@@ -6,7 +6,7 @@ include 'db.php';
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
 if (isset($_GET['delete'])) {
-    $id = mysqli_real_escape_string($conn, $_GET['delete']);
+    $id = intval($_GET['delete']);
     
     // ดึงข้อมูลรีวิวเพื่อบันทึกประวัติก่อนลบ
     $r_q = mysqli_query($conn, "SELECT r.comment, u.fullname, p.name as product_name FROM product_reviews r JOIN users u ON r.user_id = u.id JOIN products p ON r.product_id = p.id WHERE r.id = '$id'");
@@ -95,10 +95,10 @@ if (isset($_GET['delete'])) {
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <img src="<?= $row['product_image'] ?>" class="rounded me-2" style="width:35px; height:35px; object-fit:cover;">
-                                        <span class="text-truncate small" style="max-width: 150px;"><?= $row['product_name'] ?></span>
+                                        <span class="text-truncate small" style="max-width: 150px;"><?= htmlspecialchars($row['product_name'] ?? '') ?></span>
                                     </div>
                                 </td>
-                                <td class="small fw-bold"><?= $row['fullname'] ?></td>
+                                <td class="small fw-bold"><?= htmlspecialchars($row['fullname'] ?? '') ?></td>
                                 <td>
                                     <span class="text-warning small">
                                         <?php for($i=1;$i<=5;$i++) echo $i<=$row['rating'] ? '★' : '☆'; ?>

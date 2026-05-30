@@ -11,7 +11,7 @@ if (isset($_POST['add_cat'])) {
     header("Location: admin_categories.php"); exit();
 }
 if (isset($_GET['delete'])) {
-    $id = $_GET['delete'];
+    $id = intval($_GET['delete']);
     $c_q = mysqli_query($conn, "SELECT name FROM categories WHERE id=$id");
     $c_name = mysqli_fetch_assoc($c_q)['name'] ?? 'ไม่พบชื่อหมวดหมู่';
     mysqli_query($conn, "DELETE FROM categories WHERE id=$id");
@@ -20,7 +20,7 @@ if (isset($_GET['delete'])) {
     header("Location: admin_categories.php"); exit();
 }
 if (isset($_POST['edit_cat'])) {
-    $id = $_POST['edit_id'];
+    $id = intval($_POST['edit_id']);
     $name = mysqli_real_escape_string($conn, $_POST['edit_name']);
     mysqli_query($conn, "UPDATE categories SET name='$name' WHERE id=$id");
     log_admin_action($conn, 'แก้ไขหมวดหมู่', "แก้ไขชื่อหมวดหมู่สินค้า ID #$id เป็น: $name");

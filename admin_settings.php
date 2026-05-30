@@ -51,12 +51,15 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     // 2. อัปเดต Icon (ถ้ามีการอัปโหลดใหม่)
     if (isset($_FILES['shop_icon']) && $_FILES['shop_icon']['error'] == 0) {
         $ext = pathinfo($_FILES['shop_icon']['name'], PATHINFO_EXTENSION);
-        $new_icon = "favicon_" . time() . "." . $ext;
-        
-        if (!is_dir("uploads")) mkdir("uploads");
-        
-        if (move_uploaded_file($_FILES['shop_icon']['tmp_name'], "uploads/" . $new_icon)) {
-            mysqli_query($conn, "UPDATE shop_settings SET shop_icon='$new_icon' WHERE id=1");
+        $allowed = ['ico', 'png', 'jpg', 'jpeg', 'webp'];
+        if (in_array(strtolower($ext), $allowed)) {
+            $new_icon = "favicon_" . time() . "." . strtolower($ext);
+            
+            if (!is_dir("uploads")) mkdir("uploads");
+            
+            if (move_uploaded_file($_FILES['shop_icon']['tmp_name'], "uploads/" . $new_icon)) {
+                mysqli_query($conn, "UPDATE shop_settings SET shop_icon='$new_icon' WHERE id=1");
+            }
         }
     }
 

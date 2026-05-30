@@ -4,7 +4,7 @@ session_start();
 include 'db.php';
 
 if (!isset($_GET['id'])) { header("Location: index.php"); exit(); }
-$id = mysqli_real_escape_string($conn, $_GET['id']);
+$id = intval($_GET['id']);
 
 $sql = "SELECT * FROM products WHERE id = '$id'";
 $result = mysqli_query($conn, $sql);
@@ -352,17 +352,17 @@ include 'header.php';
                     <div class="review-item animate__animated animate__fadeIn">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <div>
-                                <strong class="text-dark me-2"><?= $r['fullname'] ?></strong>
+                                <strong class="text-dark me-2"><?= htmlspecialchars($r['fullname'] ?? '') ?></strong>
                                 <span class="text-warning small">
                                     <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? '★' : '☆'; ?>
                                 </span>
                             </div>
                             <small class="text-muted" style="font-size:0.8rem;"><?= date('d/m/Y', strtotime($r['created_at'])) ?></small>
                         </div>
-                        <p class="mb-2 text-secondary"><?= $r['comment'] ?></p>
+                        <p class="mb-2 text-secondary"><?= htmlspecialchars($r['comment'] ?? '') ?></p>
                         <?php if(!empty($r['image']) && file_exists($r['image'])): ?>
                             <div class="mt-2">
-                                <img src="<?= htmlspecialchars($r['image']) ?>" class="review-img-thumb img-thumbnail" onclick="showReviewImage('<?= htmlspecialchars($r['image']) ?>', '<?= htmlspecialchars($r['fullname']) ?>')" alt="รูปรีวิว">
+                                <img src="<?= htmlspecialchars($r['image']) ?>" class="review-img-thumb img-thumbnail" onclick="showReviewImage('<?= htmlspecialchars($r['image']) ?>', '<?= htmlspecialchars($r['fullname'] ?? '') ?>')" alt="รูปรีวิว">
                             </div>
                         <?php endif; ?>
                     </div>

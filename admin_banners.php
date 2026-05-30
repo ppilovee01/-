@@ -7,14 +7,19 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 if (isset($_POST['upload_banner'])) {
     if (isset($_FILES['banner_img']) && $_FILES['banner_img']['error'] == 0) {
         $ext = pathinfo($_FILES['banner_img']['name'], PATHINFO_EXTENSION);
-        $new_name = "banner_" . uniqid() . "." . $ext;
-        if (!is_dir("uploads")) mkdir("uploads");
-        if (move_uploaded_file($_FILES['banner_img']['tmp_name'], "uploads/" . $new_name)) {
-            $path = "uploads/" . $new_name;
-            mysqli_query($conn, "INSERT INTO banners (image) VALUES ('$path')");
-            $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปโหลดแบนเนอร์เรียบร้อย!', 'icon'=>'success'];
-        } else { 
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัปโหลดไฟล์ล้มเหลว', 'icon'=>'error'];
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!in_array(strtolower($ext), $allowed)) {
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp)', 'icon'=>'error'];
+        } else {
+            $new_name = "banner_" . uniqid() . "." . strtolower($ext);
+            if (!is_dir("uploads")) mkdir("uploads");
+            if (move_uploaded_file($_FILES['banner_img']['tmp_name'], "uploads/" . $new_name)) {
+                $path = "uploads/" . $new_name;
+                mysqli_query($conn, "INSERT INTO banners (image) VALUES ('$path')");
+                $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปโหลดแบนเนอร์เรียบร้อย!', 'icon'=>'success'];
+            } else { 
+                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัปโหลดไฟล์ล้มเหลว', 'icon'=>'error'];
+            }
         }
     } else { 
         $_SESSION['swal'] = ['title'=>'แจ้งเตือน', 'text'=>'กรุณาเลือกไฟล์รูปภาพ', 'icon'=>'warning'];
@@ -23,11 +28,13 @@ if (isset($_POST['upload_banner'])) {
 }
 
 if (isset($_GET['delete'])) {
-    $id = $_GET['delete'];
+    $id = intval($_GET['delete']);
     $q = mysqli_query($conn, "SELECT image FROM banners WHERE id=$id");
-    $row = mysqli_fetch_assoc($q);
-    if (file_exists($row['image'])) { unlink($row['image']); }
-    mysqli_query($conn, "DELETE FROM banners WHERE id=$id");
+    if ($q && mysqli_num_rows($q) > 0) {
+        $row = mysqli_fetch_assoc($q);
+        if (file_exists($row['image'])) { unlink($row['image']); }
+        mysqli_query($conn, "DELETE FROM banners WHERE id=$id");
+    }
     header("Location: admin_banners.php"); exit();
 }
 ?>

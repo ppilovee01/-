@@ -19,14 +19,19 @@ if (isset($_POST['save_about'])) {
     // ถ้ามีการอัปเน‚หลดรูปใหม่
     if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
         $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-        $new_name = "about_" . uniqid() . "." . $ext;
-        
-        if (!is_dir("uploads")) mkdir("uploads");
-        
-        if (move_uploaded_file($_FILES['image']['tmp_name'], "uploads/" . $new_name)) {
-            $image_path = "uploads/" . $new_name;
-            // (Optional) ลบรูปแเนˆาทิเน‰งถ้ามี
-            if (!empty($old_img) && file_exists($old_img)) { unlink($old_img); }
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!in_array(strtolower($ext), $allowed)) {
+            $err = "รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp) เท่านั้น";
+        } else {
+            $new_name = "about_" . uniqid() . "." . strtolower($ext);
+            
+            if (!is_dir("uploads")) mkdir("uploads");
+            
+            if (move_uploaded_file($_FILES['image']['tmp_name'], "uploads/" . $new_name)) {
+                $image_path = "uploads/" . $new_name;
+                // (Optional) ลบรูปแเนˆาทิเน‰งถ้ามี
+                if (!empty($old_img) && file_exists($old_img)) { unlink($old_img); }
+            }
         }
     }
 

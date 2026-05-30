@@ -22,11 +22,11 @@ function sync_product_stock($conn, $product_id) {
 
 // --- Logic: เพิ่มล็อตสินค้าใหม่ ---
 if (isset($_POST['add_lot'])) {
-    $pid = mysqli_real_escape_string($conn, $_POST['lot_product_id']);
+    $pid = intval($_POST['lot_product_id']);
     $lot_num = mysqli_real_escape_string($conn, $_POST['lot_number'] ?? '');
     $lot_cost = !empty($_POST['lot_cost']) ? floatval($_POST['lot_cost']) : 0.00;
-    $lot_price = $_POST['lot_price'];
-    $lot_stock = $_POST['lot_stock'];
+    $lot_price = floatval($_POST['lot_price'] ?? 0);
+    $lot_stock = intval($_POST['lot_stock'] ?? 0);
     
     mysqli_query($conn, "INSERT INTO product_lots (product_id, lot_number, import_cost, price, stock, imported_at) VALUES ('$pid', '$lot_num', '$lot_cost', '$lot_price', '$lot_stock', NOW())");
     sync_product_stock($conn, $pid); 
@@ -43,33 +43,39 @@ if (isset($_POST['add_lot'])) {
 // --- Logic: Save Product ---
 if (isset($_POST['save_product'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $cat_id = $_POST['category_id'];
+    $cat_id = empty($_POST['category_id']) ? '' : intval($_POST['category_id']);
     $cat_val = empty($cat_id) ? "NULL" : "'$cat_id'";
     $desc = mysqli_real_escape_string($conn, $_POST['description']);
     $options = mysqli_real_escape_string($conn, $_POST['options']); 
-    $image_path = $_POST['old_image']; 
+    $image_path = mysqli_real_escape_string($conn, $_POST['old_image']); 
     
     if (isset($_FILES['image_file']) && $_FILES['image_file']['error'] == 0) {
         $ext = pathinfo($_FILES['image_file']['name'], PATHINFO_EXTENSION);
-        $new_name = "prod_" . uniqid() . "." . $ext;
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!in_array(strtolower($ext), $allowed)) {
+            $_SESSION['swal'] = ['title' => 'ผิดพลาด', 'text' => 'รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp)', 'icon' => 'error'];
+            header("Location: admin.php"); exit();
+        }
+        $new_name = "prod_" . uniqid() . "." . strtolower($ext);
         if (!is_dir("uploads")) mkdir("uploads");
         move_uploaded_file($_FILES['image_file']['tmp_name'], "uploads/" . $new_name);
         $image_path = "uploads/" . $new_name;
     }
+    $image_path_esc = mysqli_real_escape_string($conn, $image_path);
     
     if (!empty($_POST['id'])) {
-        $id = $_POST['id'];
-        $sql = "UPDATE products SET name='$name', category_id=$cat_val, description='$desc', image='$image_path', options='$options' WHERE id='$id'";
+        $id = intval($_POST['id']);
+        $sql = "UPDATE products SET name='$name', category_id=$cat_val, description='$desc', image='$image_path_esc', options='$options' WHERE id='$id'";
         mysqli_query($conn, $sql);
         log_admin_action($conn, 'แก้ไขสินค้า', "แก้ไขข้อมูลสินค้า '$name' (รหัส #$id): หมวดหมู่ ID = $cat_id, ตัวเลือก = $options");
         $action_text = "อัปเดตข้อมูล";
     } else {
-        $price = $_POST['price'];
-        $stock = $_POST['stock'];
+        $price = floatval($_POST['price']);
+        $stock = intval($_POST['stock']);
         $lot_num = mysqli_real_escape_string($conn, $_POST['lot_number'] ?? '');
         $cost = !empty($_POST['import_cost']) ? floatval($_POST['import_cost']) : 0.00;
         
-        $sql = "INSERT INTO products (name, price, stock, category_id, image, description, options) VALUES ('$name', '$price', '$stock', $cat_val, '$image_path', '$desc', '$options')";
+        $sql = "INSERT INTO products (name, price, stock, category_id, image, description, options) VALUES ('$name', '$price', '$stock', $cat_val, '$image_path_esc', '$desc', '$options')";
         mysqli_query($conn, $sql);
         $new_id = mysqli_insert_id($conn);
         
@@ -84,7 +90,7 @@ if (isset($_POST['save_product'])) {
 
 // --- Logic: ลบสินค้า ---
 if (isset($_GET['delete'])) { 
-    $del_id = $_GET['delete'];
+    $del_id = intval($_GET['delete']);
     $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id='$del_id'");
     $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
     mysqli_query($conn, "DELETE FROM product_lots WHERE product_id = '$del_id'");
@@ -95,8 +101,8 @@ if (isset($_GET['delete'])) {
 
 // --- Logic: ลบล็อตย่อย ---
 if (isset($_GET['delete_lot']) && isset($_GET['pid'])) {
-    $del_lot = $_GET['delete_lot'];
-    $pid = $_GET['pid'];
+    $del_lot = intval($_GET['delete_lot']);
+    $pid = intval($_GET['pid']);
     $l_q = mysqli_query($conn, "SELECT l.lot_number, p.name FROM product_lots l JOIN products p ON l.product_id = p.id WHERE l.id = '$del_lot'");
     $l_info = mysqli_fetch_assoc($l_q);
     $lot_number = $l_info['lot_number'] ?? 'ไม่ระบุ';
@@ -110,7 +116,7 @@ if (isset($_GET['delete_lot']) && isset($_GET['pid'])) {
 
 $edit_data = null;
 if (isset($_GET['edit'])) { 
-    $edit_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM products WHERE id='" . mysqli_real_escape_string($conn, $_GET['edit']) . "'")); 
+    $edit_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM products WHERE id='" . intval($_GET['edit']) . "'")); 
 }
 
 // ดึงข้อมูลสินค้าทั้งหมดเก็บใส่ Array เตรียมไว้

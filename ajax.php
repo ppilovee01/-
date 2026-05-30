@@ -558,9 +558,9 @@ elseif ($action == 'get_dashboard_stats') {
         ob_end_clean(); echo json_encode($response); exit();
     }
     
-    $preset = $_GET['preset'] ?? '';
-    $start_date = $_GET['start_date'] ?? '';
-    $end_date = $_GET['end_date'] ?? '';
+    $preset = mysqli_real_escape_string($conn, $_GET['preset'] ?? '');
+    $start_date = mysqli_real_escape_string($conn, $_GET['start_date'] ?? '');
+    $end_date = mysqli_real_escape_string($conn, $_GET['end_date'] ?? '');
 
     $today = date('Y-m-d');
     if ($preset == '7days') {

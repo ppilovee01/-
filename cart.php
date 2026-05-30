@@ -78,45 +78,55 @@ if (isset($_POST['confirm_order'])) {
         if (!isset($_POST['selected_address'])) { $error_msg = "กรุณาเลือกที่อยู่จัดส่ง"; }
         elseif (!isset($_POST['payment_method_id'])) { $error_msg = "กรุณาเลือกวิธีการชำระเงิน"; }
         else {
-            $pm_id = $_POST['payment_method_id'];
+            $pm_id = intval($_POST['payment_method_id']);
             $pm = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM payment_methods WHERE id='$pm_id'"));
-            $addr_id = $_POST['selected_address'];
-            $a = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM user_addresses WHERE id='$addr_id'"));
-            $full_addr = $a['recipient_name']." (".$a['phone'].")\n".$a['address_line1']." ".$a['subdistrict']." ".$a['district']." ".$a['province']." ".$a['zipcode'];
+            $addr_id = intval($_POST['selected_address']);
+            $a = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM user_addresses WHERE id='$addr_id' AND user_id='$user_id'"));
             
-            $total = str_replace(',', '', $_POST['total_price_hidden']);
-            $disc = str_replace(',', '', $_POST['discount_hidden']);
-            $final = str_replace(',', '', $_POST['final_price_hidden']);
-            $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
-            
-            if (!empty($coupon)) {
-                $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active'"));
-                if ($chk_c) {
-                    if ($chk_c['usage_limit'] > 0) {
-                        $tot_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND status != 'cancelled'"))['count'];
-                        if ($tot_used >= $chk_c['usage_limit']) {
-                            $error_msg = "ขออภัย คูปองนี้สิทธิ์การใช้งานเต็มโควตาแล้ว";
+            if (!$a) {
+                $error_msg = "ไม่พบที่อยู่จัดส่งที่ถูกต้อง";
+            } else {
+                $full_addr = $a['recipient_name']." (".$a['phone'].")\n".$a['address_line1']." ".$a['subdistrict']." ".$a['district']." ".$a['province']." ".$a['zipcode'];
+                
+                $total = str_replace(',', '', $_POST['total_price_hidden']);
+                $disc = str_replace(',', '', $_POST['discount_hidden']);
+                $final = str_replace(',', '', $_POST['final_price_hidden']);
+                $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
+                
+                if (!empty($coupon)) {
+                    $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active'"));
+                    if ($chk_c) {
+                        if ($chk_c['usage_limit'] > 0) {
+                            $tot_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND status != 'cancelled'"))['count'];
+                            if ($tot_used >= $chk_c['usage_limit']) {
+                                $error_msg = "ขออภัย คูปองนี้สิทธิ์การใช้งานเต็มโควตาแล้ว";
+                            }
                         }
-                    }
-                    if (!isset($error_msg) && $chk_c['user_limit'] > 0) {
-                        $usr_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
-                        if ($usr_used >= $chk_c['user_limit']) {
-                            $error_msg = "ขออภัย คุณใช้สิทธิ์คูปองนี้ครบโควตาแล้ว";
+                        if (!isset($error_msg) && $chk_c['user_limit'] > 0) {
+                            $usr_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
+                            if ($usr_used >= $chk_c['user_limit']) {
+                                $error_msg = "ขออภัย คุณใช้สิทธิ์คูปองนี้ครบโควตาแล้ว";
+                            }
                         }
+                    } else {
+                        $error_msg = "ขออภัย คูปองนี้ใช้งานไม่ได้แล้ว";
                     }
-                } else {
-                    $error_msg = "ขออภัย คูปองนี้ใช้งานไม่ได้แล้ว";
                 }
-            }
-            
-            $slip = "";
-            if ($pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {
-                $ext = pathinfo($_FILES['payment_slip']['name'], PATHINFO_EXTENSION);
-                $slip = "slip_" . uniqid() . "." . $ext;
-                if(!is_dir("uploads")) mkdir("uploads");
-                move_uploaded_file($_FILES['payment_slip']['tmp_name'], "uploads/" . $slip);
-            } elseif ($pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
-                 $error_msg = "กรุณาแนบสลิปโอนเงิน";
+                
+                $slip = "";
+                if ($pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {
+                    $ext = pathinfo($_FILES['payment_slip']['name'], PATHINFO_EXTENSION);
+                    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                    if (!in_array(strtolower($ext), $allowed)) {
+                        $error_msg = "รองรับเฉพาะไฟล์รูปภาพสลิปโอนเงิน (jpg, jpeg, png, gif, webp) เท่านั้น";
+                    } else {
+                        $slip = "slip_" . uniqid() . "." . strtolower($ext);
+                        if(!is_dir("uploads")) mkdir("uploads");
+                        move_uploaded_file($_FILES['payment_slip']['tmp_name'], "uploads/" . $slip);
+                    }
+                } elseif ($pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
+                     $error_msg = "กรุณาแนบสลิปโอนเงิน";
+                }
             }
 
             if (!isset($error_msg)) {

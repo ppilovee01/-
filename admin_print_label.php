@@ -4,7 +4,7 @@ include 'db.php';
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
 if (!isset($_GET['id'])) { die("ไม่พบ Order ID"); }
-$order_id = $_GET['id'];
+$order_id = intval($_GET['id']);
 
 // 1. ขเน‰อมูลรเน‰านคเน‰า
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
@@ -106,11 +106,11 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
         <div class="header">
             <div class="sender-section">
                 <div class="sender-title">ผู้ส่ง (Sender)</div>
-                <div class="shop-name"><?= $shop['shop_name'] ?></div>
+                <div class="shop-name"><?= htmlspecialchars($shop['shop_name'] ?? '') ?></div>
                 <div class="sender-info">
-                    <?= nl2br($shop['address']) ?><br>
-                    <b>โทร:</b> <?= $shop['phone'] ?>
-                    <?php if($shop['shop_email']) echo "<br><b>Contact:</b> {$shop['shop_email']}"; ?>
+                    <?= nl2br(htmlspecialchars($shop['address'] ?? '')) ?><br>
+                    <b>โทร:</b> <?= htmlspecialchars($shop['phone'] ?? '') ?>
+                    <?php if(!empty($shop['shop_email'])) echo "<br><b>Contact:</b> " . htmlspecialchars($shop['shop_email']); ?>
                 </div>
             </div>
             <div style="text-align:right; display: flex; flex-direction: column; align-items: flex-end;">
@@ -125,30 +125,31 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
 
         <div class="receiver-box">
             <div class="receiver-title">ผู้รับ (Receiver)</div>
-            <div class="receiver-name"><?= explode("\n", $order['address'])[0] ?></div> 
+            <div class="receiver-name"><?= htmlspecialchars(explode("\n", $order['address'] ?? '')[0]) ?></div> 
             <div class="receiver-address">
                 <?php 
-                    $addr_lines = explode("\n", $order['address']);
+                    $addr_lines = explode("\n", $order['address'] ?? '');
                     if(count($addr_lines) > 1) unset($addr_lines[0]);
-                    echo implode("<br>", $addr_lines);
+                    $escaped_addr_lines = array_map('htmlspecialchars', $addr_lines);
+                    echo implode("<br>", $escaped_addr_lines);
                 ?>
             </div>
-            <?php if($order['email']): ?>
-                <div class="receiver-contact">Email: <?= $order['email'] ?></div>
+            <?php if(!empty($order['email'])): ?>
+                <div class="receiver-contact">Email: <?= htmlspecialchars($order['email']) ?></div>
             <?php endif; ?>
         </div>
 
         <div class="info-section">
-            <?php if(strpos($order['payment_method'], 'COD') !== false || $order['payment_method'] == 'เก็บเงินปลายทาง (COD)' || $order['payment_method'] == 'เก็บแ‡ินปลายทาง (COD)'): ?>
+            <?php if(strpos($order['payment_method'] ?? '', 'COD') !== false || ($order['payment_method'] ?? '') == 'เก็บเงินปลายทาง (COD)' || ($order['payment_method'] ?? '') == 'เก็บแ‡ินปลายทาง (COD)'): ?>
                 <div class="cod-box">
                     <div class="cod-title">ยอดเก็บเงินปลายทาง (COD)</div>
-                    <div class="cod-price">฿<?= number_format($order['final_price'], 2) ?></div>
+                    <div class="cod-price">฿<?= number_format($order['final_price'] ?? 0, 2) ?></div>
                 </div>
             <?php endif; ?>
 
             <?php if(!empty($order['admin_note'])): ?>
                 <div class="note-box">
-                    หมายเหตุ: <?= $order['admin_note'] ?>
+                    หมายเหตุ: <?= htmlspecialchars($order['admin_note']) ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -162,26 +163,26 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
             <?php while($item = mysqli_fetch_assoc($items)): ?>
                 <div class="item-row">
                     <div>
-                        <span style="font-weight: 600;"><?= $item['name'] ?></span>
+                        <span style="font-weight: 600;"><?= htmlspecialchars($item['name'] ?? '') ?></span>
                         <?php if (!empty($item['selected_option'])): ?>
                             <div class="text-muted small mt-1" style="font-size: 13px; font-weight: normal; color: #555;">
-                                ตัวเลือก: <?= $item['selected_option'] ?>
+                                ตัวเลือก: <?= htmlspecialchars($item['selected_option']) ?>
                             </div>
                         <?php endif; ?>
                     </div>
-                    <span style="font-weight:bold; font-size: 18px;">x<?= $item['quantity'] ?></span>
+                    <span style="font-weight:bold; font-size: 18px;">x<?= intval($item['quantity']) ?></span>
                 </div>
             <?php endwhile; ?>
         </div>
         
         <?php if(!empty($shop['print_remark'])): ?>
             <div style="margin-top:20px; font-weight:bold; color:#d63384; text-align:center;">
-                *** <?= $shop['print_remark'] ?> ***
+                *** <?= htmlspecialchars($shop['print_remark']) ?> ***
             </div>
         <?php endif; ?>
 
         <div class="footer">
-            ขอบคุณที่อุดหนุน <?= $shop['shop_name'] ?> | Por Mae Bet Taled System
+            ขอบคุณที่อุดหนุน <?= htmlspecialchars($shop['shop_name'] ?? '') ?> | Por Mae Bet Taled System
         </div>
     </div>
 

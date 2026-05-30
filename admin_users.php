@@ -34,7 +34,7 @@ if (isset($_POST['add_user'])) {
 
 // --- Logic 2: แก้ไขสมาชิก ---
 if (isset($_POST['edit_user'])) {
-    $id = $_POST['edit_id'];
+    $id = intval($_POST['edit_id']);
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $role = $_POST['role'];
@@ -71,7 +71,7 @@ if (isset($_POST['edit_user'])) {
 
 // --- Logic 3: ลบสมาชิก ---
 if (isset($_GET['delete'])) {
-    $id = $_GET['delete'];
+    $id = intval($_GET['delete']);
     if ($id == $_SESSION['user_id']) {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'คุณไม่สามารถลบตัวเองได้!', 'icon'=>'warning'];
     } else {
