@@ -12,6 +12,7 @@ if (isset($_POST['add'])) {
     $type = $_POST['discount_type'];
     $val = $_POST['discount_value'];
     $min = $_POST['min_spend'];
+    $max_discount = floatval($_POST['max_discount'] ?? 0);
     $usage_limit = intval($_POST['usage_limit'] ?? 0);
     $user_limit = intval($_POST['user_limit'] ?? 0);
     $exp = $_POST['expiry_date'];
@@ -20,8 +21,8 @@ if (isset($_POST['add'])) {
     if(mysqli_num_rows($check) > 0) {
         echo "<script>alert('โค้ดนี้มีอยู่แล้ว!');</script>";
     } else {
-        $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, usage_limit, user_limit, expiry_date) 
-                VALUES ('$code', '$type', '$val', '$min', '$usage_limit', '$user_limit', '$exp')";
+        $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, max_discount, usage_limit, user_limit, expiry_date) 
+                VALUES ('$code', '$type', '$val', '$min', '$max_discount', '$usage_limit', '$user_limit', '$exp')";
         mysqli_query($conn, $sql);
         header("Location: admin_coupons.php"); exit();
     }
@@ -49,11 +50,12 @@ if (isset($_POST['update'])) {
     $type = $_POST['discount_type'];
     $val = $_POST['discount_value'];
     $min = $_POST['min_spend'];
+    $max_discount = floatval($_POST['max_discount'] ?? 0);
     $usage_limit = intval($_POST['usage_limit'] ?? 0);
     $user_limit = intval($_POST['user_limit'] ?? 0);
     $exp = $_POST['expiry_date'];
 
-    $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', usage_limit='$usage_limit', user_limit='$user_limit', expiry_date='$exp' WHERE id=$id";
+    $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', max_discount='$max_discount', usage_limit='$usage_limit', user_limit='$user_limit', expiry_date='$exp' WHERE id=$id";
     mysqli_query($conn, $sql);
     header("Location: admin_coupons.php"); exit();
 }
@@ -110,20 +112,27 @@ if (isset($_POST['update'])) {
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="small text-muted">ประเภท</label>
-                                    <select name="discount_type" class="form-select">
+                                    <select name="discount_type" id="discount_type" class="form-select" onchange="toggleDiscountVal()">
                                         <option value="fixed" <?= ($edit_data['discount_type'] ?? '') == 'fixed' ? 'selected' : '' ?>>ลดเป็นบาท (฿)</option>
                                         <option value="percent" <?= ($edit_data['discount_type'] ?? '') == 'percent' ? 'selected' : '' ?>>ลดเป็น %</option>
+                                        <option value="free_shipping" <?= ($edit_data['discount_type'] ?? '') == 'free_shipping' ? 'selected' : '' ?>>คูปองส่งฟรี</option>
                                     </select>
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted">มูลค่าส่วนลด</label>
-                                    <input type="number" name="discount_value" class="form-control" placeholder="0" value="<?= $edit_data['discount_value'] ?? '' ?>" required>
+                                    <input type="number" name="discount_value" id="discount_value" class="form-control" placeholder="0" value="<?= $edit_data['discount_value'] ?? '' ?>" required>
                                 </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="small text-muted">ยอดซื้อขั้นต่ำ (บาท)</label>
-                                <input type="number" name="min_spend" class="form-control" placeholder="0 = ไม่มีขั้นต่ำ" value="<?= $edit_data['min_spend'] ?? '0' ?>">
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="small text-muted">ยอดซื้อขั้นต่ำ (บาท)</label>
+                                    <input type="number" name="min_spend" class="form-control" placeholder="0 = ไม่มีขั้นต่ำ" value="<?= $edit_data['min_spend'] ?? '0' ?>">
+                                </div>
+                                <div class="col-6">
+                                    <label class="small text-muted">ลดสูงสุด (บาท)</label>
+                                    <input type="number" name="max_discount" class="form-control" placeholder="0 = ไม่จำกัด" value="<?= isset($edit_data['max_discount']) ? floatval($edit_data['max_discount']) : '0' ?>">
+                                </div>
                             </div>
 
                             <div class="row g-2 mb-3">
@@ -180,12 +189,19 @@ if (isset($_POST['update'])) {
                                             <div class="fw-bold text-primary"><?= $row['code'] ?></div>
                                         </td>
                                         <td>
-                                            <span class="badge bg-blue text-white" style="background:#AEE2FF">
-                                                <?= $row['discount_type']=='fixed' ? '-฿'.number_format($row['discount_value']) : '-'.number_format($row['discount_value']).'%' ?>
-                                            </span>
+                                            <?php if ($row['discount_type'] == 'free_shipping'): ?>
+                                                <span class="badge bg-success text-white">ส่งฟรี 🚚</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-blue text-white" style="background:#AEE2FF">
+                                                    <?= $row['discount_type']=='fixed' ? '-฿'.number_format($row['discount_value']) : '-'.number_format($row['discount_value']).'%' ?>
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
-                                        <td class="small text-muted" style="line-height: 1.4;">
+                                         <td class="small text-muted" style="line-height: 1.4;">
                                              <div><?= $row['min_spend'] > 0 ? 'ขั้นต่ำ: ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?></div>
+                                             <?php if ($row['discount_type'] == 'percent' && floatval($row['max_discount']) > 0): ?>
+                                                 <div class="text-danger fw-semibold" style="font-size: 0.78rem;">ลดสูงสุด: ฿<?= number_format($row['max_discount']) ?></div>
+                                             <?php endif; ?>
                                              <div class="x-small" style="font-size: 0.75rem; color: #94a3b8;">
                                                  สิทธิ์รวม: <?= $row['usage_limit'] > 0 ? number_format($row['usage_limit']).' ครั้ง' : 'ไม่จำกัด' ?><br>
                                                  สิทธิ์ต่อคน: <?= $row['user_limit'] > 0 ? number_format($row['user_limit']).' ครั้ง' : 'ไม่จำกัด' ?>
@@ -215,6 +231,28 @@ if (isset($_POST['update'])) {
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleDiscountVal() {
+    const type = document.getElementById('discount_type').value;
+    const valInput = document.getElementById('discount_value');
+    const maxInput = document.getElementsByName('max_discount')[0];
+    if (type === 'free_shipping') {
+        valInput.value = '0';
+        valInput.readOnly = true;
+        if (maxInput) {
+            maxInput.value = '0';
+            maxInput.readOnly = true;
+        }
+    } else {
+        valInput.readOnly = false;
+        if (maxInput) {
+            maxInput.readOnly = (type === 'fixed');
+            if (type === 'fixed') maxInput.value = '0';
+        }
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleDiscountVal);
+</script>
 </body>
 </html>
 

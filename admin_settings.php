@@ -17,6 +17,10 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $smtp_pass = str_replace(' ', '', $_POST['smtp_pass']);
     $smtp_pass = mysqli_real_escape_string($conn, $smtp_pass);
     $smtp_secure = mysqli_real_escape_string($conn, $_POST['smtp_secure']);
+    $welcome_promo_enabled = isset($_POST['welcome_promo_enabled']) ? intval($_POST['welcome_promo_enabled']) : 1;
+    $welcome_promo_coupon = mysqli_real_escape_string($conn, $_POST['welcome_promo_coupon'] ?? '');
+    $shipping_fee_fixed = floatval($_POST['shipping_fee_fixed'] ?? 40.00);
+    $shipping_free_threshold = floatval($_POST['shipping_free_threshold'] ?? 350.00);
     
     // 1. อัปเดตข้อมูลข้อความ
     $sql = "UPDATE shop_settings SET 
@@ -29,7 +33,11 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             smtp_port='$smtp_port', 
             smtp_user='$smtp_user', 
             smtp_pass='$smtp_pass', 
-            smtp_secure='$smtp_secure' 
+            smtp_secure='$smtp_secure', 
+            welcome_promo_enabled='$welcome_promo_enabled', 
+            welcome_promo_coupon='$welcome_promo_coupon', 
+            shipping_fee_fixed='$shipping_fee_fixed', 
+            shipping_free_threshold='$shipping_free_threshold' 
             WHERE id=1";
     mysqli_query($conn, $sql);
 
@@ -61,6 +69,16 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
 
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 $icon_show = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "assets/default_icon.png";
+
+// ดึงคูปองที่มีสถานะเปิดใช้งานและยังไม่หมดอายุ
+$today = date('Y-m-d');
+$coupons_query = mysqli_query($conn, "SELECT code, discount_type, discount_value FROM coupons WHERE status='active' AND expiry_date >= '$today'");
+$active_coupons = [];
+if ($coupons_query) {
+    while ($c = mysqli_fetch_assoc($coupons_query)) {
+        $active_coupons[] = $c;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -135,6 +153,42 @@ $icon_show = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "asset
                     <div class="mb-4">
                         <label class="form-label fw-bold text-danger">หมายเหตุเพิ่มเติม (จะปรากฏท้ายใบปะหน้าพัสดุ)</label>
                         <textarea name="print_remark" class="form-control" rows="2" placeholder="เช่น กรุณาถ่ายวิดีโอขณะเปิดกล่องพัสดุ"><?= htmlspecialchars($shop['print_remark']) ?></textarea>
+                    </div>
+
+                    <hr class="my-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-gift-fill me-1"></i> ตั้งค่าป๊อปอัปข้อเสนอพิเศษต้อนรับ (Welcome Promo Pop-up Settings)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">สถานะป๊อปอัปข้อเสนอพิเศษต้อนรับหน้าแรก</label>
+                            <select name="welcome_promo_enabled" class="form-select">
+                                <option value="1" <?= ($shop['welcome_promo_enabled'] ?? 1) == 1 ? 'selected' : '' ?>>เปิดใช้งาน (Enabled)</option>
+                                <option value="0" <?= ($shop['welcome_promo_enabled'] ?? 1) == 0 ? 'selected' : '' ?>>ปิดใช้งาน (Disabled)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">คูปองที่ต้องการแนะนำป๊อปอัป</label>
+                            <select name="welcome_promo_coupon" class="form-select">
+                                <option value="" <?= empty($shop['welcome_promo_coupon']) ? 'selected' : '' ?>>เลือกคูปองที่คุ้มที่สุดโดยอัตโนมัติ</option>
+                                <?php foreach ($active_coupons as $c): ?>
+                                    <option value="<?= htmlspecialchars($c['code']) ?>" <?= ($shop['welcome_promo_coupon'] ?? '') == $c['code'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($c['code']) ?> - ลด <?= $c['discount_type'] == 'percent' ? intval($c['discount_value']) . '%' : '฿' . number_format($c['discount_value']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-truck me-1"></i> ตั้งค่าเป้าหมายจัดส่งฟรี (Free Shipping Target Settings)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">ค่าจัดส่งปกติ (บาท)</label>
+                            <input type="number" step="0.01" name="shipping_fee_fixed" class="form-control" value="<?= htmlspecialchars(number_format($shop['shipping_fee_fixed'] ?? 40.00, 2, '.', '')) ?>" placeholder="เช่น 40.00" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">ยอดซื้อขั้นต่ำเพื่อจัดส่งฟรี (บาท)</label>
+                            <input type="number" step="0.01" name="shipping_free_threshold" class="form-control" value="<?= htmlspecialchars(number_format($shop['shipping_free_threshold'] ?? 350.00, 2, '.', '')) ?>" placeholder="เช่น 350.00" required>
+                        </div>
                     </div>
 
                     <hr class="my-4">

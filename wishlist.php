@@ -70,7 +70,7 @@ include 'header.php';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function toggleFeature(action, pid) {
+function toggleFeature(action, pid, btn) {
     let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid);
     fetch('ajax.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => {
         const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1000});

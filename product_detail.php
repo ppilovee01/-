@@ -550,8 +550,8 @@ if (!empty($display_recently_viewed)):
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
                     <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100 text-center">
-                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="height: 120px; object-fit: cover;">
+                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
+                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php $rv_fs = getActiveFlashSale($conn, $p['id']); ?>
                             <?php if($rv_fs !== null): ?>
                                 <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.65rem;">⚡ FLASH</div>
@@ -699,10 +699,8 @@ endif;
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {
-                const icon = btn.querySelector('i');
-                
-                // กรณี Wishlist: เปลี่ยนสีหัวใจทันที
                 if (action === 'toggle_wishlist') {
+                    const icon = btn.querySelector('i');
                     if (data.state === 'added') {
                         btn.classList.add('liked');
                         icon.classList.remove('bi-heart');

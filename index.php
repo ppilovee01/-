@@ -2,6 +2,34 @@
 session_start();
 include 'db.php'; 
 
+// --- Welcome Promo Pop-up Session Logic ---
+$show_welcome_popup = false;
+$welcome_coupon = null;
+if (!isset($_SESSION['welcome_popup_shown'])) {
+    $shop_sett_q = mysqli_query($conn, "SELECT welcome_promo_enabled, welcome_promo_coupon FROM shop_settings WHERE id=1");
+    $shop_sett = mysqli_fetch_assoc($shop_sett_q);
+    
+    $promo_enabled = isset($shop_sett['welcome_promo_enabled']) ? intval($shop_sett['welcome_promo_enabled']) : 1;
+    $promo_coupon = $shop_sett['welcome_promo_coupon'] ?? '';
+    
+    if ($promo_enabled == 1) {
+        $today = date('Y-m-d');
+        if (!empty($promo_coupon)) {
+            $promo_coupon_escaped = mysqli_real_escape_string($conn, $promo_coupon);
+            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$promo_coupon_escaped' AND status='active' AND expiry_date >= '$today' LIMIT 1");
+        } else {
+            // Auto mode: fetch the best coupon
+            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND expiry_date >= '$today' ORDER BY (code = 'WELCOME100') DESC, discount_type DESC, discount_value DESC LIMIT 1");
+        }
+        
+        if ($cp_q && mysqli_num_rows($cp_q) > 0) {
+            $welcome_coupon = mysqli_fetch_assoc($cp_q);
+            $show_welcome_popup = true;
+            $_SESSION['welcome_popup_shown'] = true;
+        }
+    }
+} 
+
 // --- Helper for Filters URL Generation ---
 function buildFilterUrl($paramsToUpdate) {
     $currentParams = $_GET;
@@ -329,10 +357,12 @@ if (!empty($active_flash_sales)):
     $in_stock = isset($_GET['in_stock']) ? intval($_GET['in_stock']) : 0;
     $sort = isset($_GET['sort']) ? mysqli_real_escape_string($conn, $_GET['sort']) : 'newest';
 
-    $sql = "SELECT p.*, 
+    $sql = "SELECT p.*, c.name as cat_name,
             (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
             (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count 
-            FROM products p WHERE 1=1 ";
+            FROM products p 
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE 1=1 ";
     if ($search) $sql .= "AND p.name LIKE '%$search%' ";
     if ($cat_id) $sql .= "AND p.category_id = '$cat_id' ";
     if ($min_price !== null) $sql .= "AND p.price >= $min_price ";
@@ -490,9 +520,9 @@ if (!empty($active_flash_sales)):
                         <?php if($is_out): ?>
                             <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2" disabled>สินค้าหมดแล้ว</button>
                         <?php else: ?>
-                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2" style="z-index:2;">
-                                <i class="bi bi-cart-plus"></i> <span class="d-none d-lg-inline">เลือกตัวเลือก</span><span class="d-inline d-md-none">เลือก</span>
-                            </a>
+                            <button type="button" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2" style="z-index:2;" onclick="event.preventDefault(); event.stopPropagation(); quickAddToCart(<?= $p['id'] ?>, '<?= htmlspecialchars(addslashes($p['options'] ?? ''), ENT_QUOTES) ?>', this)">
+                                <i class="bi bi-cart-plus"></i> <span class="d-none d-lg-inline"><?= !empty($p['options']) ? 'เลือกตัวเลือก' : 'เพิ่มลงตะกร้า' ?></span><span class="d-inline d-md-none"><?= !empty($p['options']) ? 'เลือก' : 'หยิบใส่' ?></span>
+                            </button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -563,7 +593,7 @@ if (!empty($recently_viewed)):
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
                     <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100 text-center">
+                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($is_out): ?>
                                 <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1">สินค้าหมด</span></div>
@@ -630,12 +660,6 @@ endif;
         </div>
     </div>
 </footer>
-
-<a href="cart.php" id="floating-cart" class="floating-cart <?= $cart_count > 0 ? '' : 'hidden' ?>">
-    <i class="bi bi-cart-fill fs-4"></i>
-    <span id="floating-count" class="floating-count"><?= $cart_count ?></span>
-</a>
-
 <?php if(isset($_SESSION['swal'])): ?>
 <script>
     Swal.fire({
@@ -648,6 +672,63 @@ endif;
 <?php unset($_SESSION['swal']); endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Quick Add to Cart Option Modal -->
+<div class="modal fade" id="quickOptionModal" tabindex="-1" aria-labelledby="quickOptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255,255,255,0.98); backdrop-filter: blur(15px);">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h6 class="modal-title fw-bold text-dark" id="quickOptionModalLabel"><i class="bi bi-bag-plus me-2" style="color: var(--blue-hover);"></i>เลือกตัวเลือกสินค้า</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4 pt-3">
+                <div id="quickOptionBody"></div>
+                <button type="button" class="btn btn-gradient w-100 rounded-pill py-2 mt-3 fw-bold shadow-sm" id="quickOptionSubmitBtn" onclick="submitQuickOption()">
+                    <i class="bi bi-cart-plus me-2"></i>เพิ่มลงตะกร้า
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .quick-opt-group { margin-bottom: 16px; }
+    .quick-opt-label { font-weight: 600; font-size: 0.85rem; margin-bottom: 8px; display: block; color: var(--slate-dark); }
+    .quick-opt-btn { display: inline-block; }
+    .quick-opt-btn input[type="radio"] { display: none; }
+    .quick-opt-btn label {
+        display: inline-block;
+        border: 1.5px solid #E2E8F0;
+        background: white;
+        color: var(--text-secondary);
+        padding: 6px 16px;
+        margin-right: 6px;
+        margin-bottom: 6px;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    .quick-opt-btn label:hover {
+        border-color: var(--blue-hover);
+        color: var(--blue-hover);
+        background: rgba(174, 226, 255, 0.08);
+    }
+    .quick-opt-btn input[type="radio"]:checked + label {
+        background: var(--blue-hover);
+        color: white;
+        border-color: var(--blue-hover);
+        box-shadow: 0 3px 10px rgba(127, 181, 255, 0.3);
+    }
+    #quickOptionModal .modal-content {
+        animation: modalSlideUp 0.35s cubic-bezier(.22,1,.36,1);
+    }
+    @keyframes modalSlideUp {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+</style>
 
 <script>
     function applySorting(sortVal) {
@@ -671,8 +752,8 @@ endif;
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {
-                const icon = btn.querySelector('i');
                 if (action === 'toggle_wishlist') {
+                    const icon = btn.querySelector('i');
                     if (data.state === 'added') {
                         btn.classList.add('liked'); icon.classList.remove('bi-heart'); icon.classList.add('bi-heart-fill');
                     } else {
@@ -688,7 +769,229 @@ endif;
         })
         .catch(err => console.error(err));
     }
+
+    // ==========================================
+    // Quick Add to Cart (with Option Popup)
+    // ==========================================
+    let _quickAddProductId = null;
+    let _quickAddBtn = null;
+
+    function quickAddToCart(productId, optionsStr, btn) {
+        _quickAddProductId = productId;
+        _quickAddBtn = btn;
+
+        // If product has NO options, add to cart immediately
+        if (!optionsStr || optionsStr.trim() === '') {
+            doQuickAdd(productId, '', btn);
+            return;
+        }
+
+        // Product HAS options — show the popup
+        const body = document.getElementById('quickOptionBody');
+        body.innerHTML = ''; // reset
+
+        const groups = optionsStr.split('|');
+        groups.forEach((group, gi) => {
+            const parts = group.split(':');
+            if (parts.length !== 2) return;
+            const optName = parts[0].trim();
+            const values = parts[1].split(',');
+
+            let html = '<div class="quick-opt-group">';
+            html += '<span class="quick-opt-label">' + optName + '</span>';
+            html += '<div class="d-flex flex-wrap">';
+            values.forEach((val, vi) => {
+                val = val.trim();
+                const uid = 'qopt_' + gi + '_' + vi;
+                html += '<span class="quick-opt-btn">';
+                html += '<input type="radio" name="qopt_' + optName + '" id="' + uid + '" value="' + val + '" data-optname="' + optName + '" required>';
+                html += '<label for="' + uid + '">' + val + '</label>';
+                html += '</span>';
+            });
+            html += '</div></div>';
+            body.innerHTML += html;
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('quickOptionModal'));
+        modal.show();
+    }
+
+    function submitQuickOption() {
+        const body = document.getElementById('quickOptionBody');
+        const groups = body.querySelectorAll('.quick-opt-group');
+        let selectedOpts = [];
+        let allSelected = true;
+
+        groups.forEach(g => {
+            const radios = g.querySelectorAll('input[type="radio"]');
+            let checked = false;
+            radios.forEach(r => {
+                if (r.checked) {
+                    checked = true;
+                    selectedOpts.push(r.dataset.optname + ': ' + r.value);
+                }
+            });
+            if (!checked) {
+                allSelected = false;
+                // Highlight the group
+                g.querySelector('.quick-opt-label').style.color = '#dc3545';
+                setTimeout(() => {
+                    g.querySelector('.quick-opt-label').style.color = '';
+                }, 2000);
+            }
+        });
+
+        if (!allSelected) {
+            Swal.fire({ icon: 'warning', title: 'กรุณาเลือกตัวเลือกให้ครบ', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+            return;
+        }
+
+        const opts = selectedOpts.join(', ');
+
+        // Close modal
+        const modalEl = document.getElementById('quickOptionModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+
+        doQuickAdd(_quickAddProductId, opts, _quickAddBtn);
+    }
+
+    function doQuickAdd(productId, options, btn) {
+        // Show loading state on button
+        const origHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:14px;height:14px;"></span>';
+
+        const fd = new FormData();
+        fd.append('action', 'add');
+        fd.append('product_id', productId);
+        fd.append('qty', 1);
+        fd.append('options', options);
+
+        fetch('ajax.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            if (data.status === 'success') {
+                // Animated success feedback
+                btn.innerHTML = '<i class="bi bi-check2"></i> <span class="d-none d-lg-inline">เพิ่มแล้ว!</span><span class="d-inline d-md-none">✓</span>';
+                btn.classList.remove('btn-gradient');
+                btn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-gradient');
+                    btn.innerHTML = origHTML;
+                }, 1800);
+
+                // Update cart badge
+                const badge = document.getElementById('nav-cart-badge');
+                if (badge) {
+                    badge.innerText = data.cart_count;
+                    badge.classList.remove('hidden');
+                }
+
+                // Open cart drawer
+                if (typeof window.toggleCartDrawer === 'function') {
+                    const drawer = document.getElementById('cartDrawer');
+                    if (drawer && !drawer.classList.contains('show')) {
+                        window.toggleCartDrawer();
+                    } else {
+                        window.loadCartDrawer();
+                    }
+                }
+            } else {
+                btn.innerHTML = origHTML;
+                Swal.fire({ icon: 'error', title: data.message || 'เกิดข้อผิดพลาด', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = origHTML;
+            console.error(err);
+        });
+    }
 </script>
+
+<?php if ($show_welcome_popup && $welcome_coupon): ?>
+<!-- Modal คูปองต้อนรับ -->
+<div class="modal fade" id="welcomePromoModal" tabindex="-1" aria-labelledby="welcomePromoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);">
+            <div class="modal-header border-0 pb-0" style="background: #f8f9fa;">
+                <h5 class="modal-title fw-bold text-dark animate__animated animate__fadeInDown" id="welcomePromoModalLabel"><i class="bi bi-gift-fill text-danger me-2"></i>ข้อเสนอสุดพิเศษสำหรับคุณ!</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4 px-4">
+                <div class="animate__animated animate__bounceIn mb-3">
+                    <i class="bi bi-ticket-perforated text-primary animate__animated animate__pulse animate__infinite" style="font-size: 4.5rem; display: inline-block;"></i>
+                </div>
+                <h4 class="fw-bold text-dark mb-1">ยินดีต้อนรับสู่ พ่อแม่ เบ็ดเตล็ด</h4>
+                <p class="text-muted small mb-4">รับโค้ดส่วนลดพิเศษเพื่อฉลองการช้อปปิ้งของคุณวันนี้!</p>
+                
+                <div class="coupon-box-premium p-3 rounded-4 mb-4 border d-flex flex-column align-items-center justify-content-center" style="background: linear-gradient(135deg, #7FB5FF, #AEE2FF); border-color: rgba(255,255,255,0.5); box-shadow: 0 8px 25px rgba(127,181,255,0.3);">
+                    <span class="badge bg-white text-primary rounded-pill px-3 py-1 fw-bold mb-2 shadow-sm" style="font-size: 0.75rem;">คูปองต้อนรับสมาชิก</span>
+                    <h2 class="fw-bold text-white mb-1 font-monospace" style="letter-spacing: 1px; font-size: 2rem;"><?= htmlspecialchars($welcome_coupon['code']) ?></h2>
+                    <h3 class="fw-bold text-white mb-2" style="font-size: 1.5rem;">
+                        ลดทันที <?= $welcome_coupon['discount_type'] == 'percent' ? intval($welcome_coupon['discount_value']) . '%' : '฿' . number_format($welcome_coupon['discount_value']) ?>
+                    </h3>
+                    <div class="text-white small opacity-90" style="font-size: 0.75rem;">
+                        <?= $welcome_coupon['min_spend'] > 0 ? 'ยอดซื้อขั้นต่ำ ฿' . number_format($welcome_coupon['min_spend']) : 'ไม่มีขั้นต่ำ' ?>
+                        • หมดอายุ: <?= date('d/m/Y', strtotime($welcome_coupon['expiry_date'])) ?>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-primary rounded-pill w-100 py-3 border-0 shadow-md fw-bold" onclick="claimWelcomeCoupon('<?= htmlspecialchars($welcome_coupon['code']) ?>')" style="background: linear-gradient(45deg, #7FB5FF, #AEE2FF); font-size: 1.05rem; color: #fff;">
+                    <i class="bi bi-tag-fill me-2"></i>เก็บสะสมโค้ดเลย
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const welcomeModal = new bootstrap.Modal(document.getElementById('welcomePromoModal'));
+        welcomeModal.show();
+    });
+
+    function claimWelcomeCoupon(code) {
+        const fd = new FormData();
+        fd.append('action', 'claim_welcome_coupon');
+        fd.append('coupon_code', code);
+        
+        fetch('ajax.php', {
+            method: 'POST',
+            body: fd
+        })
+        .then(r => r.json())
+        .then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('welcomePromoModal')).hide();
+            
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'เก็บคูปองสำเร็จ!',
+                    text: data.message,
+                    confirmButtonText: 'ช้อปเลย',
+                    confirmButtonColor: '#7FB5FF'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เก็บคูปองไม่สำเร็จ',
+                    text: data.message,
+                    confirmButtonColor: '#FF6B6B'
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            bootstrap.Modal.getInstance(document.getElementById('welcomePromoModal')).hide();
+        });
+    }
+</script>
+<?php endif; ?>
 
 </body>
 </html>

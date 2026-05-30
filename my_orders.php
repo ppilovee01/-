@@ -125,6 +125,8 @@ $extra_css = "
     .btn-cancel:hover { background: #ef4444; color: white; }
     .btn-review { border: 1px solid var(--slate-dark); color: var(--slate-dark); background: white; margin-left: 10px; }
     .btn-review:hover { background: var(--slate-dark); color: white; }
+    .btn-track { background: #e0f2fe; color: #0ea5e9; border: 1px solid #bae6fd; }
+    .btn-track:hover { background: #0ea5e9; color: white; }
 
     .tracking-box { background: #fdf2f8; border: 1px dashed var(--blue-hover); border-radius: 10px; padding: 10px; text-align: center; margin-top: 15px; }
     .tracking-number { font-size: 1rem; font-weight: 700; color: var(--blue-hover); letter-spacing: 1px; }
@@ -259,6 +261,15 @@ date_default_timezone_set('Asia/Bangkok');
                     </div>
 
                     <div class="text-end">
+                        <?php if(in_array($status, ['approved', 'shipping', 'completed'])): ?>
+                            <span onclick='showTrackingModal(<?= json_encode([
+                                "id" => str_pad($row["id"], 5, "0", STR_PAD_LEFT),
+                                "order_date" => $row["order_date"],
+                                "status" => $status,
+                                "tracking_no" => $row["tracking_no"] ?? ""
+                            ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' class="btn-action btn-track me-2"><i class="bi bi-geo-alt-fill"></i> ติดตามพัสดุ</span>
+                        <?php endif; ?>
+
                         <?php if(!empty($row['payment_slip'])): ?>
                             <span onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn-action btn-view-slip me-2"><i class="bi bi-image"></i> สลิป</span>
                         <?php endif; ?>
@@ -282,6 +293,54 @@ date_default_timezone_set('Asia/Bangkok');
 </div>
 
 <div class="modal fade" id="slipModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-transparent border-0"><div class="modal-body p-0 text-center"><button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button><img id="slipImage" src="" class="img-fluid rounded-3 shadow-lg" style="max-height: 85vh;"></div></div></div></div>
+
+<!-- Tracking Modal -->
+<div class="modal fade" id="trackingModal" tabindex="-1" aria-labelledby="trackingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-geo-alt-fill text-blue me-2"></i>ติดตามพัสดุ ออเดอร์ #<span id="track-order-id"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <div id="track-no-box" class="bg-light rounded-3 p-3 mb-4 d-none">
+                    <span class="small text-muted d-block fw-bold">เลขพัสดุ (Tracking Number)</span>
+                    <span class="fw-bold fs-5 text-blue" id="track-no-val"></span>
+                </div>
+                
+                <div class="tracking-timeline">
+                    <!-- Step 1 -->
+                    <div class="tracking-step" id="t-step-1">
+                        <h6 class="fw-bold mb-1 text-dark">รับออเดอร์แล้ว (Order Accepted)</h6>
+                        <p class="text-muted small mb-0 font-monospace" id="t-time-1">-</p>
+                        <p class="text-muted small">ออเดอร์เข้าสู่ระบบร้านค้าและได้รับการบันทึกข้อมูลเรียบร้อย</p>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="tracking-step" id="t-step-2">
+                        <h6 class="fw-bold mb-1 text-dark">คลังสินค้าทำการจัดส่ง (Packed & Dispatched)</h6>
+                        <p class="text-muted small mb-0 font-monospace" id="t-time-2">-</p>
+                        <p class="text-muted small">สินค้าของคุณได้รับการแพ็คและส่งมอบให้เจ้าหน้าที่ขนส่งแล้ว</p>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="tracking-step" id="t-step-3">
+                        <h6 class="fw-bold mb-1 text-dark">อยู่ระหว่างขนส่ง (In Transit)</h6>
+                        <p class="text-muted small mb-0 font-monospace" id="t-time-3">-</p>
+                        <p class="text-muted small">พัสดุกำลังนำส่งโดยพนักงานขนส่งไปยังปลายทาง</p>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="tracking-step" id="t-step-4">
+                        <h6 class="fw-bold mb-1 text-dark">จัดส่งสำเร็จ (Delivered)</h6>
+                        <p class="text-muted small mb-0 font-monospace" id="t-time-4">-</p>
+                        <p class="text-muted small">พัสดุจัดส่งถึงผู้รับเรียบร้อยแล้ว ขอบคุณที่ไว้วางใจเรา</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-blue rounded-pill px-4 text-white fw-bold" data-bs-dismiss="modal">ตกลง</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Review Modal -->
 <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
@@ -335,6 +394,80 @@ date_default_timezone_set('Asia/Bangkok');
 <script>
     function viewSlip(url){ new bootstrap.Modal(document.getElementById('slipModal')).show(); document.getElementById('slipImage').src = url; }
     function confirmCancel(id){ Swal.fire({title:'ยืนยันยกเลิก?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'ยกเลิกออเดอร์'}).then((r)=>{if(r.isConfirmed) window.location.href='?cancel_my_order='+id;}) }
+    
+    function formatThaiDate(dateObj) {
+        const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+        const day = dateObj.getDate();
+        const month = months[dateObj.getMonth()];
+        const year = dateObj.getFullYear() + 543;
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+        return `${day} ${month} ${year} เวลา ${hours}:${minutes} น.`;
+    }
+
+    function showTrackingModal(orderInfo) {
+        document.getElementById('track-order-id').innerText = orderInfo.id;
+        const trackNoBox = document.getElementById('track-no-box');
+        const trackNoVal = document.getElementById('track-no-val');
+        
+        if (orderInfo.tracking_no && orderInfo.tracking_no.trim() !== '') {
+            trackNoVal.innerHTML = orderInfo.tracking_no + ` <i class="bi bi-copy ms-2 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('${orderInfo.tracking_no}'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'คัดลอกแล้ว', showConfirmButton:false, timer:1000})"></i>`;
+            trackNoBox.classList.remove('d-none');
+        } else {
+            trackNoBox.classList.add('d-none');
+        }
+        
+        // Calculate dates
+        const orderDate = new Date(orderInfo.order_date.replace(/-/g, '/'));
+        const now = new Date();
+        
+        const step1Time = new Date(orderDate.getTime());
+        const step2Time = new Date(orderDate.getTime() + 4 * 60 * 60 * 1000);
+        const step3Time = new Date(orderDate.getTime() + 12 * 60 * 60 * 1000);
+        const step4Time = new Date(orderDate.getTime() + 24 * 60 * 60 * 1000);
+        
+        // Display times
+        document.getElementById('t-time-1').innerText = formatThaiDate(step1Time);
+        document.getElementById('t-time-2').innerText = formatThaiDate(step2Time);
+        document.getElementById('t-time-3').innerText = formatThaiDate(step3Time);
+        document.getElementById('t-time-4').innerText = formatThaiDate(step4Time);
+        
+        // Reset classes
+        const resetStep = (id) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active', 'completed');
+        };
+        resetStep('t-step-1');
+        resetStep('t-step-2');
+        resetStep('t-step-3');
+        resetStep('t-step-4');
+        
+        // Step 1: Order Accepted - always completed
+        document.getElementById('t-step-1').classList.add('completed');
+        
+        // Step 2: Packed & Dispatched
+        if (orderInfo.status === 'approved' || orderInfo.status === 'shipping' || orderInfo.status === 'completed' || now >= step2Time) {
+            document.getElementById('t-step-2').classList.add('completed');
+        } else {
+            document.getElementById('t-step-2').classList.add('active');
+        }
+        
+        // Step 3: In Transit
+        if (orderInfo.status === 'shipping' || orderInfo.status === 'completed' || now >= step3Time) {
+            document.getElementById('t-step-3').classList.add('completed');
+        } else if (document.getElementById('t-step-2').classList.contains('completed')) {
+            document.getElementById('t-step-3').classList.add('active');
+        }
+        
+        // Step 4: Delivered
+        if (orderInfo.status === 'completed') {
+            document.getElementById('t-step-4').classList.add('completed');
+        } else if (orderInfo.status === 'shipping' && now >= step3Time) {
+            document.getElementById('t-step-4').classList.add('active');
+        }
+        
+        new bootstrap.Modal(document.getElementById('trackingModal')).show();
+    }
     
     function openReviewModal(pid, name, img) {
         document.getElementById('review-product-id').value = pid;

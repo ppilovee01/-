@@ -95,6 +95,9 @@ elseif ($action == 'update_qty') {
             'price_desc' => getProductPriceText($conn, $real_id, $new_qty),
             'subtotal' => number_format($cart_data['subtotal'], 2),
             'discount' => number_format($cart_data['discount'], 2),
+            'shipping_fee' => number_format($cart_data['shipping_fee'], 2),
+            'shipping_fee_fixed' => $cart_data['shipping_fee_fixed'],
+            'shipping_free_threshold' => $cart_data['shipping_free_threshold'],
             'final_total' => number_format($cart_data['final'], 2),
             'cart_count' => count_cart_items()
         ];
@@ -113,6 +116,9 @@ elseif ($action == 'remove_item') {
             'message' => 'ลบสินค้าเรียบร้อย',
             'subtotal' => number_format($cart_data['subtotal'], 2),
             'discount' => number_format($cart_data['discount'], 2),
+            'shipping_fee' => number_format($cart_data['shipping_fee'], 2),
+            'shipping_fee_fixed' => $cart_data['shipping_fee_fixed'],
+            'shipping_free_threshold' => $cart_data['shipping_free_threshold'],
             'final_total' => number_format($cart_data['final'], 2),
             'cart_count' => count_cart_items()
         ];
@@ -189,6 +195,9 @@ elseif ($action == 'get_cart_drawer') {
         'html' => $html,
         'subtotal' => number_format($cart_data['subtotal'], 2),
         'discount' => number_format($cart_data['discount'], 2),
+        'shipping_fee' => number_format($cart_data['shipping_fee'], 2),
+        'shipping_fee_fixed' => $cart_data['shipping_fee_fixed'],
+        'shipping_free_threshold' => $cart_data['shipping_free_threshold'],
         'final_total' => number_format($cart_data['final'], 2),
         'cart_count' => count_cart_items()
     ];
@@ -430,7 +439,12 @@ elseif ($action == 'get_available_coupons') {
         while ($c = mysqli_fetch_assoc($query)) {
             $count++;
             $code = htmlspecialchars($c['code']);
-            $discount_text = $c['discount_type'] == 'percent' ? intval($c['discount_value']) . '%' : '฿' . number_format($c['discount_value']);
+            $badge_title = $c['discount_type'] == 'free_shipping' ? 'จัดส่ง' : 'ลดทันที';
+            if ($c['discount_type'] == 'free_shipping') {
+                $discount_text = 'ส่งฟรี';
+            } else {
+                $discount_text = $c['discount_type'] == 'percent' ? intval($c['discount_value']) . '%' : '฿' . number_format($c['discount_value']);
+            }
             $min_spend = floatval($c['min_spend']);
             $expiry = date('d/m/Y', strtotime($c['expiry_date']));
             
@@ -484,7 +498,7 @@ elseif ($action == 'get_available_coupons') {
                 <div class="coupon-item-card ' . $card_class . ' p-3 d-flex align-items-center justify-content-between rounded-3 border bg-white shadow-sm" style="transition: all 0.2s ease;">
                     <div class="d-flex align-items-center">
                         <div class="coupon-badge text-center me-3 p-2 rounded-3 text-white fw-bold d-flex flex-column justify-content-center align-items-center" style="min-width: 75px; height: 75px; background: linear-gradient(135deg, #7FB5FF, #AEE2FF);">
-                            <span class="small" style="font-size: 0.65rem; font-weight: normal; opacity: 0.95;">ลดทันที</span>
+                            <span class="small" style="font-size: 0.65rem; font-weight: normal; opacity: 0.95;">' . $badge_title . '</span>
                             <span style="font-size: 1.1rem;">' . $discount_text . '</span>
                         </div>
                         <div>
@@ -492,10 +506,14 @@ elseif ($action == 'get_available_coupons') {
                                 <span class="badge bg-light text-primary border border-primary font-monospace px-2 py-1" style="font-size: 0.85rem; letter-spacing: 0.5px;">' . $code . '</span>
                             </div>
                             <div class="small mt-1 text-muted" style="font-size: 0.8rem;">';
+            $max_discount = floatval($c['max_discount']);
             if ($min_spend > 0) {
                 $html .= 'ยอดขั้นต่ำ ฿' . number_format($min_spend);
             } else {
                 $html .= 'ไม่มีขั้นต่ำ';
+            }
+            if ($max_discount > 0 && $c['discount_type'] == 'percent') {
+                $html .= ' • ลดสูงสุด ฿' . number_format($max_discount);
             }
             $html .= ' • หมดอายุ: ' . $expiry;
             $html .= '</div>';
@@ -754,6 +772,49 @@ elseif ($action == 'get_filtered_reviews') {
     $response = ['status' => 'success', 'html' => $html, 'count' => $count];
 }
 
+// 4.10 เก็บสะสมคูปองต้อนรับ (Claim Welcome Coupon)
+elseif ($action == 'claim_welcome_coupon') {
+    $code = mysqli_real_escape_string($conn, $_POST['coupon_code'] ?? '');
+    $today = date('Y-m-d');
+    
+    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND expiry_date >= '$today'");
+    if (mysqli_num_rows($check) > 0) {
+        $c = mysqli_fetch_assoc($check);
+        
+        $coupon_error = false;
+        
+        // ตรวจสอบสิทธิ์รวม
+        if ($c['usage_limit'] > 0) {
+            $total_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND status != 'cancelled'"))['count'];
+            if ($total_used >= $c['usage_limit']) {
+                $coupon_error = true;
+                $response = ['status' => 'error', 'message' => 'ขออภัย คูปองนี้สิทธิ์การใช้งานเต็มโควตาแล้ว'];
+            }
+        }
+        
+        // ตรวจสอบสิทธิ์ต่อคน
+        if (!$coupon_error && $user_id && $c['user_limit'] > 0) {
+            $user_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
+            if ($user_used >= $c['user_limit']) {
+                $coupon_error = true;
+                $response = ['status' => 'error', 'message' => 'ขออภัย คุณใช้สิทธิ์คูปองนี้ครบโควตาแล้ว'];
+            }
+        }
+        
+        if (!$coupon_error) {
+            $_SESSION['coupon'] = [
+                'code' => $c['code'],
+                'type' => $c['discount_type'],
+                'value' => $c['discount_value'],
+                'max_discount' => floatval($c['max_discount'] ?? 0)
+            ];
+            $response = ['status' => 'success', 'message' => 'เก็บคูปอง ' . $code . ' สำเร็จ! คูปองจะถูกปรับใช้ที่หน้าชำระเงินโดยอัตโนมัติ'];
+        }
+    } else {
+        $response = ['status' => 'error', 'message' => 'คูปองใช้งานไม่ได้หรือหมดอายุแล้ว'];
+    }
+}
+
 // ==========================================
 // 5. ปิดการส่งออกข้อมูลและส่ง JSON ตอบกลับ
 // ==========================================
@@ -786,13 +847,40 @@ function calculate_cart_totals($conn) {
     }
 
     $discount = 0;
+    $is_free_shipping_coupon = false;
     if (isset($_SESSION['coupon']) && $subtotal > 0) {
         $c = $_SESSION['coupon'];
-        $discount = ($c['type'] == 'fixed') ? $c['value'] : ($subtotal * $c['value'] / 100);
+        if ($c['type'] == 'fixed') {
+            $discount = floatval($c['value']);
+        } elseif ($c['type'] == 'percent') {
+            $discount = $subtotal * floatval($c['value']) / 100;
+            $max_disc = floatval($c['max_discount'] ?? 0);
+            if ($max_disc > 0 && $discount > $max_disc) {
+                $discount = $max_disc;
+            }
+        } elseif ($c['type'] == 'free_shipping') {
+            $is_free_shipping_coupon = true;
+        }
         if($discount > $subtotal) $discount = $subtotal;
     }
 
-    return ['subtotal' => $subtotal, 'discount' => $discount, 'final' => $subtotal - $discount];
+    // ดึงค่าตั้งค่าระบบจัดส่งจากฐานข้อมูล
+    $settings_q = mysqli_query($conn, "SELECT shipping_fee_fixed, shipping_free_threshold FROM shop_settings WHERE id = 1");
+    $shop_settings = mysqli_fetch_assoc($settings_q);
+    $fee = floatval($shop_settings['shipping_fee_fixed'] ?? 40.00);
+    $threshold = floatval($shop_settings['shipping_free_threshold'] ?? 350.00);
+
+    $shipping_fee = ($subtotal >= $threshold || $subtotal == 0 || $is_free_shipping_coupon) ? 0.00 : $fee;
+    $final = max(0, $subtotal - $discount + $shipping_fee);
+
+    return [
+        'subtotal' => $subtotal, 
+        'discount' => $discount, 
+        'shipping_fee' => $shipping_fee,
+        'shipping_fee_fixed' => $fee,
+        'shipping_free_threshold' => $threshold,
+        'final' => $final
+    ];
 }
 
 function time_elapsed_string($datetime, $full = false) {

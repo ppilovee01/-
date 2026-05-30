@@ -8,6 +8,11 @@ if(isset($_SESSION['cart'])) {
     }
 }
 
+$wishlist_count = 0;
+if(isset($_SESSION['user_id'])) {
+    $wishlist_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM wishlist WHERE user_id = '{$_SESSION['user_id']}'"))['count'] ?? 0;
+}
+
 
 
 if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้าออนไลน์เบ็ดเตล็ด";
@@ -721,7 +726,13 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
 
         window.loadCartDrawer = function() {
             const body = document.getElementById('cart-drawer-body');
-            const subtotalEl = document.getElementById('cart-drawer-subtotal');
+            const subtotalEl = document.getElementById('cart-drawer-subtotal-val');
+            const discountRow = document.getElementById('cart-drawer-discount-row');
+            const discountEl = document.getElementById('cart-drawer-discount-val');
+            const shippingEl = document.getElementById('cart-drawer-shipping-val');
+            const totalEl = document.getElementById('cart-drawer-total-val');
+            const legacySubtotalEl = document.getElementById('cart-drawer-subtotal');
+            
             const badgeEl = document.getElementById('nav-cart-badge');
             const floatBtn = document.getElementById('floatingCartBtn');
             const floatBadge = document.getElementById('floating-cart-badge');
@@ -731,7 +742,71 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             .then(res => {
                 if (res.status === 'success') {
                     if (body) body.innerHTML = res.html;
-                    if (subtotalEl) subtotalEl.innerText = '฿' + res.final_total;
+                    
+                    // Update pricing values in drawer footer
+                    if (subtotalEl) subtotalEl.innerText = '฿' + res.subtotal;
+                    if (legacySubtotalEl) legacySubtotalEl.innerText = '฿' + res.final_total;
+                    
+                    // Handle discount row
+                    const discountVal = parseFloat((res.discount || '0').replace(/,/g, ''));
+                    if (discountVal > 0) {
+                        if (discountEl) discountEl.innerText = res.discount;
+                        if (discountRow) discountRow.style.setProperty('display', 'flex', 'important');
+                    } else {
+                        if (discountRow) discountRow.style.setProperty('display', 'none', 'important');
+                    }
+                    
+                    // Handle shipping fee value
+                    const shippingVal = parseFloat((res.shipping_fee || '0').replace(/,/g, ''));
+                    if (shippingEl) {
+                        if (shippingVal === 0) {
+                            shippingEl.innerText = 'ส่งฟรี';
+                            shippingEl.className = 'fw-bold text-success';
+                        } else {
+                            shippingEl.innerText = '฿' + res.shipping_fee;
+                            shippingEl.className = 'fw-semibold text-dark';
+                        }
+                    }
+                    
+                    if (totalEl) totalEl.innerText = '฿' + res.final_total;
+                    
+                    // Update Drawer Free Shipping Progress Bar
+                    const drawerWidget = document.getElementById('drawer-free-shipping-widget');
+                    const drawerFill = document.getElementById('drawer-free-shipping-bar-fill');
+                    const drawerText = document.getElementById('drawer-free-shipping-text');
+                    const drawerIcon = document.getElementById('drawer-free-shipping-icon');
+                    
+                    if (drawerWidget && drawerFill && drawerText) {
+                        const subFloat = parseFloat((res.subtotal || '0').replace(/,/g, ''));
+                        const threshold = parseFloat(res.shipping_free_threshold || 350.00);
+                        const shippingVal = parseFloat((res.shipping_fee || '0').replace(/,/g, ''));
+                        const isFreeCoupon = shippingVal === 0;
+                        
+                        if (res.cart_count === 0 || subFloat <= 0) {
+                            drawerWidget.style.display = 'none';
+                        } else {
+                            drawerWidget.style.display = 'block';
+                            let pct = Math.min(100, (subFloat / threshold) * 100);
+                            
+                            if (isFreeCoupon || pct >= 100) {
+                                drawerFill.style.width = '100%';
+                                drawerFill.classList.add('success');
+                                if (pct >= 100) {
+                                    drawerText.innerHTML = 'ยินดีด้วย! คุณได้รับสิทธิ์ส่งฟรีแล้ว 🎉';
+                                } else {
+                                    drawerText.innerHTML = 'ยินดีด้วย! คุณได้รับสิทธิ์ส่งฟรีจากคูปองแล้ว 🎉';
+                                }
+                                if (drawerIcon) drawerIcon.innerText = '🎉';
+                            } else {
+                                drawerFill.style.width = pct + '%';
+                                drawerFill.classList.remove('success');
+                                let remaining = threshold - subFloat;
+                                drawerText.innerHTML = 'ช้อปอีกเพียง <strong>฿' + remaining.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong> เพื่อรับส่งฟรี!';
+                                if (drawerIcon) drawerIcon.innerText = '🚚';
+                            }
+                        }
+                    }
+                    
                     if (badgeEl) {
                         badgeEl.innerText = res.cart_count;
                         if (res.cart_count > 0) {
@@ -800,6 +875,12 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                         if (inFinal) inFinal.value = res.final_total.replace(/,/g, '');
                         if (hiddenTotal) hiddenTotal.value = res.subtotal.replace(/,/g, '');
                         
+                        if (typeof window.updateFreeShippingProgressBar === 'function') {
+                            const subFloat = parseFloat(res.subtotal.replace(/,/g, ''));
+                            const isFreeCoupon = parseFloat(res.shipping_fee.replace(/,/g, '')) === 0;
+                            window.updateFreeShippingProgressBar(subFloat, isFreeCoupon);
+                        }
+
                         const pm = document.querySelector('input[name="payment_method_id"]:checked');
                         if (pm && typeof updatePaymentUI === 'function') {
                             updatePaymentUI(pm);
@@ -863,6 +944,12 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                             if (inFinal) inFinal.value = res.final_total.replace(/,/g, '');
                             if (hiddenTotal) hiddenTotal.value = res.subtotal.replace(/,/g, '');
                             
+                            if (typeof window.updateFreeShippingProgressBar === 'function') {
+                                const subFloat = parseFloat(res.subtotal.replace(/,/g, ''));
+                                const isFreeCoupon = parseFloat(res.shipping_fee.replace(/,/g, '')) === 0;
+                                window.updateFreeShippingProgressBar(subFloat, isFreeCoupon);
+                            }
+
                             const pm = document.querySelector('input[name="payment_method_id"]:checked');
                             if (pm && typeof updatePaymentUI === 'function') {
                                 updatePaymentUI(pm);
@@ -1017,6 +1104,18 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             <i class="bi bi-x-lg"></i>
         </button>
     </div>
+    
+    <!-- Drawer Free Shipping Widget -->
+    <div class="free-shipping-widget px-3 py-3 border-bottom" id="drawer-free-shipping-widget" style="display: none; background: #f8fafc;">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <span id="drawer-free-shipping-icon" style="font-size: 1.1rem;">🚚</span>
+            <span class="fw-bold text-dark" id="drawer-free-shipping-text" style="font-size: 0.78rem; line-height: 1.2;"></span>
+        </div>
+        <div class="free-shipping-bar-container" style="height: 8px; background: #e2e8f0; border-radius: 10px; overflow: hidden; position: relative;">
+            <div class="free-shipping-bar-fill" id="drawer-free-shipping-bar-fill" style="width: 0%; height: 100%; border-radius: 10px; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease;"></div>
+        </div>
+    </div>
+
     <div class="cart-drawer-body" id="cart-drawer-body">
         <div class="text-center py-5 text-muted">
             <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
@@ -1024,9 +1123,23 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         </div>
     </div>
     <div class="cart-drawer-footer" id="cart-drawer-footer">
+        <div class="d-flex justify-content-between mb-1" style="font-size: 0.88rem;">
+            <span class="text-muted">ยอดรวมสินค้า:</span>
+            <span class="text-dark fw-semibold" id="cart-drawer-subtotal-val">฿0.00</span>
+        </div>
+        <div class="justify-content-between mb-1 text-success" id="cart-drawer-discount-row" style="display: none; font-size: 0.88rem;">
+            <span>ส่วนลดคูปอง:</span>
+            <span>-฿<span id="cart-drawer-discount-val">0.00</span></span>
+        </div>
+        <div class="d-flex justify-content-between mb-2" style="font-size: 0.88rem;">
+            <span class="text-muted">ค่าจัดส่ง:</span>
+            <span class="fw-semibold text-dark" id="cart-drawer-shipping-val">฿0.00</span>
+        </div>
+        <hr class="my-2 opacity-25">
         <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted fw-bold">ยอดรวมสุทธิ:</span>
-            <span class="fw-bold text-primary fs-5" id="cart-drawer-subtotal">฿0.00</span>
+            <span class="text-dark fw-bold">ยอดสุทธิ:</span>
+            <span class="fw-bold text-primary fs-5" id="cart-drawer-total-val">฿0.00</span>
+            <span class="d-none" id="cart-drawer-subtotal">฿0.00</span> <!-- Legacy fallback compatibility -->
         </div>
         <div class="d-grid gap-2">
             <a href="cart.php" class="btn btn-outline-secondary rounded-pill">ดูตะกร้าสินค้าทั้งหมด</a>
@@ -1040,4 +1153,5 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     <i class="bi bi-cart3"></i>
     <span id="floating-cart-badge" class="floating-badge-count"><?= $cart_count ?></span>
 </button>
+
 

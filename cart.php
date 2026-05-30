@@ -39,7 +39,12 @@ if (isset($_POST['apply_coupon'])) {
         
         if (!$coupon_error) {
             if ($current_total >= $c['min_spend']) { 
-                $_SESSION['coupon'] = ['code' => $c['code'], 'type' => $c['discount_type'], 'value' => $c['discount_value']]; 
+                $_SESSION['coupon'] = [
+                    'code' => $c['code'], 
+                    'type' => $c['discount_type'], 
+                    'value' => $c['discount_value'],
+                    'max_discount' => floatval($c['max_discount'] ?? 0)
+                ]; 
                 $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ใช้คูปองสำเร็จ!', 'icon'=>'success'];
             } else { 
                 $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>"ยอดซื้อขั้นต่ำไม่ถึง " . number_format($c['min_spend']) . " บาท", 'icon'=>'error'];
@@ -280,7 +285,14 @@ $extra_css = "
 </style>
 ";
 include 'header.php';
+$shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
+$shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
+$shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
 ?>
+<script>
+    window.shippingThreshold = <?= $shipping_free_threshold ?>;
+    window.shippingFeeFixed = <?= $shipping_fee_fixed ?>;
+</script>
 
 <div class="container py-5">
     <div class="row">
@@ -380,8 +392,26 @@ include 'header.php';
                             <div class="card-header-modern"><i class="bi bi-credit-card text-blue me-2" style="color:#AEE2FF"></i> วิธีการชำระเงิน</div>
                             <div class="p-4">
                                 <?php 
-                                $disc = isset($_SESSION['coupon']) ? ($_SESSION['coupon']['type']=='fixed'?$_SESSION['coupon']['value']:$subtotal*$_SESSION['coupon']['value']/100) : 0;
-                                $final = max(0, $subtotal - $disc);
+                                $shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
+                                $shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
+                                $disc = 0;
+                                $is_free_shipping_coupon = false;
+                                if (isset($_SESSION['coupon'])) {
+                                    $cp = $_SESSION['coupon'];
+                                    if ($cp['type'] == 'fixed') {
+                                        $disc = floatval($cp['value']);
+                                    } elseif ($cp['type'] == 'percent') {
+                                        $disc = $subtotal * floatval($cp['value']) / 100;
+                                        $max_disc = floatval($cp['max_discount'] ?? 0);
+                                        if ($max_disc > 0 && $disc > $max_disc) {
+                                            $disc = $max_disc;
+                                        }
+                                    } elseif ($cp['type'] == 'free_shipping') {
+                                        $is_free_shipping_coupon = true;
+                                    }
+                                }
+                                $shipping_fee = ($subtotal >= $shipping_free_threshold || $subtotal == 0 || $is_free_shipping_coupon) ? 0 : $shipping_fee_fixed;
+                                $final = max(0, $subtotal - $disc + $shipping_fee);
                                 ?>
                                 <div class="row g-3">
                                     <?php $pq=mysqli_query($conn,"SELECT * FROM payment_methods WHERE status='active'"); while($pm=mysqli_fetch_assoc($pq)): ?>
@@ -430,6 +460,17 @@ include 'header.php';
                         <div class="card-modern summary-card p-4">
                             <h5 class="fw-bold mb-3">สรุปยอด</h5>
                             
+                            <!-- Free Shipping Progress Bar Widget -->
+                            <div class="free-shipping-widget mb-4 p-3 rounded-4 border bg-light" id="free-shipping-widget-wrapper" style="display: none;">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="free-shipping-icon" id="free-shipping-icon" style="font-size: 1.15rem;">🚚</span>
+                                    <span class="fw-bold text-dark" id="free-shipping-text" style="font-size: 0.82rem; line-height: 1.2;"></span>
+                                </div>
+                                <div class="free-shipping-bar-container" style="height: 10px; background: #e2e8f0; border-radius: 10px; overflow: hidden; position: relative;">
+                                    <div class="free-shipping-bar-fill" id="free-shipping-bar-fill" style="width: 0%; height: 100%; border-radius: 10px; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease;"></div>
+                                </div>
+                            </div>
+
                             <div class="input-group input-group-sm mb-1">
                                 <input type="text" name="coupon_code" class="form-control" placeholder="โค้ดส่วนลด" value="<?= isset($_SESSION['coupon'])?$_SESSION['coupon']['code']:'' ?>">
                                 <input type="hidden" name="current_total" id="hidden_total" value="<?=$subtotal?>">
@@ -440,12 +481,20 @@ include 'header.php';
                                     <i class="bi bi-ticket-perforated me-1"></i> ดูคูปองส่วนลดที่มีทั้งหมด
                                 </button>
                             </div>
-                            <?php if($disc>0): ?>
-                                <div class="d-flex justify-content-between small mb-2 text-success"><span>ส่วนลด</span><span>-฿<span id="discount_val"><?=number_format($disc,2)?></span></span></div>
-                                <div class="text-end mb-2"><a href="?remove_coupon=1" class="text-danger small text-decoration-none">ยกเลิกคูปอง</a></div>
+                            <?php if(isset($_SESSION['coupon'])): ?>
+                                <?php if($_SESSION['coupon']['type'] !== 'free_shipping'): ?>
+                                    <div class="d-flex justify-content-between small mb-2 text-success" id="cart-discount-row"><span>ส่วนลด</span><span>-฿<span id="discount_val"><?=number_format($disc,2)?></span></span></div>
+                                <?php endif; ?>
+                                <div class="text-end mb-2"><a href="?remove_coupon=1" class="text-danger small text-decoration-none"><i class="bi bi-x-circle me-1"></i>ยกเลิกคูปอง</a></div>
                             <?php endif; ?>
 
                             <div class="d-flex justify-content-between small mb-2 text-muted"><span>ยอดรวม</span><span>฿<span id="subtotal"><?=number_format($subtotal,2)?></span></span></div>
+                            <div class="d-flex justify-content-between small mb-2 text-muted">
+                                <span>ค่าจัดส่ง</span>
+                                <span id="shipping_fee_val" class="fw-bold <?= $shipping_fee == 0 ? 'text-success' : '' ?>">
+                                    <?= $shipping_fee == 0 ? 'ส่งฟรี' : '฿' . number_format($shipping_fee, 2) ?>
+                                </span>
+                            </div>
                             <hr class="my-2 opacity-25">
                             <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span>สุทธิ</span><span style="color:#AEE2FF">฿<span id="final_total"><?=number_format($final,2)?></span></span></div>
 
@@ -503,6 +552,59 @@ include 'header.php';
 <?php unset($_SESSION['swal']); endif; ?>
 
 <script>
+function updateFreeShippingProgressBar(subtotal, isFreeCoupon) {
+    const widget = document.getElementById('free-shipping-widget-wrapper');
+    const fill = document.getElementById('free-shipping-bar-fill');
+    const text = document.getElementById('free-shipping-text');
+    const icon = document.getElementById('free-shipping-icon');
+    const shippingFeeValEl = document.getElementById('shipping_fee_val');
+
+    if (!widget || !fill || !text) return;
+
+    if (subtotal <= 0) {
+        widget.style.display = 'none';
+        if (shippingFeeValEl) {
+            shippingFeeValEl.innerText = 'ส่งฟรี';
+            shippingFeeValEl.className = 'fw-bold text-success';
+        }
+        return;
+    }
+
+    widget.style.display = 'block';
+    let pct = Math.min(100, (subtotal / window.shippingThreshold) * 100);
+
+    if (isFreeCoupon || pct >= 100) {
+        fill.style.width = '100%';
+        fill.classList.add('success');
+        if (pct >= 100) {
+            text.innerHTML = 'ยินดีด้วย! คุณได้รับสิทธิ์ส่งฟรีแล้ว 🎉';
+        } else {
+            text.innerHTML = 'ยินดีด้วย! คุณได้รับสิทธิ์ส่งฟรีจากคูปองแล้ว 🎉';
+        }
+        if (icon) icon.innerText = '🎉';
+        if (shippingFeeValEl) {
+            shippingFeeValEl.innerText = 'ส่งฟรี';
+            shippingFeeValEl.className = 'fw-bold text-success';
+        }
+    } else {
+        fill.style.width = pct + '%';
+        fill.classList.remove('success');
+        let remaining = window.shippingThreshold - subtotal;
+        text.innerHTML = 'ช้อปอีกเพียง <strong style="color:var(--blue-hover)">฿' + remaining.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong> เพื่อรับส่งฟรี!';
+        if (icon) icon.innerText = '🚚';
+        if (shippingFeeValEl) {
+            shippingFeeValEl.innerText = '฿' + window.shippingFeeFixed.toFixed(2);
+            shippingFeeValEl.className = 'fw-bold text-dark';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const initialSubtotal = <?= floatval($subtotal) ?>;
+    const isFreeCoupon = <?= $is_free_shipping_coupon ? 'true' : 'false' ?>;
+    updateFreeShippingProgressBar(initialSubtotal, isFreeCoupon);
+});
+
 let isSavingAddressCart = false;
 function saveAddressCart() {
     if (isSavingAddressCart) return;
@@ -592,6 +694,10 @@ function updateQty(id, type) {
             const pm = document.querySelector('input[name="payment_method_id"]:checked');
             if(pm) updatePaymentUI(pm);
 
+            let subFloat = parseFloat(data.subtotal.replace(/,/g, ''));
+            const isFreeCoupon = parseFloat(data.shipping_fee.replace(/,/g, '')) === 0;
+            updateFreeShippingProgressBar(subFloat, isFreeCoupon);
+
             // Sync with interactive cart drawer if available
             if (typeof window.loadCartDrawer === 'function') {
                 window.loadCartDrawer();
@@ -632,6 +738,10 @@ function removeItem(id) {
                             
                             const badge = document.getElementById('nav-cart-badge');
                             badge.innerText = data.cart_count;
+
+                            let subFloat = parseFloat(data.subtotal.replace(/,/g, ''));
+                            const isFreeCoupon = parseFloat(data.shipping_fee.replace(/,/g, '')) === 0;
+                            updateFreeShippingProgressBar(subFloat, isFreeCoupon);
 
                             // Sync with interactive cart drawer if available
                             if (typeof window.loadCartDrawer === 'function') {
