@@ -90,6 +90,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Kanit'; background: #f8f9fa; }
         .stat-card { border: none; border-radius: 20px; padding: 20px; color: #444; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.05); height: 100%; background: white; border-bottom: 4px solid transparent; }
@@ -132,30 +133,63 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                 </button>
             </div>
 
+            <!-- ตัวกรองช่วงเวลาวิเคราะห์ข้อมูล -->
+            <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white animate__animated animate__fadeIn">
+                <div class="row align-items-center g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label text-muted small fw-bold mb-1"><i class="bi bi-calendar-event text-primary me-1"></i>ช่วงเวลาวิเคราะห์ข้อมูล</label>
+                        <select id="date-preset-select" class="form-select rounded-pill border-0 bg-light shadow-sm" onchange="handlePresetChange()" style="font-family: 'Kanit'; font-size: 0.9rem;">
+                            <option value="7days" selected>7 วันล่าสุด (ค่าเริ่มต้น)</option>
+                            <option value="30days">30 วันล่าสุด</option>
+                            <option value="this_month">เดือนนี้</option>
+                            <option value="this_year">ปีนี้</option>
+                            <option value="custom">กำหนดเอง...</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-8 d-none shadow-none" id="custom-date-container">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <label class="form-label text-muted small fw-bold mb-1">วันที่เริ่มต้น</label>
+                                <input type="date" id="custom-start-date" class="form-control rounded-pill border-0 bg-light shadow-sm" style="font-size: 0.85rem;">
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label text-muted small fw-bold mb-1">วันที่สิ้นสุด</label>
+                                <input type="date" id="custom-end-date" class="form-control rounded-pill border-0 bg-light shadow-sm" style="font-size: 0.85rem;">
+                            </div>
+                            <div class="col-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-primary rounded-pill w-100 py-2 border-0 shadow-sm fw-bold" onclick="fetchDashboardStats()" style="background: linear-gradient(45deg, #7FB5FF, #AEE2FF); color: #fff; font-size: 0.85rem;">
+                                    กรอง
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-3 g-md-4 mb-5">
                 <div class="col-6 col-md-4 col-xl">
                     <div class="stat-card stat-blue">
-                        <div><h6 class="text-muted small mb-1">ยอดขายรวมทั้งหมด</h6><h4 class="fw-bold mb-0 text-primary">฿<?= number_format($total_sales) ?></h4></div>
+                        <div><h6 class="text-muted small mb-1">ยอดขายรวมทั้งหมด</h6><h4 class="fw-bold mb-0 text-primary" id="total-sales-val">฿<?= number_format($total_sales) ?></h4></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="stat-card stat-green">
-                        <div><h6 class="text-muted small mb-1">กำไรสุทธิ (FIFO)</h6><h4 class="fw-bold mb-0 text-success">฿<?= number_format($net_profit) ?></h4></div>
+                        <div><h6 class="text-muted small mb-1">กำไรสุทธิ (FIFO)</h6><h4 class="fw-bold mb-0 text-success" id="net-profit-val">฿<?= number_format($net_profit) ?></h4></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="stat-card stat-orange">
-                        <div><h6 class="text-muted small mb-1">รอตรวจสอบยอด</h6><h4 class="fw-bold mb-0 text-warning"><?= $pending_orders ?> รายการ</h4></div>
+                        <div><h6 class="text-muted small mb-1">รอตรวจสอบยอด</h6><h4 class="fw-bold mb-0 text-warning" id="pending-orders-val"><?= $pending_orders ?> รายการ</h4></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="stat-card stat-blue">
-                        <div><h6 class="text-muted small mb-1">จำนวนลูกค้า</h6><h4 class="fw-bold mb-0 text-info"><?= $total_users ?> ท่าน</h4></div>
+                        <div><h6 class="text-muted small mb-1">จำนวนลูกค้า</h6><h4 class="fw-bold mb-0 text-info" id="total-users-val"><?= $total_users ?> ท่าน</h4></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="stat-card stat-red">
-                        <div><h6 class="text-muted small mb-1">สินค้าใกล้หมด</h6><h4 class="fw-bold mb-0 text-danger"><?= $low_stock ?> รายการ</h4></div>
+                        <div><h6 class="text-muted small mb-1">สินค้าใกล้หมด</h6><h4 class="fw-bold mb-0 text-danger" id="low-stock-val"><?= $low_stock ?> รายการ</h4></div>
                     </div>
                 </div>
             </div>
@@ -176,11 +210,10 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                     <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
                         <h5 class="fw-bold mb-4">🍕 สัดส่วนยอดขายตามหมวดหมู่</h5>
                         <div style="position: relative; height: 300px; width: 100%; display: flex; align-items: center; justify-content: center;">
-                            <?php if (empty($cat_names)): ?>
-                                <span class="text-muted small">ยังไม่มีข้อมูลการขายสินค้าตามหมวดหมู่</span>
-                            <?php else: ?>
-                                <canvas id="categoryChart"></canvas>
-                            <?php endif; ?>
+                            <div id="categoryChartPlaceholder" class="<?= empty($cat_names) ? '' : 'd-none' ?> text-muted small">
+                                ยังไม่มีข้อมูลการขายสินค้าตามหมวดหมู่ในช่วงเวลานี้
+                            </div>
+                            <canvas id="categoryChart" class="<?= empty($cat_names) ? 'd-none' : '' ?>"></canvas>
                         </div>
                     </div>
                 </div>
@@ -193,7 +226,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                         <h5 class="fw-bold mb-4 text-warning"><i class="bi bi-trophy-fill me-2"></i>สินค้าขายดี Top 5</h5>
                         <div class="table-responsive">
                             <table class="table align-middle">
-                                <tbody>
+                                <tbody id="best-sellers-container">
                                     <?php 
                                     if(mysqli_num_rows($top5_res) > 0):
                                         $rank = 1; while($item = mysqli_fetch_assoc($top5_res)): 
@@ -267,7 +300,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
 <script>
     // กราฟยอดขาย 7 วันล่าสุด
     const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
+    window.salesChartInstance = new Chart(ctx, {
         type: 'line', 
         data: {
             labels: <?= json_encode($dates) ?>,
@@ -296,9 +329,8 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
     });
 
     // กราฟวงกลมสัดส่วนยอดขายตามหมวดหมู่
-    <?php if (!empty($cat_names)): ?>
     const catCtx = document.getElementById('categoryChart').getContext('2d');
-    new Chart(catCtx, {
+    window.categoryChartInstance = new Chart(catCtx, {
         type: 'doughnut',
         data: {
             labels: <?= json_encode($cat_names) ?>,
@@ -335,7 +367,97 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
             cutout: '60%'
         }
     });
-    <?php endif; ?>
+
+    function handlePresetChange() {
+        const preset = document.getElementById('date-preset-select').value;
+        const customContainer = document.getElementById('custom-date-container');
+        if (preset === 'custom') {
+            customContainer.classList.remove('d-none');
+        } else {
+            customContainer.classList.add('d-none');
+            fetchDashboardStats();
+        }
+    }
+
+    function fetchDashboardStats() {
+        const preset = document.getElementById('date-preset-select').value;
+        const startDate = document.getElementById('custom-start-date').value;
+        const endDate = document.getElementById('custom-end-date').value;
+        
+        let url = `ajax.php?action=get_dashboard_stats&preset=${preset}`;
+        if (preset === 'custom') {
+            if (!startDate || !endDate) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'กรุณากรอกข้อมูล',
+                    text: 'กรุณาเลือกวันที่เริ่มต้นและสิ้นสุดให้ครบถ้วน'
+                });
+                return;
+            }
+            url += `&start_date=${startDate}&end_date=${endDate}`;
+        }
+        
+        const statsElements = [
+            document.getElementById('total-sales-val'),
+            document.getElementById('net-profit-val'),
+            document.getElementById('pending-orders-val'),
+            document.getElementById('total-users-val'),
+            document.getElementById('low-stock-val'),
+            document.getElementById('best-sellers-container')
+        ];
+        statsElements.forEach(el => {
+            if (el) el.style.opacity = '0.5';
+        });
+        
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                statsElements.forEach(el => {
+                    if (el) el.style.opacity = '1';
+                });
+                
+                if (data.status === 'success') {
+                    // Update numeric indicators
+                    document.getElementById('total-sales-val').innerText = data.sales_total;
+                    document.getElementById('net-profit-val').innerText = data.profit_total;
+                    document.getElementById('pending-orders-val').innerText = data.pending_count;
+                    document.getElementById('total-users-val').innerText = data.users_count;
+                    document.getElementById('low-stock-val').innerText = data.low_stock_count;
+                    
+                    // Update Best Sellers Table
+                    document.getElementById('best-sellers-container').innerHTML = data.top5_html;
+                    
+                    // Update Sales Chart
+                    window.salesChartInstance.data.labels = data.chart_dates;
+                    window.salesChartInstance.data.datasets[0].data = data.chart_sales;
+                    window.salesChartInstance.update();
+                    
+                    // Update Category Chart
+                    const placeholder = document.getElementById('categoryChartPlaceholder');
+                    const canvas = document.getElementById('categoryChart');
+                    
+                    if (data.cat_names.length === 0) {
+                        placeholder.classList.remove('d-none');
+                        canvas.classList.add('d-none');
+                    } else {
+                        placeholder.classList.add('d-none');
+                        canvas.classList.remove('d-none');
+                        
+                        window.categoryChartInstance.data.labels = data.cat_names;
+                        window.categoryChartInstance.data.datasets[0].data = data.cat_revenues;
+                        window.categoryChartInstance.update();
+                    }
+                } else {
+                    console.error("Dashboard filter error:", data.message);
+                }
+            })
+            .catch(err => {
+                statsElements.forEach(el => {
+                    if (el) el.style.opacity = '1';
+                });
+                console.error(err);
+            });
+    }
 </script>
 <!-- Modal สำหรับดาวน์โหลดรายงาน Excel แบบกรองข้อมูล -->
 <div class="modal fade" id="exportFilterModal" tabindex="-1" aria-labelledby="exportFilterModalLabel" aria-hidden="true">

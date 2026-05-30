@@ -430,10 +430,15 @@ include 'header.php';
                         <div class="card-modern summary-card p-4">
                             <h5 class="fw-bold mb-3">สรุปยอด</h5>
                             
-                            <div class="input-group input-group-sm mb-3">
+                            <div class="input-group input-group-sm mb-1">
                                 <input type="text" name="coupon_code" class="form-control" placeholder="โค้ดส่วนลด" value="<?= isset($_SESSION['coupon'])?$_SESSION['coupon']['code']:'' ?>">
                                 <input type="hidden" name="current_total" id="hidden_total" value="<?=$subtotal?>">
                                 <button class="btn btn-dark" type="submit" name="apply_coupon" formnovalidate>ใช้</button>
+                            </div>
+                            <div class="text-end mb-3">
+                                <button type="button" class="btn btn-link btn-sm text-primary p-0 text-decoration-none" onclick="openCouponModal()" style="font-size: 0.8rem; font-weight: 500;">
+                                    <i class="bi bi-ticket-perforated me-1"></i> ดูคูปองส่วนลดที่มีทั้งหมด
+                                </button>
                             </div>
                             <?php if($disc>0): ?>
                                 <div class="d-flex justify-content-between small mb-2 text-success"><span>ส่วนลด</span><span>-฿<span id="discount_val"><?=number_format($disc,2)?></span></span></div>
@@ -748,6 +753,98 @@ function validateForm() {
             document.getElementById('checkoutForm').submit();
         }
     });
+}
+</script>
+
+<!-- Modal สำหรับดูคูปองส่วนลด -->
+<div class="modal fade" id="couponModal" tabindex="-1" aria-labelledby="couponModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #f5f8ff, #ffffff);">
+                <h5 class="modal-title fw-bold text-dark animate__animated animate__fadeInDown" id="couponModalLabel"><i class="bi bi-ticket-perforated-fill text-primary me-2"></i>คูปองส่วนลดของฉัน</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3" style="max-height: 400px; overflow-y: auto; background: #f8f9fa;">
+                <div id="coupon-list-container">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">กำลังโหลด...</span>
+                        </div>
+                        <div class="text-muted mt-2 small">กำลังโหลดคูปองที่พร้อมใช้...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2 pb-3 bg-light d-flex justify-content-end">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let couponModalInstance = null;
+function openCouponModal() {
+    if (!couponModalInstance) {
+        couponModalInstance = new bootstrap.Modal(document.getElementById('couponModal'));
+    }
+    couponModalInstance.show();
+    
+    // Fetch coupons via AJAX
+    fetch('ajax.php?action=get_available_coupons')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('coupon-list-container').innerHTML = data.html;
+                
+                // Bind click event to apply coupon buttons
+                document.querySelectorAll('.btn-apply-coupon').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const code = this.dataset.code;
+                        const couponInput = document.querySelector('input[name="coupon_code"]');
+                        if (couponInput) {
+                            couponInput.value = code;
+                            
+                            // Close modal
+                            couponModalInstance.hide();
+                            
+                            // Programmatically trigger coupon application form submission
+                            const form = document.getElementById('checkoutForm');
+                            const applyHidden = document.createElement('input');
+                            applyHidden.type = 'hidden';
+                            applyHidden.name = 'apply_coupon';
+                            applyHidden.value = 'true';
+                            form.appendChild(applyHidden);
+                            
+                            // Show loading Swal
+                            Swal.fire({
+                                title: 'กำลังใช้คูปอง...',
+                                text: 'กรุณารอสักครู่',
+                                allowOutsideClick: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+                            
+                            form.submit();
+                        }
+                    });
+                });
+            } else {
+                document.getElementById('coupon-list-container').innerHTML = `
+                    <div class="text-center py-4 text-danger">
+                        <i class="bi bi-exclamation-triangle display-6 d-block mb-2"></i>
+                        <div>เกิดข้อผิดพลาดในการโหลดคูปอง</div>
+                    </div>`;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('coupon-list-container').innerHTML = `
+                <div class="text-center py-4 text-danger">
+                    <i class="bi bi-exclamation-triangle display-6 d-block mb-2"></i>
+                    <div>เกิดข้อผิดพลาดในการโหลดคูปอง</div>
+                </div>`;
+        });
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

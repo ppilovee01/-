@@ -416,6 +416,344 @@ elseif ($action == 'clear_notifications') {
     $response = ['status' => 'success'];
 }
 
+// 4.7 ดึงข้อมูลคูปองที่พร้อมใช้ (Get Available Coupons)
+elseif ($action == 'get_available_coupons') {
+    $today = date('Y-m-d');
+    $cart_data = calculate_cart_totals($conn);
+    $subtotal = $cart_data['subtotal'];
+    
+    $query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND expiry_date >= '$today' ORDER BY expiry_date ASC");
+    $html = '<div class="row g-3">';
+    $count = 0;
+    
+    if ($query && mysqli_num_rows($query) > 0) {
+        while ($c = mysqli_fetch_assoc($query)) {
+            $count++;
+            $code = htmlspecialchars($c['code']);
+            $discount_text = $c['discount_type'] == 'percent' ? intval($c['discount_value']) . '%' : '฿' . number_format($c['discount_value']);
+            $min_spend = floatval($c['min_spend']);
+            $expiry = date('d/m/Y', strtotime($c['expiry_date']));
+            
+            // Check usage limit
+            $is_claimed_out = false;
+            if ($c['usage_limit'] > 0) {
+                $total_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND status != 'cancelled'"))['count'];
+                if ($total_used >= $c['usage_limit']) {
+                    $is_claimed_out = true;
+                }
+            }
+            
+            // Check user limit
+            $is_user_out = false;
+            if ($user_id && $c['user_limit'] > 0) {
+                $user_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
+                if ($user_used >= $c['user_limit']) {
+                    $is_user_out = true;
+                }
+            }
+            
+            // Check min spend
+            $is_low_spend = $subtotal < $min_spend;
+            
+            $is_eligible = !$is_claimed_out && !$is_user_out && !$is_low_spend;
+            
+            $status_msg = '';
+            if ($is_claimed_out) {
+                $status_msg = 'สิทธิ์การใช้งานเต็มแล้ว';
+            } elseif ($is_user_out) {
+                $status_msg = 'คุณใช้สิทธิ์คูปองนี้ครบแล้ว';
+            } elseif ($is_low_spend) {
+                $diff = $min_spend - $subtotal;
+                $status_msg = 'ช้อปเพิ่มอีก ฿' . number_format($diff, 2) . ' เพื่อใช้โค้ดนี้';
+            }
+            
+            $card_class = $is_eligible ? 'coupon-card-eligible' : 'coupon-card-disabled';
+            $btn_html = '';
+            if ($is_eligible) {
+                if (isset($_SESSION['coupon']) && $_SESSION['coupon']['code'] === $c['code']) {
+                    $btn_html = '<button class="btn btn-sm btn-success rounded-pill px-3" disabled><i class="bi bi-check2-circle"></i> ใช้งานอยู่</button>';
+                } else {
+                    $btn_html = '<button class="btn btn-sm btn-primary rounded-pill px-3 btn-apply-coupon" data-code="' . $code . '">ใช้โค้ด</button>';
+                }
+            } else {
+                $btn_html = '<button class="btn btn-sm btn-secondary rounded-pill px-3" disabled>ไม่สามารถใช้ได้</button>';
+            }
+            
+            $html .= '
+            <div class="col-12">
+                <div class="coupon-item-card ' . $card_class . ' p-3 d-flex align-items-center justify-content-between rounded-3 border bg-white shadow-sm" style="transition: all 0.2s ease;">
+                    <div class="d-flex align-items-center">
+                        <div class="coupon-badge text-center me-3 p-2 rounded-3 text-white fw-bold d-flex flex-column justify-content-center align-items-center" style="min-width: 75px; height: 75px; background: linear-gradient(135deg, #7FB5FF, #AEE2FF);">
+                            <span class="small" style="font-size: 0.65rem; font-weight: normal; opacity: 0.95;">ลดทันที</span>
+                            <span style="font-size: 1.1rem;">' . $discount_text . '</span>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-primary border border-primary font-monospace px-2 py-1" style="font-size: 0.85rem; letter-spacing: 0.5px;">' . $code . '</span>
+                            </div>
+                            <div class="small mt-1 text-muted" style="font-size: 0.8rem;">';
+            if ($min_spend > 0) {
+                $html .= 'ยอดขั้นต่ำ ฿' . number_format($min_spend);
+            } else {
+                $html .= 'ไม่มีขั้นต่ำ';
+            }
+            $html .= ' • หมดอายุ: ' . $expiry;
+            $html .= '</div>';
+            
+            if (!$is_eligible && !empty($status_msg)) {
+                $html .= '<div class="small text-danger mt-1 fw-bold" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i>' . $status_msg . '</div>';
+            }
+            
+            $html .= '
+                        </div>
+                    </div>
+                    <div>
+                        ' . $btn_html . '
+                    </div>
+                </div>
+            </div>';
+        }
+    } else {
+        $html .= '
+        <div class="col-12 text-center py-4 text-muted">
+            <i class="bi bi-ticket-perforated display-5 mb-2 opacity-25"></i>
+            <div>ไม่มีคูปองส่วนลดที่พร้อมใช้งานในขณะนี้</div>
+        </div>';
+    }
+    
+    $html .= '</div>';
+    $response = ['status' => 'success', 'html' => $html, 'count' => $count];
+}
+
+// 4.8 ดึงข้อมูลสถิติแดชบอร์ดแอดมินตามช่วงเวลา (Get Admin Dashboard Stats)
+elseif ($action == 'get_dashboard_stats') {
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+        $response = ['status' => 'error', 'message' => 'ไม่มีสิทธิ์เข้าถึง'];
+        ob_end_clean(); echo json_encode($response); exit();
+    }
+    
+    $preset = $_GET['preset'] ?? '';
+    $start_date = $_GET['start_date'] ?? '';
+    $end_date = $_GET['end_date'] ?? '';
+
+    $today = date('Y-m-d');
+    if ($preset == '7days') {
+        $start_date = date('Y-m-d', strtotime('-6 days'));
+        $end_date = $today;
+    } elseif ($preset == '30days') {
+        $start_date = date('Y-m-d', strtotime('-29 days'));
+        $end_date = $today;
+    } elseif ($preset == 'this_month') {
+        $start_date = date('Y-m-01');
+        $end_date = $today;
+    } elseif ($preset == 'this_year') {
+        $start_date = date('Y-01-01');
+        $end_date = $today;
+    } elseif ($preset == 'custom') {
+        if (empty($start_date)) $start_date = date('Y-m-d', strtotime('-6 days'));
+        if (empty($end_date)) $end_date = $today;
+    } else {
+        $start_date = date('Y-m-d', strtotime('-6 days'));
+        $end_date = $today;
+    }
+    
+    // คำนวณยอดขายรวม
+    $q_sales = mysqli_query($conn, "SELECT SUM(final_price) as total FROM orders WHERE DATE(order_date) BETWEEN '$start_date' AND '$end_date' AND status != 'cancelled'");
+    $r_sales = mysqli_fetch_assoc($q_sales);
+    $sales_val = floatval($r_sales['total'] ?? 0);
+
+    // คำนวณกำไรสุทธิ (FIFO)
+    $q_cost = mysqli_query($conn, "SELECT SUM(oi.quantity * oi.import_cost) as total_cost 
+                                   FROM order_items oi 
+                                   JOIN orders o ON oi.order_id = o.id 
+                                   WHERE DATE(o.order_date) BETWEEN '$start_date' AND '$end_date' AND o.status != 'cancelled'");
+    $r_cost = mysqli_fetch_assoc($q_cost);
+    $cost_val = floatval($r_cost['total_cost'] ?? 0);
+    $profit_val = $sales_val - $cost_val;
+    
+    // ค่าคงเดิม (System snap) เพื่ออัปเดตตัวเลขแผงควบคุม
+    $q_pending = mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status = 'pending'");
+    $pending_val = intval(mysqli_fetch_assoc($q_pending)['count'] ?? 0);
+    
+    $q_users = mysqli_query($conn, "SELECT COUNT(*) as count FROM users WHERE role = 'user'");
+    $users_val = intval(mysqli_fetch_assoc($q_users)['count'] ?? 0);
+    
+    $q_low = mysqli_query($conn, "SELECT COUNT(*) as count FROM products WHERE stock < 5");
+    $low_val = intval(mysqli_fetch_assoc($q_low)['count'] ?? 0);
+    
+    // ดึงสถิติกราฟ
+    $chart_dates = [];
+    $chart_sales = [];
+    $thai_months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    
+    $diff_days = (strtotime($end_date) - strtotime($start_date)) / (60 * 60 * 24);
+    if ($diff_days > 31) {
+        // Group by month
+        $start_month = intval(date('m', strtotime($start_date)));
+        $start_year = intval(date('Y', strtotime($start_date)));
+        $end_month = intval(date('m', strtotime($end_date)));
+        $end_year = intval(date('Y', strtotime($end_date)));
+        
+        $current_year = $start_year;
+        $current_month = $start_month;
+        
+        while (($current_year < $end_year) || ($current_year == $end_year && $current_month <= $end_month)) {
+            $q = mysqli_query($conn, "SELECT SUM(final_price) as total FROM orders WHERE YEAR(order_date) = '$current_year' AND MONTH(order_date) = '$current_month' AND status != 'cancelled'");
+            $r = mysqli_fetch_assoc($q);
+            $chart_dates[] = $thai_months[$current_month - 1] . ' ' . substr($current_year, 2);
+            $chart_sales[] = floatval($r['total'] ?? 0);
+            
+            $current_month++;
+            if ($current_month > 12) {
+                $current_month = 1;
+                $current_year++;
+            }
+        }
+    } else {
+        // Group by day
+        $start = new DateTime($start_date);
+        $end = new DateTime($end_date);
+        $end->modify('+1 day');
+        $interval = new DateInterval('P1D');
+        $period = new DatePeriod($start, $interval, $end);
+        foreach ($period as $date) {
+            $d = $date->format('Y-m-d');
+            $q = mysqli_query($conn, "SELECT SUM(final_price) as total FROM orders WHERE DATE(order_date) = '$d' AND status != 'cancelled'");
+            $r = mysqli_fetch_assoc($q);
+            $chart_dates[] = $date->format('d/m');
+            $chart_sales[] = floatval($r['total'] ?? 0);
+        }
+    }
+    
+    // กราฟสัดส่วนยอดขายตามหมวดหมู่
+    $cat_names = [];
+    $cat_revenues = [];
+    $cat_sql = "SELECT c.name as cat_name, SUM(oi.quantity * oi.price) as revenue 
+                FROM order_items oi 
+                JOIN products p ON oi.product_id = p.id 
+                JOIN categories c ON p.category_id = c.id 
+                JOIN orders o ON oi.order_id = o.id 
+                WHERE DATE(o.order_date) BETWEEN '$start_date' AND '$end_date' AND o.status != 'cancelled' 
+                GROUP BY p.category_id 
+                ORDER BY revenue DESC";
+    $cat_res = mysqli_query($conn, $cat_sql);
+    while ($cat_row = mysqli_fetch_assoc($cat_res)) {
+        $cat_names[] = $cat_row['cat_name'];
+        $cat_revenues[] = floatval($cat_row['revenue']);
+    }
+    
+    // ตารางสินค้าขายดี Top 5
+    $top5_sql = "SELECT p.name, p.image, p.stock, SUM(oi.quantity) as total_qty, SUM(oi.quantity * oi.price) as total_income
+                 FROM order_items oi
+                 JOIN products p ON oi.product_id = p.id
+                 JOIN orders o ON oi.order_id = o.id
+                 WHERE DATE(o.order_date) BETWEEN '$start_date' AND '$end_date' AND o.status != 'cancelled'
+                 GROUP BY oi.product_id
+                 ORDER BY total_qty DESC LIMIT 5";
+    $top5_res = mysqli_query($conn, $top5_sql);
+    
+    $top5_html = '';
+    if ($top5_res && mysqli_num_rows($top5_res) > 0) {
+        $rank = 1;
+        while ($item = mysqli_fetch_assoc($top5_res)) {
+            $rank_class = "rank-" . $rank;
+            $is_out = ($item['stock'] == 0);
+            $top5_html .= '
+            <tr>
+                <td style="width: 40px;"><div class="rank-badge ' . ($rank <= 3 ? $rank_class : '') . '">' . $rank . '</div></td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="' . htmlspecialchars($item['image']) . '" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover; margin-right: 12px;">
+                        <div>
+                            <div class="fw-bold text-truncate" style="max-width: 150px;">' . htmlspecialchars($item['name']) . '</div>
+                            <div class="small text-muted" style="font-size: 0.75rem;">
+                                จำหน่ายแล้ว ' . $item['total_qty'] . ' ชิ้น
+                                ' . ($is_out ? '<span class="badge bg-danger ms-1" style="font-size:0.6rem;">สินค้าหมด</span>' : '') . '
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-end fw-bold text-success small">+฿' . number_format($item['total_income']) . '</td>
+            </tr>';
+            $rank++;
+        }
+    } else {
+        $top5_html = '<tr><td colspan="3" class="text-center text-muted py-5">ยังไม่มีข้อมูลการขายในช่วงเวลานี้</td></tr>';
+    }
+    
+    $response = [
+        'status' => 'success',
+        'sales_total' => '฿' . number_format($sales_val),
+        'profit_total' => '฿' . number_format($profit_val),
+        'pending_count' => $pending_val . ' รายการ',
+        'users_count' => $users_val . ' ท่าน',
+        'low_stock_count' => $low_val . ' รายการ',
+        'chart_dates' => $chart_dates,
+        'chart_sales' => $chart_sales,
+        'cat_names' => $cat_names,
+        'cat_revenues' => $cat_revenues,
+        'top5_html' => $top5_html
+    ];
+}
+
+// 4.9 ดึงข้อมูลรีวิวสินค้าแบบกรองดาวและสื่อรูปภาพ (Get Filtered Product Reviews)
+elseif ($action == 'get_filtered_reviews') {
+    $pid = mysqli_real_escape_string($conn, $_POST['product_id'] ?? $_GET['product_id'] ?? '');
+    $rating = mysqli_real_escape_string($conn, $_POST['rating'] ?? $_GET['rating'] ?? 'all');
+    $has_image = intval($_POST['has_image'] ?? $_GET['has_image'] ?? 0);
+    
+    $where_clause = "WHERE r.product_id = '$pid'";
+    if ($rating !== 'all') {
+        $where_clause .= " AND r.rating = '$rating'";
+    }
+    if ($has_image == 1) {
+        $where_clause .= " AND r.image IS NOT NULL AND r.image != ''";
+    }
+    
+    $sql = "SELECT r.*, u.fullname FROM product_reviews r JOIN users u ON r.user_id = u.id $where_clause ORDER BY r.created_at DESC";
+    $query = mysqli_query($conn, $sql);
+    
+    $html = '';
+    $count = 0;
+    if ($query && mysqli_num_rows($query) > 0) {
+        while ($r = mysqli_fetch_assoc($query)) {
+            $count++;
+            $stars = '';
+            for ($i = 1; $i <= 5; $i++) {
+                $stars .= $i <= $r['rating'] ? '★' : '☆';
+            }
+            $img_html = '';
+            if (!empty($r['image']) && file_exists($r['image'])) {
+                $img_html = '
+                <div class="mt-2">
+                    <img src="' . htmlspecialchars($r['image']) . '" class="review-img-thumb img-thumbnail" onclick="showReviewImage(\'' . htmlspecialchars($r['image']) . '\', \'' . htmlspecialchars($r['fullname']) . '\')" alt="รูปรีวิว">
+                </div>';
+            }
+            
+            $html .= '
+            <div class="review-item animate__animated animate__fadeIn">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div>
+                        <strong class="text-dark me-2">' . htmlspecialchars($r['fullname']) . '</strong>
+                        <span class="text-warning small">' . $stars . '</span>
+                    </div>
+                    <small class="text-muted" style="font-size:0.8rem;">' . date('d/m/Y', strtotime($r['created_at'])) . '</small>
+                </div>
+                <p class="mb-2 text-secondary">' . htmlspecialchars($r['comment']) . '</p>
+                ' . $img_html . '
+            </div>';
+        }
+    } else {
+        $html = '
+        <div class="text-center py-5 text-muted opacity-50">
+            <i class="bi bi-chat-square-quote display-3 d-block mb-3"></i>
+            ยังไม่มีรีวิวสำหรับเงื่อนไขที่เลือก
+        </div>';
+    }
+    
+    $response = ['status' => 'success', 'html' => $html, 'count' => $count];
+}
+
 // ==========================================
 // 5. ปิดการส่งออกข้อมูลและส่ง JSON ตอบกลับ
 // ==========================================

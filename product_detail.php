@@ -327,30 +327,51 @@ include 'header.php';
                 </div>
                 <?php endif; ?>
 
-                <?php if(mysqli_num_rows($reviews) > 0): while($r = mysqli_fetch_assoc($reviews)): ?>
-                <div class="review-item animate__animated animate__fadeIn">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <div>
-                            <strong class="text-dark me-2"><?= $r['fullname'] ?></strong>
-                            <span class="text-warning small">
-                                <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? '★' : '☆'; ?>
-                            </span>
+                <!-- ตัวกรองรีวิว -->
+                <div class="card border-0 shadow-sm rounded-3 p-3 mb-4 bg-white animate__animated animate__fadeIn">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="small text-muted fw-bold me-2" style="font-size: 0.8rem;"><i class="bi bi-filter text-primary"></i> คะแนนรีวิว:</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 active filter-star-btn" data-rating="all" onclick="setStarFilter(this)" style="font-size: 0.75rem;">ทั้งหมด</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-star-btn" data-rating="5" onclick="setStarFilter(this)" style="font-size: 0.75rem;">5 ดาว</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-star-btn" data-rating="4" onclick="setStarFilter(this)" style="font-size: 0.75rem;">4 ดาว</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-star-btn" data-rating="3" onclick="setStarFilter(this)" style="font-size: 0.75rem;">3 ดาว</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-star-btn" data-rating="2" onclick="setStarFilter(this)" style="font-size: 0.75rem;">2 ดาว</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 filter-star-btn" data-rating="1" onclick="setStarFilter(this)" style="font-size: 0.75rem;">1 ดาว</button>
                         </div>
-                        <small class="text-muted" style="font-size:0.8rem;"><?= date('d/m/Y', strtotime($r['created_at'])) ?></small>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="filter-has-image-chk" onchange="toggleImageFilter()">
+                            <label class="form-check-label small text-muted fw-bold" for="filter-has-image-chk" style="font-size: 0.8rem; cursor: pointer;"><i class="bi bi-image text-secondary me-1"></i>เฉพาะที่มีรูปภาพ</label>
+                        </div>
                     </div>
-                    <p class="mb-2 text-secondary"><?= $r['comment'] ?></p>
-                    <?php if(!empty($r['image']) && file_exists($r['image'])): ?>
-                        <div class="mt-2">
-                            <img src="<?= htmlspecialchars($r['image']) ?>" class="review-img-thumb img-thumbnail" onclick="showReviewImage('<?= htmlspecialchars($r['image']) ?>', '<?= htmlspecialchars($r['fullname']) ?>')" alt="รูปรีวิว">
+                </div>
+
+                <div id="reviews-list-container" style="transition: opacity 0.2s ease;">
+                    <?php if(mysqli_num_rows($reviews) > 0): while($r = mysqli_fetch_assoc($reviews)): ?>
+                    <div class="review-item animate__animated animate__fadeIn">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div>
+                                <strong class="text-dark me-2"><?= $r['fullname'] ?></strong>
+                                <span class="text-warning small">
+                                    <?php for($i=1;$i<=5;$i++) echo $i<=$r['rating'] ? '★' : '☆'; ?>
+                                </span>
+                            </div>
+                            <small class="text-muted" style="font-size:0.8rem;"><?= date('d/m/Y', strtotime($r['created_at'])) ?></small>
+                        </div>
+                        <p class="mb-2 text-secondary"><?= $r['comment'] ?></p>
+                        <?php if(!empty($r['image']) && file_exists($r['image'])): ?>
+                            <div class="mt-2">
+                                <img src="<?= htmlspecialchars($r['image']) ?>" class="review-img-thumb img-thumbnail" onclick="showReviewImage('<?= htmlspecialchars($r['image']) ?>', '<?= htmlspecialchars($r['fullname']) ?>')" alt="รูปรีวิว">
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endwhile; else: ?>
+                        <div class="text-center py-5 text-muted opacity-50">
+                            <i class="bi bi-chat-square-quote display-3 d-block mb-3"></i>
+                            ยังไม่มีรีวิวสำหรับสินค้านี้
                         </div>
                     <?php endif; ?>
                 </div>
-                <?php endwhile; else: ?>
-                    <div class="text-center py-5 text-muted opacity-50">
-                        <i class="bi bi-chat-square-quote display-3 d-block mb-3"></i>
-                        ยังไม่มีรีวิวสำหรับสินค้านี้
-                    </div>
-                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -717,6 +738,69 @@ endif;
             confirmButtonColor: 'var(--blue-hover)',
             customClass: {
                 image: 'img-fluid rounded shadow-sm'
+            }
+        });
+    }
+
+    let selectedRating = 'all';
+    let hasImageOnly = 0;
+    
+    function setStarFilter(btn) {
+        document.querySelectorAll('.filter-star-btn').forEach(b => {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        selectedRating = btn.dataset.rating;
+        fetchFilteredReviews();
+    }
+    
+    function toggleImageFilter() {
+        hasImageOnly = document.getElementById('filter-has-image-chk').checked ? 1 : 0;
+        fetchFilteredReviews();
+    }
+    
+    function fetchFilteredReviews() {
+        const container = document.getElementById('reviews-list-container');
+        if (container) {
+            container.style.opacity = '0.4';
+        }
+        
+        const pid = '<?= $product["id"] ?>';
+        
+        const fd = new FormData();
+        fd.append('action', 'get_filtered_reviews');
+        fd.append('product_id', pid);
+        fd.append('rating', selectedRating);
+        fd.append('has_image', hasImageOnly);
+        
+        fetch('ajax.php', {
+            method: 'POST',
+            body: fd
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (container) {
+                container.style.opacity = '1';
+                if (data.status === 'success') {
+                    container.innerHTML = data.html;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-5 text-danger opacity-75">
+                            <i class="bi bi-exclamation-triangle display-4 d-block mb-2"></i>
+                            <div>เกิดข้อผิดพลาดในการโหลดรีวิว</div>
+                        </div>`;
+                }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (container) {
+                container.style.opacity = '1';
+                container.innerHTML = `
+                    <div class="text-center py-5 text-danger opacity-75">
+                        <i class="bi bi-exclamation-triangle display-4 d-block mb-2"></i>
+                        <div>เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์</div>
+                    </div>`;
             }
         });
     }
