@@ -17,9 +17,9 @@ function send_order_email($conn, $order_id) {
 
     // 2. ดึงข้อมูลออเดอร์และลูกค้า
     $order_id = mysqli_real_escape_string($conn, $order_id);
-    $q_order = mysqli_query($conn, "SELECT o.*, u.email, u.fullname FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = '$order_id'");
+    $q_order = mysqli_query($conn, "SELECT o.*, u.email, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = '$order_id'");
     $order = mysqli_fetch_assoc($q_order);
-    if (!$order) return false;
+    if (!$order || empty($order['email'])) return false;
 
     // 3. ดึงรายการสินค้าในออเดอร์
     $q_items = mysqli_query($conn, "SELECT oi.*, p.name, p.image FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = '$order_id'");
@@ -96,9 +96,16 @@ function send_order_email($conn, $order_id) {
 
         $tracking_html = '';
         if (!empty($order['tracking_no'])) {
+            $carrier_label = match($order['shipping_carrier'] ?? '') {
+                'thailandpost' => 'ไปรษณีย์ไทย',
+                'kerry', 'kex' => 'KEX Express',
+                'flash' => 'Flash Express',
+                'jnt' => 'J&T Express',
+                default => 'บริการขนส่งหลัก'
+            };
             $tracking_html = "
             <div style='background-color: #f0fdf4; border: 1px dashed #bbf7d0; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 25px;'>
-                <div style='font-size: 0.9rem; color: #166534; font-weight: 600; margin-bottom: 4px;'>🚚 หมายเลขพัสดุสำหรับจัดส่ง</div>
+                <div style='font-size: 0.9rem; color: #166534; font-weight: 600; margin-bottom: 4px;'>🚚 จัดส่งสินค้าแล้วโดย {$carrier_label}</div>
                 <div style='font-size: 1.6rem; color: #15803d; font-weight: 800; letter-spacing: 1px;'>{$order['tracking_no']}</div>
                 <div style='font-size: 0.8rem; color: #166534; margin-top: 6px;'>คุณสามารถนำเลขพัสดุไปเช็คสถานะการจัดส่งได้ทันที</div>
             </div>";

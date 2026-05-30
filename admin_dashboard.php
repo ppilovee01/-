@@ -274,7 +274,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                                 </thead>
                                 <tbody>
                                     <?php 
-                                    $last_q = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o JOIN users u ON o.user_id = u.id ORDER BY o.id DESC LIMIT 5");
+                                    $last_q = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.id DESC LIMIT 5");
                                     while($ord = mysqli_fetch_assoc($last_q)):
                                         $st_text = match($ord['status']) { 'pending'=>'รอตรวจสอบ', 'approved'=>'ยืนยันแล้ว', 'shipping'=>'กำลังจัดส่ง', 'completed'=>'สำเร็จ', 'cancelled'=>'ยกเลิก', default=>$ord['status'] };
                                         $st_color = match($ord['status']) { 'pending'=>'bg-warning', 'approved'=>'bg-success', 'shipping'=>'bg-info', 'completed'=>'bg-primary', 'cancelled'=>'bg-danger', default=>'bg-secondary' };
@@ -282,7 +282,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                                     <tr>
                                         <td><span class="badge rounded-pill <?= $st_color ?> fw-normal"><?= $st_text ?></span></td>
                                         <td class="fw-bold">#<?= $ord['id'] ?></td>
-                                        <td><div class="text-truncate" style="max-width: 100px;"><?= $ord['fullname'] ?></div></td>
+                                        <td><div class="text-truncate text-muted" style="max-width: 100px;"><?= htmlspecialchars($ord['fullname'] ?? 'ผู้ใช้ถูกลบ') ?></div></td>
                                         <td class="text-end fw-bold" style="color: var(--blue-dark);">฿<?= number_format($ord['final_price']) ?></td>
                                     </tr>
                                     <?php endwhile; ?>

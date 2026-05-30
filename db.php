@@ -148,5 +148,33 @@ function checkAndGenerateAutoFlashSale($conn) {
 
 // Automatically check and trigger auto-campaign on load
 checkAndGenerateAutoFlashSale($conn);
+
+// --- Helper to send Line Notify alerts ---
+function sendLineNotify($conn, $message) {
+    $q = mysqli_query($conn, "SELECT line_notify_token FROM shop_settings WHERE id = 1");
+    if ($q && mysqli_num_rows($q) > 0) {
+        $row = mysqli_fetch_assoc($q);
+        $token = $row['line_notify_token'];
+        if (!empty($token)) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, "https://notify-api.line.me/api/notify");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "message=" . urlencode($message));
+            $headers = array(
+                'Content-type: application/x-www-form-urlencoded',
+                'Authorization: Bearer ' . $token,
+            );
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $res = curl_exec($ch);
+            curl_close($ch);
+            return $res;
+        }
+    }
+    return false;
+}
 ?>
 <link rel="icon" type="image/x-icon" href="<?= $current_favicon ?>">
+

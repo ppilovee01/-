@@ -23,6 +23,7 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $shipping_free_threshold = floatval($_POST['shipping_free_threshold'] ?? 350.00);
     $points_earn_rate = intval($_POST['points_earn_rate'] ?? 100);
     $points_spend_rate = intval($_POST['points_spend_rate'] ?? 1);
+    $line_notify_token = mysqli_real_escape_string($conn, $_POST['line_notify_token'] ?? '');
     
     // 1. อัปเดตข้อมูลข้อความ
     $sql = "UPDATE shop_settings SET 
@@ -41,7 +42,8 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             shipping_fee_fixed='$shipping_fee_fixed', 
             shipping_free_threshold='$shipping_free_threshold',
             points_earn_rate='$points_earn_rate',
-            points_spend_rate='$points_spend_rate'
+            points_spend_rate='$points_spend_rate',
+            line_notify_token='$line_notify_token'
             WHERE id=1";
     mysqli_query($conn, $sql);
 
@@ -241,6 +243,16 @@ if ($coupons_query) {
                                     <i class="bi bi-eye"></i>
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-bell-fill me-1"></i> ตั้งค่าการแจ้งเตือน Line Notify (Line Notify Settings)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-12 mb-3">
+                            <label class="form-label small fw-bold text-muted">LINE Notify Token</label>
+                            <input type="text" name="line_notify_token" class="form-control" value="<?= htmlspecialchars($shop['line_notify_token'] ?? '') ?>" placeholder="ใส่ Line Notify Token ของร้านค้า เพื่อรับแจ้งเตือนเมื่อมีออเดอร์ใหม่">
+                            <div class="form-text">สามารถขอ Token ได้ที่ <a href="https://notify-bot.line.me/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">LINE Notify Portal</a> และเชิญบอทเข้ากลุ่มแชทที่ต้องการรับแจ้งเตือน</div>
                         </div>
                     </div>
 

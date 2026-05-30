@@ -3,14 +3,14 @@ session_start();
 include 'db.php';
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
-if (!isset($_GET['id'])) { die("ไม่เžบ Order ID"); }
+if (!isset($_GET['id'])) { die("ไม่พบ Order ID"); }
 $order_id = $_GET['id'];
 
 // 1. ขเน‰อมูลรเน‰านคเน‰า
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 
 // 2. ขเน‰อมูลออเดอรเนŒ
-$order = mysqli_fetch_assoc(mysqli_query($conn, "SELECT orders.*, users.email FROM orders JOIN users ON orders.user_id = users.id WHERE orders.id = '$order_id'"));
+$order = mysqli_fetch_assoc(mysqli_query($conn, "SELECT orders.*, users.email FROM orders LEFT JOIN users ON orders.user_id = users.id WHERE orders.id = '$order_id'"));
 
 // 3. รายการสินค้า
 $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = '$order_id'");
@@ -100,7 +100,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
 </head>
 <body>
     
-    <button onclick="window.print()" class="btn-print" title="สั่งเžิมเžเนŒ">๐Ÿ–จ๏ธ</button>
+    <button onclick="window.print()" class="btn-print" title="พิมพ์ฉลากจัดส่ง">🖨️</button>
 
     <div class="page">
         <div class="header">
@@ -109,14 +109,17 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
                 <div class="shop-name"><?= $shop['shop_name'] ?></div>
                 <div class="sender-info">
                     <?= nl2br($shop['address']) ?><br>
-                    <b>เน‚ทร:</b> <?= $shop['phone'] ?>
+                    <b>โทร:</b> <?= $shop['phone'] ?>
                     <?php if($shop['shop_email']) echo "<br><b>Contact:</b> {$shop['shop_email']}"; ?>
                 </div>
             </div>
-            <div style="text-align:right;">
-                <div style="font-size:14px; color:#aaa;">Order ID</div>
-                <div style="font-size:30px; font-weight:bold;">#<?= $order_id ?></div>
-                <div style="font-size:14px; margin-top:5px;"><?= date('d/m/Y H:i') ?></div>
+            <div style="text-align:right; display: flex; flex-direction: column; align-items: flex-end;">
+                <div style="margin-bottom: 5px;">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=<?= $order_id ?>" alt="QR Code" style="width: 75px; height: 75px; border: 1px solid #eee; padding: 2px;">
+                </div>
+                <div style="font-size:12px; color:#aaa;">Order ID</div>
+                <div style="font-size:24px; font-weight:bold; line-height: 1;">#<?= str_pad($order_id, 5, '0', STR_PAD_LEFT) ?></div>
+                <div style="font-size:12px; margin-top:3px;"><?= date('d/m/Y H:i', strtotime($order['order_date'] ?? 'now')) ?></div>
             </div>
         </div>
 
@@ -136,16 +139,16 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
         </div>
 
         <div class="info-section">
-            <?php if(strpos($order['payment_method'], 'COD') !== false || $order['payment_method'] == 'เก็บแ‡ินปลายทาง (COD)'): ?>
+            <?php if(strpos($order['payment_method'], 'COD') !== false || $order['payment_method'] == 'เก็บเงินปลายทาง (COD)' || $order['payment_method'] == 'เก็บแ‡ินปลายทาง (COD)'): ?>
                 <div class="cod-box">
-                    <div class="cod-title">ยอดเก็บแ‡ินปลายทาง (COD)</div>
+                    <div class="cod-title">ยอดเก็บเงินปลายทาง (COD)</div>
                     <div class="cod-price">฿<?= number_format($order['final_price'], 2) ?></div>
                 </div>
             <?php endif; ?>
 
             <?php if(!empty($order['admin_note'])): ?>
                 <div class="note-box">
-                    โš ๏ธ หมายเหตุ: <?= $order['admin_note'] ?>
+                    หมายเหตุ: <?= $order['admin_note'] ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -158,8 +161,15 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
             
             <?php while($item = mysqli_fetch_assoc($items)): ?>
                 <div class="item-row">
-                    <span><?= $item['name'] ?></span>
-                    <span style="font-weight:bold;">x<?= $item['quantity'] ?></span>
+                    <div>
+                        <span style="font-weight: 600;"><?= $item['name'] ?></span>
+                        <?php if (!empty($item['selected_option'])): ?>
+                            <div class="text-muted small mt-1" style="font-size: 13px; font-weight: normal; color: #555;">
+                                ตัวเลือก: <?= $item['selected_option'] ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <span style="font-weight:bold; font-size: 18px;">x<?= $item['quantity'] ?></span>
                 </div>
             <?php endwhile; ?>
         </div>

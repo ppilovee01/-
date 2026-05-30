@@ -1,9 +1,21 @@
 <?php
+ob_start();
 session_start();
 include 'db.php';
 include 'mail_sender.php';
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
+
+// ฟังก์ชันสำหรับขอเลขสถิติออเดอร์ในแต่ละสถานะล่าสุดแบบเรียลไทม์
+function get_stats_counts($conn) {
+    return [
+        'all' => intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders"))['count'] ?? 0),
+        'pending' => intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='pending'"))['count'] ?? 0),
+        'shipping' => intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='shipping'"))['count'] ?? 0),
+        'completed' => intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='completed'"))['count'] ?? 0),
+        'cancelled' => intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='cancelled'"))['count'] ?? 0),
+    ];
+}
 
 // --- Logic: อัปวสถานะ (Anti-F5 Fixed) ---
 if (isset($_POST['update_status'])) {
@@ -95,7 +107,16 @@ if (isset($_POST['update_status'])) {
     }
 
     send_order_email($conn, $oid);
-    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปวสถานะเรียบร้อย', 'icon'=>'success'];
+    if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
+        ob_end_clean();
+        echo json_encode([
+            'status' => 'success', 
+            'message' => 'อัปเดตสถานะเรียบร้อย',
+            'stats' => get_stats_counts($conn)
+        ]);
+        exit();
+    }
+    $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปเดตสถานะเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
 
@@ -103,6 +124,7 @@ if (isset($_POST['update_status'])) {
 if (isset($_POST['save_tracking'])) {
     $oid = $_POST['order_id'];
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
+    $carrier = mysqli_real_escape_string($conn, $_POST['shipping_carrier'] ?? 'other');
     
     // ตรวจสอบสถานะเดิมก่อนเปลี่ยนสถานะเป็น shipping
     $order_q = mysqli_query($conn, "SELECT status, user_id, points_earned FROM orders WHERE id='$oid'");
@@ -115,20 +137,37 @@ if (isset($_POST['save_tracking'])) {
         }
     }
     
-    mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', status = 'shipping' WHERE id = '$oid'");
+    mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', shipping_carrier = '$carrier', status = 'shipping' WHERE id = '$oid'");
     
     // Insert user notification for tracking number
     $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
     if ($order_data) {
         $uid = $order_data['user_id'];
         $ono = $order_data['id'];
+        $carrier_label = match($carrier) {
+            'thailandpost' => 'ไปรษณีย์ไทย',
+            'kerry', 'kex' => 'KEX Express',
+            'flash' => 'Flash Express',
+            'jnt' => 'J&T Express',
+            default => 'บริการขนส่งหลัก'
+        };
         $title = "คำสั่งซื้อ #$ono ถูกจัดส่งแล้ว";
-        $message = "คำสั่งซื้อหมายเลข #$ono ของคุณได้รับการจัดส่งแล้ว! เลขพัสดุของคุณคือ: $track";
+        $message = "คำสั่งซื้อหมายเลข #$ono ของคุณได้รับการจัดส่งแล้วโดย $carrier_label! เลขพัสดุของคุณคือ: $track";
         $url = "my_orders.php";
         mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES ('$uid', '$title', '$message', '$url', 0, 0)");
     }
 
     send_order_email($conn, $oid);
+    if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
+        ob_end_clean();
+        echo json_encode([
+            'status' => 'success', 
+            'message' => 'บันทึกเลขพัสดุเรียบร้อย',
+            'carrier' => $carrier,
+            'stats' => get_stats_counts($conn)
+        ]);
+        exit();
+    }
     $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกเลขพัสดุ', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
@@ -138,6 +177,15 @@ if (isset($_POST['save_note'])) {
     $oid = $_POST['order_id'];
     $note = mysqli_real_escape_string($conn, $_POST['admin_note']);
     mysqli_query($conn, "UPDATE orders SET admin_note = '$note' WHERE id = '$oid'");
+    if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
+        ob_end_clean();
+        echo json_encode([
+            'status' => 'success', 
+            'message' => 'บันทึกหมายเหตุเรียบร้อย',
+            'note' => $note
+        ]);
+        exit();
+    }
     $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกหมายเหตุเรียบร้อย', 'icon'=>'success'];
     header("Location: admin_orders.php"); exit();
 }
@@ -185,26 +233,128 @@ if (isset($_POST['save_note'])) {
             <h3 class="fw-bold mb-4">จัดการคำสั่งซื้อ</h3>
 
             <?php 
-            $res = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o JOIN users u ON o.user_id = u.id ORDER BY o.id DESC");
-            while ($row = mysqli_fetch_assoc($res)): 
-                $oid = $row['id']; 
-                $st = $row['status'];
+            // 1. คำนวณตัวเลขสถิติออเดอร์ (ไม่รวมเงื่อนไขการค้นหาเพื่อดูภาพรวมระบบตลอดเวลา)
+            $count_all = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders"))['count'] ?? 0;
+            $count_pending = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='pending'"))['count'] ?? 0;
+            $count_shipping = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='shipping'"))['count'] ?? 0;
+            $count_completed = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='completed'"))['count'] ?? 0;
+            $count_cancelled = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='cancelled'"))['count'] ?? 0;
+
+            // 2. ดึงค่าตัวกรองและการค้นหาจาก GET
+            $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, trim($_GET['search'])) : '';
+            $status_filter = isset($_GET['status_filter']) ? mysqli_real_escape_string($conn, trim($_GET['status_filter'])) : '';
+
+            $where_clauses = [];
+            if ($search !== '') {
+                if (is_numeric($search)) {
+                    $where_clauses[] = "(o.id = '$search' OR u.fullname LIKE '%$search%' OR o.address LIKE '%$search%')";
+                } else {
+                    $where_clauses[] = "(u.fullname LIKE '%$search%' OR o.address LIKE '%$search%')";
+                }
+            }
+            if ($status_filter !== '') {
+                $where_clauses[] = "o.status = '$status_filter'";
+            }
+
+            $where_sql = "";
+            if (count($where_clauses) > 0) {
+                $where_sql = "WHERE " . implode(" AND ", $where_clauses);
+            }
+
+            // 3. ดึงรายการออเดอร์ตามเงื่อนไขค้นหา
+            $res = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id $where_sql ORDER BY o.id DESC");
             ?>
+
+            <!-- Stats Dashboard Cards -->
+            <div class="row g-3 mb-4 row-cols-2 row-cols-sm-3 row-cols-md-5">
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 text-center h-100">
+                        <div class="text-muted small mb-1 fw-bold">📦 ทั้งหมด</div>
+                        <h4 class="fw-bold text-dark mb-0" id="stat-all"><?= number_format($count_all) ?></h4>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 text-center h-100" style="background-color: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #ffc107 !important;">
+                        <div class="text-warning small mb-1 fw-bold">⏳ รอตรวจ</div>
+                        <h4 class="fw-bold text-warning mb-0" id="stat-pending"><?= number_format($count_pending) ?></h4>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 text-center h-100" style="background-color: #f0f9ff; border: 1px solid #e0f2fe; border-left: 4px solid #0ea5e9 !important;">
+                        <div class="text-info small mb-1 fw-bold">🚚 ส่งแล้ว</div>
+                        <h4 class="fw-bold text-info mb-0" id="stat-shipping"><?= number_format($count_shipping) ?></h4>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 text-center h-100" style="background-color: #f0fdf4; border: 1px solid #dcfce7; border-left: 4px solid #16a34a !important;">
+                        <div class="text-success small mb-1 fw-bold">✅ สำเร็จ</div>
+                        <h4 class="fw-bold text-success mb-0" id="stat-completed"><?= number_format($count_completed) ?></h4>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 text-center h-100" style="background-color: #f9fafb; border: 1px solid #f3f4f6; border-left: 4px solid #9ca3af !important;">
+                        <div class="text-secondary small mb-1 fw-bold">❌ ยกเลิก</div>
+                        <h4 class="fw-bold text-secondary mb-0" id="stat-cancelled"><?= number_format($count_cancelled) ?></h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search & Filter Controls -->
+            <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+                <form method="GET" class="row g-2 align-items-center">
+                    <div class="col-md-5 col-12">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" class="form-control bg-light border-start-0" placeholder="รหัสออเดอร์, ชื่อลูกค้า, หรือที่อยู่..." value="<?= htmlspecialchars($search) ?>">
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-12">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small text-muted fw-bold text-nowrap">สถานะ:</span>
+                            <select name="status_filter" class="form-select form-select-sm bg-light" onchange="this.form.submit()">
+                                <option value="" <?= ($status_filter == '') ? 'selected' : '' ?>>ทั้งหมด</option>
+                                <option value="pending" <?= ($status_filter == 'pending') ? 'selected' : '' ?>>รอตรวจสอบ (Pending)</option>
+                                <option value="shipping" <?= ($status_filter == 'shipping') ? 'selected' : '' ?>>กำลังจัดส่ง (Shipping)</option>
+                                <option value="completed" <?= ($status_filter == 'completed') ? 'selected' : '' ?>>สำเร็จแล้ว (Completed)</option>
+                                <option value="cancelled" <?= ($status_filter == 'cancelled') ? 'selected' : '' ?>>ยกเลิกแล้ว (Cancelled)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary w-100 rounded-pill"><i class="bi bi-funnel-fill me-1"></i>กรอง</button>
+                        <?php if ($search !== '' || $status_filter !== ''): ?>
+                            <a href="admin_orders.php" class="btn btn-sm btn-outline-secondary w-100 rounded-pill"><i class="bi bi-x-circle me-1"></i>ล้าง</a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            <?php if (mysqli_num_rows($res) > 0): ?>
+                <?php 
+                while ($row = mysqli_fetch_assoc($res)): 
+                    $oid = $row['id']; 
+                    $st = $row['status'];
+                ?>
             <div class="order-card p-4">
                 <div class="row align-items-center">
                     <div class="col-12 col-md-3 border-end-md">
                         <div class="d-flex align-items-center justify-content-between mb-1">
                             <h5 class="fw-bold m-0">#<?= str_pad($oid, 5, '0', STR_PAD_LEFT) ?></h5>
-                            <a href="admin_print_label.php?id=<?= $oid ?>" target="_blank" class="btn btn-sm btn-dark rounded-circle"><i class="bi bi-printer"></i></a>
+                            <div class="d-flex gap-1">
+                                <a href="print_invoice.php?id=<?= $oid ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-circle d-flex align-items-center justify-content-center" style="width:31px; height:31px;" title="พิมพ์ใบเสร็จ"><i class="bi bi-file-earmark-text"></i></a>
+                                <a href="admin_print_label.php?id=<?= $oid ?>" target="_blank" class="btn btn-sm btn-dark rounded-circle d-flex align-items-center justify-content-center" style="width:31px; height:31px;" title="พิมพ์ใบปะหน้า"><i class="bi bi-printer"></i></a>
+                            </div>
                         </div>
                         <div class="small text-muted"><?= date('d/m/Y H:i', strtotime($row['order_date'])) ?></div>
-                        <div class="fw-bold text-primary mt-1"><?= $row['fullname'] ?></div>
+                        <div class="fw-bold text-primary mt-1"><?= htmlspecialchars($row['fullname'] ?? 'ผู้ใช้งานถูกลบ/ไม่พบข้อมูล') ?></div>
                         
-                        <?php if(!empty($row['admin_note'])): ?>
-                            <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small">
-                                <i class="bi bi-pin-angle-fill"></i> <?= $row['admin_note'] ?>
-                            </div>
-                        <?php endif; ?>
+                        <div id="note-container-<?= $oid ?>">
+                            <?php if(!empty($row['admin_note'])): ?>
+                                <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small">
+                                    <i class="bi bi-pin-angle-fill"></i> <span id="note-text-<?= $oid ?>"><?= htmlspecialchars($row['admin_note']) ?></span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                         
                         <button class="btn btn-sm btn-link text-muted p-0 mt-1 text-decoration-none" data-bs-toggle="modal" data-bs-target="#noteModal<?= $oid ?>">
                             <i class="bi bi-pencil-square"></i> Note
@@ -216,6 +366,28 @@ if (isset($_POST['save_note'])) {
                         <h4 class="fw-bold text-danger m-0">฿<?= number_format($row['final_price'], 2) ?></h4>
                         <div class="small text-muted mt-1"><?= $row['payment_method'] ?></div>
                         
+                        <?php if (intval($row['points_spent']) > 0 || intval($row['points_earned']) > 0): ?>
+                            <div class="mt-2 text-start px-2 mx-auto" style="max-width: 200px; font-size: 0.75rem; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 4px 8px;">
+                                <?php if (intval($row['points_spent']) > 0): ?>
+                                    <div class="text-muted">
+                                        🪙 ใช้แต้ม: <span class="fw-bold text-danger"><?= number_format($row['points_spent']) ?></span> (-฿<?= number_format($row['points_discount'], 2) ?>)
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (intval($row['points_earned']) > 0): ?>
+                                    <div class="text-muted">
+                                        🪙 ได้รับแต้ม: 
+                                        <?php if ($st == 'completed'): ?>
+                                            <span class="fw-bold text-success">+<?= number_format($row['points_earned']) ?></span>
+                                        <?php elseif ($st == 'cancelled'): ?>
+                                            <span class="text-secondary text-decoration-line-through">+<?= number_format($row['points_earned']) ?></span>
+                                        <?php else: ?>
+                                            <span class="fw-bold text-warning">+<?= number_format($row['points_earned']) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
                         <button class="btn btn-sm btn-outline-primary rounded-pill mt-2 px-3" data-bs-toggle="modal" data-bs-target="#detailModal<?= $oid ?>">
                             <i class="bi bi-list-ul"></i> สินค้า
                         </button>
@@ -223,17 +395,33 @@ if (isset($_POST['save_note'])) {
 
                     <div class="col-12 col-md-6 ps-md-4 pt-3 pt-md-0">
                         <div class="d-flex justify-content-between mb-3 align-items-center">
-                            <div>สถานะ: <span class="badge rounded-pill bg-secondary"><?= $st ?></span></div>
+                            <?php
+                            $badge_color = match($st) {
+                                'pending' => 'bg-warning text-dark',
+                                'shipping' => 'bg-info text-dark',
+                                'completed' => 'bg-success text-white',
+                                'cancelled' => 'bg-danger text-white',
+                                default => 'bg-secondary text-white'
+                            };
+                            $st_th = match($st) {
+                                'pending' => 'รอตรวจ',
+                                'shipping' => 'ส่งแล้ว',
+                                'completed' => 'สำเร็จ',
+                                'cancelled' => 'ยกเลิก',
+                                default => $st
+                            };
+                            ?>
+                            <div>สถานะ: <span class="badge rounded-pill <?= $badge_color ?>" id="status-badge-<?= $oid ?>"><?= $st_th ?></span></div>
                             <?php if($row['payment_slip']): ?>
                                 <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill">ดูสลิป</button>
                             <?php endif; ?>
                         </div>
 
                         <div class="bg-light p-3 rounded-3">
-                            <form method="POST" class="row g-2">
+                            <form method="POST" class="row g-2" onsubmit="event.preventDefault()">
                                 <input type="hidden" name="order_id" value="<?= $oid ?>">
-                                <div class="col-6">
-                                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <div class="<?= $st == 'cancelled' ? 'col-12' : 'col-6' ?>" id="status-col-<?= $oid ?>">
+                                    <select name="status" class="form-select form-select-sm shadow-sm" onchange="submitStatusAjax(this, '<?= $oid ?>')">
                                         <option value="pending" <?=$st=='pending'?'selected':''?>>รอตรวจ</option>
                                         <option value="shipping" <?=$st=='shipping'?'selected':''?>>ส่งแล้ว</option>
                                         <option value="completed" <?=$st=='completed'?'selected':''?>>สำเร็จ</option>
@@ -241,27 +429,78 @@ if (isset($_POST['save_note'])) {
                                     </select>
                                     <input type="hidden" name="update_status" value="1">
                                 </div>
-                                <div class="col-6">
-                                    <?php if($st != 'cancelled'): ?>
-                                        <button type="button" class="btn btn-sm btn-dark w-100" data-bs-toggle="modal" data-bs-target="#trackingModal<?= $oid ?>">
-                                            <i class="bi bi-truck"></i> เลขพัสดุเรียบร้อย
-                                        </button>
-                                    <?php endif; ?>
+                                <div class="col-6" id="tracking-btn-container-<?= $oid ?>" style="<?= $st == 'cancelled' ? 'display: none;' : '' ?>">
+                                    <button type="button" class="btn btn-sm btn-dark w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#trackingModal<?= $oid ?>">
+                                        <i class="bi bi-truck"></i> เลขพัสดุเรียบร้อย
+                                    </button>
                                 </div>
                             </form>
-                            <?php if(!empty($row['tracking_no'])): ?>
-                                <div class="mt-2 small text-center text-success fw-bold">Tracking: <?= $row['tracking_no'] ?></div>
-                            <?php endif; ?>
+                            <div id="tracking-container-<?= $oid ?>">
+                                <?php if(!empty($row['tracking_no'])): ?>
+                                    <?php
+                                    $carrier_lbl = match($row['shipping_carrier'] ?? '') {
+                                        'thailandpost' => 'ไปรษณีย์ไทย',
+                                        'kerry', 'kex' => 'KEX Express',
+                                        'flash' => 'Flash',
+                                        'jnt' => 'J&T',
+                                        default => 'อื่นๆ'
+                                    };
+                                    ?>
+                                    <div class="mt-2 small text-center text-success fw-bold">
+                                        Tracking: <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold px-2 py-1" style="font-size: 0.75rem;"><?= $carrier_lbl ?></span> <span id="track-text-val-<?= $oid ?>"><?= htmlspecialchars($row['tracking_no']) ?></span>
+                                        <i class="bi bi-copy ms-1 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($row['tracking_no']) ?>'); Toast.fire({icon:'success', title:'คัดลอกเลขพัสดุแล้ว'})" title="คัดลอกเลขพัสดุ"></i>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal fade" id="noteModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">หมายเหตุ</h6></div><form method="POST"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><textarea name="admin_note" class="form-control" rows="3"><?= $row['admin_note'] ?></textarea></div><div class="modal-footer border-0 pt-0"><button type="submit" name="save_note" class="btn btn-primary w-100 btn-sm">บันทึก</button></div></form></div></div></div>
-            <div class="modal fade" id="trackingModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title">หมายเลขพัสดุ</h6></div><form method="POST"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><input type="text" name="tracking_no" class="form-control" value="<?= $row['tracking_no'] ?>" required></div><div class="modal-footer border-0 pt-0"><button name="save_tracking" class="btn btn-success w-100 btn-sm">บันทึก</button></div></form></div></div></div>
+            <div class="modal fade" id="noteModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">หมายเหตุ</h6></div><form id="note-form-<?= $oid ?>" onsubmit="submitNoteAjax(event, '<?= $oid ?>')"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><textarea name="admin_note" class="form-control" rows="3"><?= htmlspecialchars($row['admin_note']) ?></textarea></div><div class="modal-footer border-0 pt-0"><button type="submit" class="btn btn-primary w-100 btn-sm shadow-sm">บันทึก</button></div></form></div></div></div>
+            <div class="modal fade" id="trackingModal<?= $oid ?>" tabindex="-1">
+                <div class="modal-dialog modal-sm modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header border-0 pb-0">
+                            <h6 class="modal-title fw-bold text-dark">บันทึกส่งพัสดุ #<?= $oid ?></h6>
+                        </div>
+                        <form id="tracking-form-<?= $oid ?>" onsubmit="submitTrackingAjax(event, '<?= $oid ?>')">
+                            <div class="modal-body py-3">
+                                <input type="hidden" name="order_id" value="<?= $oid ?>">
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted mb-1 fw-bold">ผู้ให้บริการขนส่ง</label>
+                                    <select name="shipping_carrier" class="form-select form-select-sm shadow-sm" required>
+                                        <option value="thailandpost" <?= ($row['shipping_carrier'] ?? '') == 'thailandpost' ? 'selected' : '' ?>>ไปรษณีย์ไทย (EMS/ลงทะเบียน)</option>
+                                        <option value="kex" <?= (($row['shipping_carrier'] ?? '') == 'kex' || ($row['shipping_carrier'] ?? '') == 'kerry') ? 'selected' : '' ?>>KEX Express</option>
+                                        <option value="flash" <?= ($row['shipping_carrier'] ?? '') == 'flash' ? 'selected' : '' ?>>Flash Express</option>
+                                        <option value="jnt" <?= ($row['shipping_carrier'] ?? '') == 'jnt' ? 'selected' : '' ?>>J&T Express</option>
+                                        <option value="other" <?= (empty($row['shipping_carrier']) || $row['shipping_carrier'] == 'other') ? 'selected' : '' ?>>อื่นๆ / ค้นหาอัตโนมัติ (17Track)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-1">
+                                    <label class="form-label small text-muted mb-1 fw-bold">หมายเลขพัสดุ (Tracking No.)</label>
+                                    <input type="text" name="tracking_no" class="form-control form-control-sm shadow-sm" value="<?= htmlspecialchars($row['tracking_no'] ?? '') ?>" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer border-0 pt-0">
+                                <button type="submit" name="save_tracking" class="btn btn-success w-100 btn-sm shadow-sm fw-bold">บันทึกจัดส่ง</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
             <div class="modal fade" id="detailModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header bg-light"><h5 class="modal-title fw-bold">รายการสินค้า #<?= $oid ?></h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-3"><?php $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id=p.id WHERE oi.order_id='$oid'"); while($i = mysqli_fetch_assoc($items)): ?><div class="d-flex justify-content-between mb-2 small"><span><?= $i['name'] ?> (x<?= $i['quantity'] ?>)</span><span class="fw-bold">฿<?= number_format($i['price'] * $i['quantity']) ?></span></div><?php endwhile; ?></div></div></div></div>
 
             <?php endwhile; ?>
+            <?php else: ?>
+                <div class="text-center py-5 bg-white rounded-4 shadow-sm my-4">
+                    <i class="bi bi-inbox display-3 text-muted opacity-25"></i>
+                    <h5 class="text-muted mt-3">ไม่พบรายการสั่งซื้อที่ค้นหา</h5>
+                    <?php if ($search !== '' || $status_filter !== ''): ?>
+                        <a href="admin_orders.php" class="btn btn-sm btn-primary rounded-pill mt-3 px-4">ดูรายการทั้งหมด</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -282,7 +521,238 @@ if (isset($_POST['save_note'])) {
 <?php unset($_SESSION['swal']); endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>function viewSlip(url){ new bootstrap.Modal(document.getElementById('slipModal')).show(); document.getElementById('slipImage').src=url; }</script>
+<script>
+function viewSlip(url){ 
+    new bootstrap.Modal(document.getElementById('slipModal')).show(); 
+    document.getElementById('slipImage').src=url; 
+}
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+});
+
+function updateDashboardStats(stats) {
+    if (!stats) return;
+    if (document.getElementById('stat-all')) document.getElementById('stat-all').innerText = Number(stats.all).toLocaleString();
+    if (document.getElementById('stat-pending')) document.getElementById('stat-pending').innerText = Number(stats.pending).toLocaleString();
+    if (document.getElementById('stat-shipping')) document.getElementById('stat-shipping').innerText = Number(stats.shipping).toLocaleString();
+    if (document.getElementById('stat-completed')) document.getElementById('stat-completed').innerText = Number(stats.completed).toLocaleString();
+    if (document.getElementById('stat-cancelled')) document.getElementById('stat-cancelled').innerText = Number(stats.cancelled).toLocaleString();
+}
+
+function submitStatusAjax(selectEl, orderId) {
+    const status = selectEl.value;
+    selectEl.disabled = true;
+    
+    const formData = new FormData();
+    formData.append('order_id', orderId);
+    formData.append('status', status);
+    formData.append('update_status', '1');
+    formData.append('ajax', '1');
+    
+    fetch('admin_orders.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        selectEl.disabled = false;
+        if (data.status === 'success') {
+            Toast.fire({
+                icon: 'success',
+                title: data.message
+            });
+            
+            const badge = document.getElementById('status-badge-' + orderId);
+            if (badge) {
+                badge.innerText = status === 'pending' ? 'รอตรวจ' : (status === 'shipping' ? 'ส่งแล้ว' : (status === 'completed' ? 'สำเร็จ' : 'ยกเลิก'));
+                badge.className = 'badge rounded-pill';
+                
+                if (status === 'pending') badge.classList.add('bg-warning', 'text-dark');
+                else if (status === 'shipping') badge.classList.add('bg-info', 'text-dark');
+                else if (status === 'completed') badge.classList.add('bg-success', 'text-white');
+                else if (status === 'cancelled') badge.classList.add('bg-danger', 'text-white');
+                else badge.classList.add('bg-secondary', 'text-white');
+            }
+            
+            updateDashboardStats(data.stats);
+            
+            const statusCol = document.getElementById('status-col-' + orderId);
+            const trackingBtnCont = document.getElementById('tracking-btn-container-' + orderId);
+            if (trackingBtnCont) {
+                if (status === 'cancelled') {
+                    trackingBtnCont.style.display = 'none';
+                    if (statusCol) statusCol.className = 'col-12';
+                } else {
+                    trackingBtnCont.style.display = 'block';
+                    if (statusCol) statusCol.className = 'col-6';
+                }
+            }
+        } else {
+            Toast.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาดในการอัปเดต'
+            });
+        }
+    })
+    .catch(err => {
+        selectEl.disabled = false;
+        console.error(err);
+        Toast.fire({
+            icon: 'error',
+            title: 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว'
+        });
+    });
+}
+
+function submitNoteAjax(event, orderId) {
+    event.preventDefault();
+    const form = event.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(form);
+    formData.append('save_note', '1');
+    formData.append('ajax', '1');
+    
+    fetch('admin_orders.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        submitBtn.disabled = false;
+        
+        const modalEl = document.getElementById('noteModal' + orderId);
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+        
+        if (data.status === 'success') {
+            Toast.fire({
+                icon: 'success',
+                title: data.message
+            });
+            
+            const container = document.getElementById('note-container-' + orderId);
+            if (container) {
+                if (data.note.trim() !== '') {
+                    container.innerHTML = `
+                        <div class="alert alert-warning py-1 px-2 mt-2 mb-0 small">
+                            <i class="bi bi-pin-angle-fill"></i> <span id="note-text-${orderId}">${escapeHtml(data.note)}</span>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '';
+                }
+            }
+        } else {
+            Toast.fire({
+                icon: 'error',
+                title: 'ไม่สามารถบันทึกหมายเหตุได้'
+            });
+        }
+    })
+    .catch(err => {
+        submitBtn.disabled = false;
+        console.error(err);
+        Toast.fire({
+            icon: 'error',
+            title: 'การเชื่อมต่อล้มเหลว'
+        });
+    });
+}
+
+function submitTrackingAjax(event, orderId) {
+    event.preventDefault();
+    const form = event.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(form);
+    formData.append('save_tracking', '1');
+    formData.append('ajax', '1');
+    
+    fetch('admin_orders.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        submitBtn.disabled = false;
+        
+        const modalEl = document.getElementById('trackingModal' + orderId);
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+        
+        if (data.status === 'success') {
+            Toast.fire({
+                icon: 'success',
+                title: data.message
+            });
+            
+            const trackingNo = form.querySelector('input[name="tracking_no"]').value;
+            const carrierSelect = form.querySelector('select[name="shipping_carrier"]');
+            const carrierVal = carrierSelect ? carrierSelect.value : 'other';
+            const carrierLabel = carrierVal === 'thailandpost' ? 'ไปรษณีย์ไทย' : ((carrierVal === 'kerry' || carrierVal === 'kex') ? 'KEX Express' : (carrierVal === 'flash' ? 'Flash' : (carrierVal === 'jnt' ? 'J&T' : 'อื่นๆ')));
+            
+            const container = document.getElementById('tracking-container-' + orderId);
+            if (container && trackingNo.trim() !== '') {
+                container.innerHTML = `
+                    <div class="mt-2 small text-center text-success fw-bold">
+                        Tracking: <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold px-2 py-1" style="font-size: 0.75rem;">${carrierLabel}</span> <span id="track-text-val-${orderId}">${escapeHtml(trackingNo)}</span>
+                        <i class="bi bi-copy ms-1 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('${escapeHtml(trackingNo)}'); Toast.fire({icon:'success', title:'คัดลอกเลขพัสดุแล้ว'})" title="คัดลอกเลขพัสดุ"></i>
+                    </div>
+                `;
+            }
+            
+            const selectEl = document.getElementById('status-badge-' + orderId).closest('.order-card').querySelector('select[name="status"]');
+            if (selectEl) {
+                selectEl.value = 'shipping';
+            }
+            
+            const badge = document.getElementById('status-badge-' + orderId);
+            if (badge) {
+                badge.innerText = 'ส่งแล้ว';
+                badge.className = 'badge rounded-pill bg-info text-dark';
+            }
+            
+            updateDashboardStats(data.stats);
+        } else {
+            Toast.fire({
+                icon: 'error',
+                title: 'ไม่สามารถบันทึกเลขพัสดุได้'
+            });
+        }
+    })
+    .catch(err => {
+        submitBtn.disabled = false;
+        console.error(err);
+        Toast.fire({
+            icon: 'error',
+            title: 'การเชื่อมต่อล้มเหลว'
+        });
+    });
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+</script>
 </body>
 </html>
 

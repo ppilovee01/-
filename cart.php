@@ -7,6 +7,7 @@ $discord_webhook_url = "https://discord.com/api/webhooks/1473327005234761760/yOg
 
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
 $user_id = $_SESSION['user_id'];
+$shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 
 // --- 2. ใช้คูปอง ---
 if (isset($_POST['apply_coupon'])) {
@@ -135,13 +136,16 @@ if (isset($_POST['confirm_order'])) {
                     $shipping_fee = ($total >= $shipping_free_threshold || $total == 0 || $is_free_shipping_coupon) ? 0 : $shipping_fee_fixed;
                     $base_final = max(0, $total - $disc + $shipping_fee);
                     
-                    $points_spent = min($db_points, intval($base_final));
-                    $points_discount = floatval($points_spent);
+                    $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
+                    $points_needed = ceil($base_final / $points_spend_rate);
+                    $points_spent = min($db_points, $points_needed);
+                    $points_discount = floatval($points_spent * $points_spend_rate);
                     $final = max(0, $base_final - $points_discount);
                 }
 
                 // คำนวณแต้มที่จะได้รับเมื่อจัดส่งสำเร็จ
-                $points_earned = floor($final / 100);
+                $points_earn_rate = intval($shop['points_earn_rate'] ?? 100);
+                $points_earned = floor($final / $points_earn_rate);
 
                 // ทำการหักแต้มสะสมออกจากโปรไฟล์ผู้ใช้
                 if ($points_spent > 0) {
@@ -267,6 +271,14 @@ if (isset($_POST['confirm_order'])) {
                         curl_setopt($ch, CURLOPT_TIMEOUT, 2); // หมดเวลารอข้อมูลใน 2 วิ
                         curl_exec($ch); curl_close($ch);
                     }
+
+                    // ส่งแจ้งเตือนผ่าน Line Notify ไปยังแอดมิน
+                    $line_msg = "\n💰 มีคำสั่งซื้อใหม่! (#" . str_pad($order_id, 5, '0', STR_PAD_LEFT) . ")\n"
+                              . "👤 ลูกค้า: " . $a['recipient_name'] . " (" . $a['phone'] . ")\n"
+                              . "📦 สินค้าที่สั่งซื้อ:\n" . $discord_items
+                              . "💵 ยอดสุทธิ: ฿" . number_format($final, 2) . "\n"
+                              . "💳 ชำระผ่าน: " . $pm['name'];
+                    sendLineNotify($conn, $line_msg);
 
                     // Insert admin notification for new order
                     $cust_name = mysqli_real_escape_string($conn, $a['recipient_name']);
@@ -557,7 +569,10 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                     <?= $shipping_fee == 0 ? 'ส่งฟรี' : '฿' . number_format($shipping_fee, 2) ?>
                                 </span>
                             </div>
-                            <div class="d-none justify-content-between small mb-2 text-success" id="points_applied_row"><span>ส่วนลดจากแต้ม</span><span>-฿<span id="points_discount_val">0.00</span></span></div>
+                            <div class="d-none justify-content-between small mb-2 text-success" id="points_applied_row">
+                                 <span>ส่วนลดจากแต้ม (ใช้ <span id="points_spent_val">0</span> แต้ม)</span>
+                                 <span>-฿<span id="points_discount_val">0.00</span></span>
+                             </div>
                             <hr class="my-2 opacity-25">
                             <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span>สุทธิ</span><span style="color:#AEE2FF">฿<span id="final_total"><?=number_format($final,2)?></span></span></div>
 
@@ -615,6 +630,9 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
 <?php unset($_SESSION['swal']); endif; ?>
 
 <script>
+window.pointsSpendRate = <?= $points_spend_rate ?>;
+window.userPointsAvailable = <?= $user_points ?>;
+
 function updateFreeShippingProgressBar(subtotal, isFreeCoupon) {
     const widget = document.getElementById('free-shipping-widget-wrapper');
     const fill = document.getElementById('free-shipping-bar-fill');
@@ -959,7 +977,13 @@ function recalculateCheckoutSummary() {
 
     if (pointsToggle && pointsToggle.checked) {
         const maxPoints = window.userPointsAvailable || 0;
-        pointsDiscount = Math.min(maxPoints, baseFinalPrice);
+        const pointsSpendRate = window.pointsSpendRate || 1;
+        const pointsNeeded = Math.ceil(baseFinalPrice / pointsSpendRate);
+        const pointsSpent = Math.min(maxPoints, pointsNeeded);
+        pointsDiscount = pointsSpent * pointsSpendRate;
+        
+        const pointsSpentValEl = document.getElementById('points_spent_val');
+        if (pointsSpentValEl) pointsSpentValEl.innerText = pointsSpent;
         
         document.getElementById('points_discount_val').innerText = pointsDiscount.toFixed(2);
         document.getElementById('points_applied_row').classList.remove('d-none');

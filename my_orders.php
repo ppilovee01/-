@@ -63,6 +63,13 @@ if (isset($_GET['cancel_my_order'])) {
     $check = mysqli_query($conn, "SELECT id FROM orders WHERE id='$oid' AND user_id='$user_id' AND status='pending'");
     
     if (mysqli_num_rows($check) > 0) {
+        // คืนแต้มสะสม
+        $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT points_spent FROM orders WHERE id='$oid' AND user_id='$user_id'"));
+        $points_spent = isset($order_data['points_spent']) ? intval($order_data['points_spent']) : 0;
+        if ($points_spent > 0) {
+            mysqli_query($conn, "UPDATE users SET points = points + $points_spent WHERE id='$user_id'");
+        }
+
         // คืนสต็อก
         $items = mysqli_query($conn, "SELECT product_id, quantity FROM order_items WHERE order_id='$oid'");
         while ($item = mysqli_fetch_assoc($items)) {
@@ -105,12 +112,13 @@ $extra_css = "
 
     /* Timeline */
     .step-progress { display: flex; justify-content: space-between; position: relative; margin: 30px 0; padding: 0 10px; }
-    .step-progress::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 3px; background: #e5e7eb; z-index: 1; }
+    .step-progress::before { content: ''; position: absolute; top: 14px; left: 30px; right: 30px; height: 4px; background: #e5e7eb; z-index: 1; border-radius: 2px; }
+    .step-progress-line { position: absolute; top: 14px; left: 30px; height: 4px; background: #AEE2FF; z-index: 1; transition: width 0.5s ease; border-radius: 2px; }
     .step-item { position: relative; z-index: 2; text-align: center; width: 25%; }
-    .step-circle { width: 32px; height: 32px; background: #fff; border: 3px solid #e5e7eb; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: transparent; font-size: 14px; transition: 0.3s; }
-    .step-item.active .step-circle { background: var(--blue-hover); border-color: var(--blue-hover); color: white; box-shadow: 0 0 0 4px rgba(174,226,255,0.2); }
+    .step-circle { width: 32px; height: 32px; background: #fff; border: 3px solid #e5e7eb; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 14px; transition: 0.3s; position: relative; z-index: 3; }
+    .step-item.active .step-circle { background: #AEE2FF; border-color: #AEE2FF; color: white; box-shadow: 0 0 0 4px rgba(174,226,255,0.2); }
     .step-text { font-size: 0.8rem; color: #9ca3af; font-weight: 500; }
-    .step-item.active .step-text { color: var(--blue-hover); font-weight: 700; }
+    .step-item.active .step-text { color: #555; font-weight: 700; }
     
     /* Product List */
     .product-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f9f9f9; }
@@ -193,19 +201,51 @@ date_default_timezone_set('Asia/Bangkok');
 
                 <div class="p-3">
                     <?php if($status != 'cancelled'): ?>
+                        <?php 
+                        $progress_width = match($status) {
+                            'pending' => '0%',
+                            'approved' => '33%',
+                            'shipping' => '66%',
+                            'completed' => '100%',
+                            default => '0%'
+                        };
+                        ?>
                         <div class="step-progress">
+                            <div class="step-progress-line" style="width: <?= $progress_width ?>;"></div>
                             <div class="step-item <?= $s1 ?>"><div class="step-circle"><i class="bi bi-cart-check"></i></div><div class="step-text">สั่งซื้อ</div></div>
                             <div class="step-item <?= $s2 ?>"><div class="step-circle"><i class="bi bi-box-seam"></i></div><div class="step-text">เตรียมของ</div></div>
                             <div class="step-item <?= $s3 ?>"><div class="step-circle"><i class="bi bi-truck"></i></div><div class="step-text">ขนส่ง</div></div>
                             <div class="step-item <?= $s4 ?>"><div class="step-circle"><i class="bi bi-check-circle"></i></div><div class="step-text">สำเร็จ</div></div>
                         </div>
-
+ 
                         <?php if(($status == 'shipping' || $status == 'completed') && !empty($row['tracking_no'])): ?>
+                            <?php
+                            $carrier_code = $row['shipping_carrier'] ?? 'other';
+                            $carrier_label = match($carrier_code) {
+                                'thailandpost' => 'ไปรษณีย์ไทย',
+                                'kerry', 'kex' => 'KEX Express',
+                                'flash' => 'Flash Express',
+                                'jnt' => 'J&T Express',
+                                default => 'บริการขนส่งหลัก'
+                            };
+                            $track_url = match($carrier_code) {
+                                'thailandpost' => "https://track.thailandpost.co.th/?trackNumber=" . htmlspecialchars($row['tracking_no']),
+                                'kerry', 'kex' => "https://th.kex-express.com/th/track/?track=" . htmlspecialchars($row['tracking_no']),
+                                'flash' => "https://www.flashexpress.co.th/tracking/?se=" . htmlspecialchars($row['tracking_no']),
+                                'jnt' => "https://www.jtexpress.co.th/index/query/gzquery.html?bills=" . htmlspecialchars($row['tracking_no']),
+                                default => "https://t.17track.net/th#nums=" . htmlspecialchars($row['tracking_no'])
+                            };
+                            ?>
                             <div class="tracking-box">
-                                <div class="small text-muted mb-1">เลขพัสดุ (Tracking)</div>
+                                <div class="small text-muted mb-1">เลขพัสดุ (Tracking) - <b><?= $carrier_label ?></b></div>
                                 <div class="tracking-number">
-                                    <?= $row['tracking_no'] ?> 
-                                    <i class="bi bi-copy ms-2 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('<?= $row['tracking_no'] ?>'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'คัดลอกแล้ว', showConfirmButton:false, timer:1000})"></i>
+                                    <?= htmlspecialchars($row['tracking_no']) ?> 
+                                    <i class="bi bi-copy ms-2 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($row['tracking_no']) ?>'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'คัดลอกเลขพัสดุแล้ว', showConfirmButton:false, timer:1000})"></i>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="<?= $track_url ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 font-size-xs" style="font-size: 0.75rem; border-color: #AEE2FF; color: #444;">
+                                        <i class="bi bi-search"></i> ติดตามสถานะพัสดุด่วน (<?= $carrier_label ?>)
+                                    </a>
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -255,18 +295,46 @@ date_default_timezone_set('Asia/Bangkok');
                         <?php endwhile; ?>
                     </div>
 
+                    <?php if (intval($row['points_spent']) > 0 || intval($row['points_earned']) > 0): ?>
+                        <div class="mb-3 p-2 bg-light rounded-3 small">
+                            <?php if (intval($row['points_spent']) > 0): ?>
+                                <div class="text-muted d-flex justify-content-between mb-1">
+                                    <span>🪙 ใช้แต้มแลกส่วนลด:</span>
+                                    <span class="fw-bold text-danger">-<?= number_format($row['points_spent']) ?> แต้ม (ลด ฿<?= number_format($row['points_discount'], 2) ?>)</span>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (intval($row['points_earned']) > 0): ?>
+                                <div class="text-muted d-flex justify-content-between">
+                                    <span>🪙 แต้มที่จะได้รับ:</span>
+                                    <?php if ($status == 'completed'): ?>
+                                        <span class="fw-bold text-success">+<?= number_format($row['points_earned']) ?> แต้ม (ได้รับแล้ว)</span>
+                                    <?php elseif ($status == 'cancelled'): ?>
+                                        <span class="text-secondary text-decoration-line-through">+<?= number_format($row['points_earned']) ?> แต้ม (ยกเลิกแล้ว)</span>
+                                    <?php else: ?>
+                                        <span class="fw-bold text-warning">+<?= number_format($row['points_earned']) ?> แต้ม (ได้รับเมื่อส่งสำเร็จ)</span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="bg-light rounded-3 p-3 mb-3 d-flex justify-content-between align-items-center">
                         <span class="text-muted small">ยอดสุทธิ</span>
                         <span class="fw-bold fs-5 text-blue" style="color:var(--blue-dark)">฿<?= number_format($row['final_price'] > 0 ? $row['final_price'] : $row['total_price'], 2) ?></span>
                     </div>
 
                     <div class="text-end">
+                        <a href="print_invoice.php?id=<?= $row['id'] ?>" target="_blank" class="btn-action btn-view-slip me-2 text-decoration-none">
+                            <i class="bi bi-printer"></i> ใบเสร็จ
+                        </a>
+
                         <?php if(in_array($status, ['approved', 'shipping', 'completed'])): ?>
                             <span onclick='showTrackingModal(<?= json_encode([
                                 "id" => str_pad($row["id"], 5, "0", STR_PAD_LEFT),
                                 "order_date" => $row["order_date"],
                                 "status" => $status,
-                                "tracking_no" => $row["tracking_no"] ?? ""
+                                "tracking_no" => $row["tracking_no"] ?? "",
+                                "shipping_carrier" => $row["shipping_carrier"] ?? "other"
                             ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' class="btn-action btn-track me-2"><i class="bi bi-geo-alt-fill"></i> ติดตามพัสดุ</span>
                         <?php endif; ?>
 
@@ -303,9 +371,12 @@ date_default_timezone_set('Asia/Bangkok');
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body py-4">
-                <div id="track-no-box" class="bg-light rounded-3 p-3 mb-4 d-none">
-                    <span class="small text-muted d-block fw-bold">เลขพัสดุ (Tracking Number)</span>
-                    <span class="fw-bold fs-5 text-blue" id="track-no-val"></span>
+                <div id="track-no-box" class="bg-light rounded-3 p-3 mb-4 d-none text-center">
+                    <span class="small text-muted d-block fw-bold text-start">เลขพัสดุ (Tracking Number)</span>
+                    <span class="fw-bold fs-5 text-blue d-block my-1" id="track-no-val"></span>
+                    <a id="track-link-btn" href="" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 mt-2 text-white" style="background-color:#AEE2FF; border-color:#AEE2FF; color:#444 !important; font-size: 0.8rem; font-weight: 500;">
+                        <i class="bi bi-box-seam"></i> ติดตามพัสดุผ่านระบบ 17Track
+                    </a>
                 </div>
                 
                 <div class="tracking-timeline">
@@ -409,10 +480,31 @@ date_default_timezone_set('Asia/Bangkok');
         document.getElementById('track-order-id').innerText = orderInfo.id;
         const trackNoBox = document.getElementById('track-no-box');
         const trackNoVal = document.getElementById('track-no-val');
+        const trackLinkBtn = document.getElementById('track-link-btn');
         
         if (orderInfo.tracking_no && orderInfo.tracking_no.trim() !== '') {
-            trackNoVal.innerHTML = orderInfo.tracking_no + ` <i class="bi bi-copy ms-2 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('${orderInfo.tracking_no}'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'คัดลอกแล้ว', showConfirmButton:false, timer:1000})"></i>`;
+            trackNoVal.innerHTML = orderInfo.tracking_no + ` <i class="bi bi-copy ms-2 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('${orderInfo.tracking_no}'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'คัดลอกเลขพัสดุแล้ว', showConfirmButton:false, timer:1000})"></i>`;
             trackNoBox.classList.remove('d-none');
+            if (trackLinkBtn) {
+                const carrier = orderInfo.shipping_carrier || 'other';
+                let url = `https://t.17track.net/th#nums=${orderInfo.tracking_no}`;
+                let label = 'ติดตามพัสดุผ่านระบบ 17Track';
+                if (carrier === 'thailandpost') {
+                    url = `https://track.thailandpost.co.th/?trackNumber=${orderInfo.tracking_no}`;
+                    label = 'ติดตามพัสดุผ่าน ไปรษณีย์ไทย';
+                } else if (carrier === 'kerry' || carrier === 'kex') {
+                    url = `https://th.kex-express.com/th/track/?track=${orderInfo.tracking_no}`;
+                    label = 'ติดตามพัสดุผ่าน KEX Express';
+                } else if (carrier === 'flash') {
+                    url = `https://www.flashexpress.co.th/tracking/?se=${orderInfo.tracking_no}`;
+                    label = 'ติดตามพัสดุผ่าน Flash Express';
+                } else if (carrier === 'jnt') {
+                    url = `https://www.jtexpress.co.th/index/query/gzquery.html?bills=${orderInfo.tracking_no}`;
+                    label = 'ติดตามพัสดุผ่าน J&T Express';
+                }
+                trackLinkBtn.href = url;
+                trackLinkBtn.innerHTML = `<i class="bi bi-box-seam"></i> ${label}`;
+            }
         } else {
             trackNoBox.classList.add('d-none');
         }

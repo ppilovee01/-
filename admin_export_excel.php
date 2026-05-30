@@ -47,7 +47,7 @@ $sql = "SELECT o.*, u.fullname,
         GROUP_CONCAT(CONCAT(p.name, ' (x', oi.quantity, ')') SEPARATOR ', ') as items,
         (SELECT SUM(quantity * import_cost) FROM order_items WHERE order_id = o.id) as total_import_cost
         FROM orders o
-        JOIN users u ON o.user_id = u.id
+        LEFT JOIN users u ON o.user_id = u.id
         LEFT JOIN order_items oi ON o.id = oi.order_id
         LEFT JOIN products p ON oi.product_id = p.id
         $where_sql
@@ -136,7 +136,7 @@ xmlns="http://www.w3.org/TR/REC-html40">
             <tr>
                 <td style="text-align:center;"><?= $row['id'] ?></td>
                 <td style="text-align:center;"><?= date('d/m/Y H:i', strtotime($row['order_date'])) ?></td>
-                <td><?= htmlspecialchars($row['fullname']) ?></td>
+                <td><?= htmlspecialchars($row['fullname'] ?? 'ผู้ใช้ถูกลบ') ?></td>
                 <td><?= htmlspecialchars($row['items']) ?></td>
                 <td style="text-align:right;"><?= number_format($row['total_price'], 2) ?></td>
                 <td style="text-align:right; color:red;"><?= number_format($row['discount_amount'], 2) ?></td>
