@@ -518,10 +518,10 @@ if (!empty($active_flash_sales)):
                             <?php endif; ?>
                         </div>
                         <?php if($is_out): ?>
-                            <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2" disabled>สินค้าหมดแล้ว</button>
+                            <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2 position-relative" style="z-index:2;" disabled>สินค้าหมดแล้ว</button>
                         <?php else: ?>
-                            <button type="button" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2" style="z-index:2;" onclick="event.preventDefault(); event.stopPropagation(); quickAddToCart(<?= $p['id'] ?>, '<?= htmlspecialchars(addslashes($p['options'] ?? ''), ENT_QUOTES) ?>', this)">
-                                <i class="bi bi-cart-plus"></i> <span class="d-none d-lg-inline"><?= !empty($p['options']) ? 'เลือกตัวเลือก' : 'เพิ่มลงตะกร้า' ?></span><span class="d-inline d-md-none"><?= !empty($p['options']) ? 'เลือก' : 'หยิบใส่' ?></span>
+                            <button type="button" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2 btn-quick-add" style="z-index:2;" data-pid="<?= $p['id'] ?>" data-options="<?= htmlspecialchars($p['options'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <i class="bi bi-cart-plus"></i> <span class="d-none d-md-inline"><?= !empty($p['options']) ? 'เลือกตัวเลือก' : 'เพิ่มลงตะกร้า' ?></span><span class="d-inline d-md-none"><?= !empty($p['options']) ? 'เลือก' : 'หยิบใส่' ?></span>
                             </button>
                         <?php endif; ?>
                     </div>
@@ -775,6 +775,18 @@ endif;
     // ==========================================
     let _quickAddProductId = null;
     let _quickAddBtn = null;
+    let _quickOptionModalInstance = null;
+
+    // Use event delegation instead of inline onclick — safer and no escaping issues
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-quick-add');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const pid = parseInt(btn.dataset.pid);
+        const opts = btn.dataset.options || '';
+        quickAddToCart(pid, opts, btn);
+    });
 
     function quickAddToCart(productId, optionsStr, btn) {
         _quickAddProductId = productId;
@@ -793,27 +805,38 @@ endif;
         const groups = optionsStr.split('|');
         groups.forEach((group, gi) => {
             const parts = group.split(':');
-            if (parts.length !== 2) return;
+            if (parts.length < 2) return;
             const optName = parts[0].trim();
-            const values = parts[1].split(',');
+            const values = parts.slice(1).join(':').split(',');
 
             let html = '<div class="quick-opt-group">';
-            html += '<span class="quick-opt-label">' + optName + '</span>';
+            html += '<span class="quick-opt-label">' + escapeHtml(optName) + '</span>';
             html += '<div class="d-flex flex-wrap">';
             values.forEach((val, vi) => {
                 val = val.trim();
+                if (!val) return;
                 const uid = 'qopt_' + gi + '_' + vi;
                 html += '<span class="quick-opt-btn">';
-                html += '<input type="radio" name="qopt_' + optName + '" id="' + uid + '" value="' + val + '" data-optname="' + optName + '" required>';
-                html += '<label for="' + uid + '">' + val + '</label>';
+                html += '<input type="radio" name="qopt_' + gi + '" id="' + uid + '" value="' + escapeHtml(val) + '" data-optname="' + escapeHtml(optName) + '" required>';
+                html += '<label for="' + uid + '">' + escapeHtml(val) + '</label>';
                 html += '</span>';
             });
             html += '</div></div>';
             body.innerHTML += html;
         });
 
-        const modal = new bootstrap.Modal(document.getElementById('quickOptionModal'));
-        modal.show();
+        // Reuse existing modal instance to prevent stacking
+        const modalEl = document.getElementById('quickOptionModal');
+        if (!_quickOptionModalInstance) {
+            _quickOptionModalInstance = new bootstrap.Modal(modalEl);
+        }
+        _quickOptionModalInstance.show();
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     function submitQuickOption() {
