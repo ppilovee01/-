@@ -49,7 +49,7 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เนเเน‰เน„ขหน้าเกี่ยวกับเรา | Admin</title>
+    <title>จัดการหน้า "เกี่ยวกับเรา" | Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -72,38 +72,38 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
         </div>
 
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">๐Ÿ“ เนเเน‰เน„ขหน้า "เกี่ยวกับเรา"</h2>
+            <h2 class="fw-bold mb-4">จัดการหน้า "เกี่ยวกับเรา"</h2>
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <form method="POST" enctype="multipart/form-data">
                     <div class="row">
                         <div class="col-md-4 mb-4 text-center">
-                            <label class="form-label fw-bold d-block">รูปภาเžปัจจุบัน</label>
+                            <label class="form-label fw-bold d-block">รูปภาพ</label>
                             <?php if(!empty($data['image'])): ?>
                                 <img src="<?= $data['image'] ?>" class="img-fluid rounded shadow-sm mb-3" style="max-height: 300px;">
                             <?php else: ?>
-                                <div class="bg-light rounded p-5 text-muted border border-dashed mb-3">ไม่มีรูปภาเž</div>
+                                <div class="bg-light rounded p-5 text-muted border border-dashed mb-3">ไม่มีรูปภาพ</div>
                             <?php endif; ?>
                             <label class="btn btn-outline-primary w-100">
-                                <i class="bi bi-upload me-1"></i> เปลี่ยนรูปภาเž
+                                <i class="bi bi-upload me-1"></i> เปลี่ยนรูปภาพ
                                 <input type="file" name="image" class="d-none" accept="image/*" onchange="previewImage(this)">
                             </label>
                         </div>
 
                         <div class="col-md-8">
                             <div class="mb-3">
-                                <label class="form-label fw-bold">หัวขเน‰อ (Title)</label>
+                                <label class="form-label fw-bold">หัวข้อ (Title)</label>
                                 <input type="text" name="title" class="form-control form-control-lg" value="<?= $data['title'] ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold">รายละเอียด (Content)</label>
                                 <textarea name="description" class="form-control" rows="10" required><?= $data['description'] ?></textarea>
-                                <div class="form-text">สามารถเวเน‰นบรรทัดได้ตามปเติ</div>
+                                <div class="form-text">สามารถเว้นบรรทัดได้ตามปกติ</div>
                             </div>
 
                             <div class="text-end">
                                 <button type="submit" name="save_about" class="btn btn-dark rounded-pill px-5 py-2 fw-bold">
-                                    <i class="bi bi-save me-2"></i> บันทึกการเปลี่ยนเนปลง
+                                    <i class="bi bi-save me-2"></i> บันทึกการเปลี่ยนแปลง
                                 </button>
                             </div>
                         </div>
