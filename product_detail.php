@@ -72,6 +72,7 @@ if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
     
     if(mysqli_query($conn, $sql_review)) {
          $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
+         log_admin_action($conn, 'เขียนรีวิว', "ลูกค้าเขียนรีวิวให้คะแนนสินค้า ID #$id คะแนน: $rating ดาว (เขียนรีวิวจากหน้าสินค้า)", $uid, $_SESSION['fullname']);
     } else {
          $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
     }

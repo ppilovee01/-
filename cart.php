@@ -287,6 +287,12 @@ if (isset($_POST['confirm_order'])) {
                     $url = "admin_orders.php";
                     mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$title', '$message', '$url', 0, 1)");
 
+                    // บันทึกกิจกรรมการสั่งซื้อและการหักแต้มสะสม
+                    log_admin_action($conn, 'สั่งซื้อสินค้า', "ลูกค้าสั่งซื้อสินค้าสำเร็จ ใบสั่งซื้อ #$order_id ยอดชำระสุทธิ: ฿" . number_format($final, 2) . ($coupon ? " (ใช้คูปอง: $coupon)" : "") . ($points_spent > 0 ? " (ใช้แต้มลด: $points_spent แต้ม)" : ""), $user_id, $_SESSION['fullname']);
+                    if ($points_spent > 0) {
+                        mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '-$points_spent', 'ใช้คะแนนแลกส่วนลดในออเดอร์ #$order_id')");
+                    }
+
                     unset($_SESSION['cart']); unset($_SESSION['coupon']);
                     $_SESSION['swal'] = [
                         'title' => 'สั่งซื้อสำเร็จ!',

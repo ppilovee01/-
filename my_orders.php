@@ -47,6 +47,7 @@ if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
         $sql_review = "INSERT INTO product_reviews (product_id, user_id, rating, comment, image) VALUES ('$pid', '$uid', '$rating', '$comment', $review_image_val)";
         if(mysqli_query($conn, $sql_review)) {
              $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
+             log_admin_action($conn, 'เขียนรีวิว', "ลูกค้าเขียนรีวิวให้คะแนนสินค้า ID #$pid คะแนน: $rating ดาว (เขียนรีวิวจากหน้าประวัติสั่งซื้อ)", $uid, $_SESSION['fullname']);
         } else {
              $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
         }
@@ -79,6 +80,10 @@ if (isset($_GET['cancel_my_order'])) {
         // เปลี่ยนสถานะ
         if(mysqli_query($conn, "UPDATE orders SET status = 'cancelled' WHERE id='$oid'")){
             $action_status = "success";
+            log_admin_action($conn, 'ยกเลิกออเดอร์', "ลูกค้ายกเลิกคำสั่งซื้อ #$oid ด้วยตนเอง", $user_id, $_SESSION['fullname']);
+            if ($points_spent > 0) {
+                mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '$points_spent', 'ได้รับคืนคะแนนสะสมจากการยกเลิกออเดอร์ #$oid')");
+            }
         }
     } else {
         $action_status = "error";

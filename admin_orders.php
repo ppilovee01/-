@@ -36,6 +36,7 @@ if (isset($_POST['update_status'])) {
         if ($status == 'completed' && $old_status != 'completed') {
             if ($points_earned > 0) {
                 mysqli_query($conn, "UPDATE users SET points = points + $points_earned WHERE id='$user_id'");
+                mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '$points_earned', 'ได้รับคะแนนสะสมจากคำสั่งซื้อสำเร็จ #$oid')");
             }
         }
         
@@ -43,6 +44,7 @@ if (isset($_POST['update_status'])) {
         if ($old_status == 'completed' && $status != 'completed') {
             if ($points_earned > 0) {
                 mysqli_query($conn, "UPDATE users SET points = GREATEST(0, points - $points_earned) WHERE id='$user_id'");
+                mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '-$points_earned', 'คะแนนถูกหักคืนเนื่องจากสถานะออเดอร์ #$oid ถูกปรับเปลี่ยนจากสำเร็จเป็นสถานะอื่น')");
             }
         }
 
@@ -51,6 +53,7 @@ if (isset($_POST['update_status'])) {
             // คืนแต้มสะสมที่เคยใช้ไป
             if ($points_spent > 0) {
                 mysqli_query($conn, "UPDATE users SET points = points + $points_spent WHERE id='$user_id'");
+                mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '$points_spent', 'ได้รับคืนคะแนนสะสมจากการยกเลิกคำสั่งซื้อ #$oid')");
             }
             
             $items = mysqli_query($conn, "SELECT product_id, quantity FROM order_items WHERE order_id='$oid'");
@@ -88,6 +91,7 @@ if (isset($_POST['update_status'])) {
         }
     }
     mysqli_query($conn, "UPDATE orders SET status = '$status' WHERE id = '$oid'");
+    log_admin_action($conn, 'อัปเดตสถานะออเดอร์', "เปลี่ยนสถานะออเดอร์ #$oid เป็น $status");
     
     // Insert user notification
     $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
@@ -134,10 +138,12 @@ if (isset($_POST['save_tracking'])) {
         $user_id = $old_order['user_id'];
         if ($points_earned > 0) {
             mysqli_query($conn, "UPDATE users SET points = GREATEST(0, points - $points_earned) WHERE id='$user_id'");
+            mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '-$points_earned', 'คะแนนถูกหักคืนเนื่องจากสถานะออเดอร์ #$oid ถูกปรับเปลี่ยนจากสำเร็จเป็นกำลังจัดส่ง')");
         }
     }
     
     mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', shipping_carrier = '$carrier', status = 'shipping' WHERE id = '$oid'");
+    log_admin_action($conn, 'บันทึกเลขพัสดุ', "บันทึกเลขพัสดุ $track ขนส่ง $carrier สำหรับออเดอร์ #$oid");
     
     // Insert user notification for tracking number
     $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
@@ -177,6 +183,7 @@ if (isset($_POST['save_note'])) {
     $oid = $_POST['order_id'];
     $note = mysqli_real_escape_string($conn, $_POST['admin_note']);
     mysqli_query($conn, "UPDATE orders SET admin_note = '$note' WHERE id = '$oid'");
+    log_admin_action($conn, 'บันทึกหมายเหตุ', "บันทึกหมายเหตุสำหรับออเดอร์ #$oid: $note");
     if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
         ob_end_clean();
         echo json_encode([

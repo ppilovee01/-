@@ -17,6 +17,8 @@ if (isset($_POST['register'])) {
     } else {
         $sql = "INSERT INTO users (username, password, fullname, email, role, created_at) VALUES ('$user', '$pass', '$name', '$email', 'user', NOW())";
         if(mysqli_query($conn, $sql)){
+            $new_user_id = mysqli_insert_id($conn);
+            log_admin_action($conn, 'สมัครสมาชิก', "ลูกค้าสมัครสมาชิกใหม่ ชื่อผู้ใช้: $user, อีเมล: $email", $new_user_id, $name);
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ', 'icon'=>'success'];
             $_SESSION['active_tab'] = 'login';
         } else {
@@ -37,6 +39,7 @@ if (isset($_POST['login'])) {
         $_SESSION['user_id'] = $u['id'];
         $_SESSION['fullname'] = $u['fullname'];
         $_SESSION['role'] = $u['role'];
+        log_admin_action($conn, 'เข้าสู่ระบบ', "ลูกค้าเข้าสู่ระบบสำเร็จ ชื่อผู้ใช้: {$u['username']}", $u['id'], $u['fullname']);
         header("Location: index.php");
         exit();
     } else {

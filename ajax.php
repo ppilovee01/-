@@ -219,6 +219,7 @@ elseif ($action == 'update_profile') {
     } else {
         $sql = "UPDATE users SET fullname = '$fullname', email = '$email' WHERE id = '$user_id'";
         if (mysqli_query($conn, $sql)) {
+            log_admin_action($conn, 'แก้ไขข้อมูลส่วนตัว', "ลูกค้าแก้ไขข้อมูลส่วนตัว: อีเมลใหม่ = $email, ชื่อ = $fullname", $user_id, $fullname);
             $_SESSION['fullname'] = $fullname;
             $response = ['status' => 'success', 'message' => 'บันทึกข้อมูลเรียบร้อย', 'fullname' => $fullname];
         } else {
@@ -245,6 +246,7 @@ elseif ($action == 'change_password') {
     } else {
         $hash = password_hash($new_pass, PASSWORD_DEFAULT);
         mysqli_query($conn, "UPDATE users SET password = '$hash' WHERE id = '$user_id'");
+        log_admin_action($conn, 'เปลี่ยนรหัสผ่าน', "ลูกค้าทำการเปลี่ยนรหัสผ่านใหม่สำเร็จ", $user_id, $_SESSION['fullname']);
         $response = ['status' => 'success', 'message' => 'เปลี่ยนรหัสผ่านสำเร็จ!'];
     }
 }
@@ -264,6 +266,7 @@ elseif ($action == 'add_address') {
     
     if (mysqli_query($conn, $sql)) {
         $new_id = mysqli_insert_id($conn);
+        log_admin_action($conn, 'เพิ่มที่อยู่', "ลูกค้าเพิ่มที่อยู่จัดส่งใหม่: $name ($phone) - ที่อยู่: $addr $sub $dist $prov $zip", $user_id, $_SESSION['fullname']);
         // สร้าง HTML การ์ดที่อยู่เพื่อส่งกลับไปแปะ
         $html = '
         <div class="col-md-6 animate__animated animate__fadeIn" id="addr-'.$new_id.'">
@@ -290,7 +293,12 @@ elseif ($action == 'add_address') {
 // 3.4 ลบที่อยู่จัดส่ง (Delete Address)
 elseif ($action == 'delete_address') {
     $addr_id = mysqli_real_escape_string($conn, $_POST['address_id']);
+    $addr_info = mysqli_fetch_assoc(mysqli_query($conn, "SELECT recipient_name, phone FROM user_addresses WHERE id='$addr_id' AND user_id='$user_id'"));
+    $recipient_name = $addr_info['recipient_name'] ?? '';
+    $phone = $addr_info['phone'] ?? '';
+    
     if(mysqli_query($conn, "DELETE FROM user_addresses WHERE id='$addr_id' AND user_id='$user_id'")) {
+        log_admin_action($conn, 'ลบที่อยู่', "ลูกค้าลบที่อยู่จัดส่ง ID #$addr_id ของคุณ $recipient_name ($phone)", $user_id, $_SESSION['fullname']);
         $response = ['status' => 'success', 'message' => 'ลบที่อยู่แล้ว'];
     } else {
         $response = ['status' => 'error', 'message' => 'ลบไม่สำเร็จ'];

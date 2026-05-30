@@ -31,6 +31,11 @@ if (isset($_POST['add_lot'])) {
     mysqli_query($conn, "INSERT INTO product_lots (product_id, lot_number, import_cost, price, stock, imported_at) VALUES ('$pid', '$lot_num', '$lot_cost', '$lot_price', '$lot_stock', NOW())");
     sync_product_stock($conn, $pid); 
     
+    // get product name
+    $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id='$pid'");
+    $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
+    log_admin_action($conn, 'นำเข้าล็อตสินค้า', "นำเข้าล็อตสินค้าใหม่สำหรับสินค้า: $p_name (รหัส #$pid): เลขล็อต = $lot_num, ต้นทุน = ฿$lot_cost, ราคาขาย = ฿$lot_price, จำนวน = $lot_stock");
+    
     $_SESSION['swal'] = ['title' => 'สำเร็จ', 'text' => 'นำเข้าล็อตสินค้าเรียบร้อย', 'icon' => 'success'];
     header("Location: admin.php"); exit();
 }
@@ -56,6 +61,7 @@ if (isset($_POST['save_product'])) {
         $id = $_POST['id'];
         $sql = "UPDATE products SET name='$name', category_id=$cat_val, description='$desc', image='$image_path', options='$options' WHERE id='$id'";
         mysqli_query($conn, $sql);
+        log_admin_action($conn, 'แก้ไขสินค้า', "แก้ไขข้อมูลสินค้า '$name' (รหัส #$id): หมวดหมู่ ID = $cat_id, ตัวเลือก = $options");
         $action_text = "อัปเดตข้อมูล";
     } else {
         $price = $_POST['price'];
@@ -68,6 +74,7 @@ if (isset($_POST['save_product'])) {
         $new_id = mysqli_insert_id($conn);
         
         mysqli_query($conn, "INSERT INTO product_lots (product_id, lot_number, import_cost, price, stock, imported_at) VALUES ('$new_id', '$lot_num', '$cost', '$price', '$stock', NOW())");
+        log_admin_action($conn, 'เพิ่มสินค้า', "เพิ่มสินค้าใหม่ '$name' (รหัส #$new_id): ราคา = ฿$price, สต๊อก = $stock, ตัวเลือก = $options");
         $action_text = "เพิ่มสินค้า";
     }
     
@@ -78,8 +85,11 @@ if (isset($_POST['save_product'])) {
 // --- Logic: ลบสินค้า ---
 if (isset($_GET['delete'])) { 
     $del_id = $_GET['delete'];
+    $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id='$del_id'");
+    $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
     mysqli_query($conn, "DELETE FROM product_lots WHERE product_id = '$del_id'");
     mysqli_query($conn, "DELETE FROM products WHERE id = '$del_id'"); 
+    log_admin_action($conn, 'ลบสินค้า', "ลบสินค้า '$p_name' (รหัส #$del_id) พร้อมประวัติล็อตสินค้าทั้งหมด");
     header("Location: admin.php"); exit(); 
 }
 
@@ -87,8 +97,13 @@ if (isset($_GET['delete'])) {
 if (isset($_GET['delete_lot']) && isset($_GET['pid'])) {
     $del_lot = $_GET['delete_lot'];
     $pid = $_GET['pid'];
+    $l_q = mysqli_query($conn, "SELECT l.lot_number, p.name FROM product_lots l JOIN products p ON l.product_id = p.id WHERE l.id = '$del_lot'");
+    $l_info = mysqli_fetch_assoc($l_q);
+    $lot_number = $l_info['lot_number'] ?? 'ไม่ระบุ';
+    $p_name = $l_info['name'] ?? 'ไม่พบชื่อสินค้า';
     mysqli_query($conn, "DELETE FROM product_lots WHERE id = '$del_lot'");
     sync_product_stock($conn, $pid);
+    log_admin_action($conn, 'ลบล็อตย่อย', "ลบล็อคย่อย '$lot_number' ของสินค้า '$p_name' (รหัสสินค้า #$pid, รหัสล็อต #$del_lot)");
     $_SESSION['swal'] = ['title' => 'สำเร็จ', 'text' => "ลบล็อตสินค้าย่อยเรียบร้อย", 'icon' => 'success'];
     header("Location: admin.php"); exit();
 }

@@ -7,18 +7,23 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 if (isset($_POST['add_cat'])) {
     $name = mysqli_real_escape_string($conn, $_POST['cat_name']);
     mysqli_query($conn, "INSERT INTO categories (name) VALUES ('$name')");
+    log_admin_action($conn, 'เพิ่มหมวดหมู่', "เพิ่มหมวดหมู่สินค้าใหม่: $name");
     header("Location: admin_categories.php"); exit();
 }
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
+    $c_q = mysqli_query($conn, "SELECT name FROM categories WHERE id=$id");
+    $c_name = mysqli_fetch_assoc($c_q)['name'] ?? 'ไม่พบชื่อหมวดหมู่';
     mysqli_query($conn, "DELETE FROM categories WHERE id=$id");
     mysqli_query($conn, "UPDATE products SET category_id = NULL WHERE category_id=$id");
+    log_admin_action($conn, 'ลบหมวดหมู่', "ลบหมวดหมู่สินค้า: $c_name (ID #$id)");
     header("Location: admin_categories.php"); exit();
 }
 if (isset($_POST['edit_cat'])) {
     $id = $_POST['edit_id'];
     $name = mysqli_real_escape_string($conn, $_POST['edit_name']);
     mysqli_query($conn, "UPDATE categories SET name='$name' WHERE id=$id");
+    log_admin_action($conn, 'แก้ไขหมวดหมู่', "แก้ไขชื่อหมวดหมู่สินค้า ID #$id เป็น: $name");
     header("Location: admin_categories.php"); exit();
 }
 ?>

@@ -17,6 +17,7 @@ if (isset($_POST['add'])) {
     
     $sql = "INSERT INTO payment_methods (name, type, account_number, account_name, status) VALUES ('$name', '$type', '$num', '$acc_name', '$status')";
     if(mysqli_query($conn, $sql)) {
+        log_admin_action($conn, 'เพิ่มช่องทางชำระเงิน', "เพิ่มช่องทางชำระเงิน: $name, ประเภท = $type, เลขที่ = $num, ชื่อบัญชี = $acc_name, สถานะ = $status");
         header("Location: admin_payments.php"); exit();
     }
 }
@@ -24,7 +25,12 @@ if (isset($_POST['add'])) {
 // --- Logic 2: ลบข้อมูล (Delete) ---
 if (isset($_GET['del'])) {
     $id = $_GET['del'];
+    $p_q = mysqli_query($conn, "SELECT name, account_number FROM payment_methods WHERE id=$id");
+    $p_info = mysqli_fetch_assoc($p_q);
+    $p_name = $p_info['name'] ?? 'ไม่ระบุ';
+    $p_num = $p_info['account_number'] ?? 'ไม่ระบุ';
     mysqli_query($conn, "DELETE FROM payment_methods WHERE id=$id");
+    log_admin_action($conn, 'ลบช่องทางชำระเงิน', "ลบช่องทางชำระเงิน ID #$id: $p_name (เลขบัญชี/เบอร์ $p_num)");
     header("Location: admin_payments.php"); exit();
 }
 
@@ -47,6 +53,7 @@ if (isset($_POST['update'])) {
 
     $sql = "UPDATE payment_methods SET name='$name', type='$type', account_number='$num', account_name='$acc_name', status='$status' WHERE id=$id";
     if(mysqli_query($conn, $sql)) {
+        log_admin_action($conn, 'แก้ไขช่องทางชำระเงิน', "แก้ไขช่องทางชำระเงิน ID #$id: $name, ประเภท = $type, เลขที่ = $num, ชื่อบัญชี = $acc_name, สถานะ = $status");
         header("Location: admin_payments.php"); exit();
     }
 }

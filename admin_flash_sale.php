@@ -21,7 +21,6 @@ if (isset($_SESSION['error_msg'])) {
     unset($_SESSION['error_msg']);
 }
 
-// --- Logic 0: Update Auto Flash Settings ---
 if (isset($_POST['update_settings'])) {
     $auto_flash_sale = isset($_POST['auto_flash_sale']) ? 1 : 0;
     $auto_flash_discount = intval($_POST['auto_flash_discount']);
@@ -33,6 +32,7 @@ if (isset($_POST['update_settings'])) {
         auto_flash_duration = '$auto_flash_duration' 
         WHERE id = 1");
     if ($upd_s) {
+        log_admin_action($conn, 'ตั้งค่า Flash Sale อัตโนมัติ', "อัปเดตการตั้งค่าระบบออโต้: เปิด = $auto_flash_sale, ส่วนลด = $auto_flash_discount%, รอบละ = $auto_flash_duration ชม.");
         $_SESSION['success_msg'] = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
         // Trigger generation check
         checkAndGenerateAutoFlashSale($conn);
@@ -69,6 +69,9 @@ if (isset($_POST['add'])) {
             $sql = "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
                     VALUES ('$product_id', '$flash_price', '$flash_stock', 0, '$start_time', '$end_time')";
             if (mysqli_query($conn, $sql)) {
+                $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id = '$product_id'");
+                $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
+                log_admin_action($conn, 'สร้างแคมเปญ Flash Sale', "สร้างแคมเปญสำหรับสินค้า '$p_name' (#$product_id): ราคาพิเศษ = ฿$flash_price, โควตา = $flash_stock ชิ้น, เริ่ม = $start_time, สิ้นสุด = $end_time");
                 $_SESSION['success_msg'] = "สร้างแคมเปญ Flash Sale สำเร็จ!";
                 header("Location: admin_flash_sale.php");
                 exit();
@@ -79,10 +82,15 @@ if (isset($_POST['add'])) {
     }
 }
 
-// --- Logic 2: Delete ---
 if (isset($_GET['del'])) {
     $id = intval($_GET['del']);
+    $fs_q = mysqli_query($conn, "SELECT fs.product_id, p.name FROM flash_sales fs JOIN products p ON fs.product_id = p.id WHERE fs.id = $id");
+    $fs_info = mysqli_fetch_assoc($fs_q);
+    $p_name = $fs_info['name'] ?? 'ไม่พบชื่อสินค้า';
+    $pid = $fs_info['product_id'] ?? 0;
+    
     if (mysqli_query($conn, "DELETE FROM flash_sales WHERE id = $id")) {
+        log_admin_action($conn, 'ลบแคมเปญ Flash Sale', "ลบแคมเปญ Flash Sale รหัส #$id ของสินค้า '$p_name' (รหัสสินค้า #$pid)");
         $_SESSION['success_msg'] = "ลบแคมเปญเรียบร้อยแล้ว";
     } else {
         $_SESSION['error_msg'] = "ลบแคมเปญไม่สำเร็จ";
@@ -91,11 +99,16 @@ if (isset($_GET['del'])) {
     exit();
 }
 
-// --- Logic 3: Cancel Active Campaign Early ---
 if (isset($_GET['cancel_campaign'])) {
     $id = intval($_GET['cancel_campaign']);
+    $fs_q = mysqli_query($conn, "SELECT fs.product_id, p.name FROM flash_sales fs JOIN products p ON fs.product_id = p.id WHERE fs.id = $id");
+    $fs_info = mysqli_fetch_assoc($fs_q);
+    $p_name = $fs_info['name'] ?? 'ไม่พบชื่อสินค้า';
+    $pid = $fs_info['product_id'] ?? 0;
+    
     // Set end_time to current time
     if (mysqli_query($conn, "UPDATE flash_sales SET end_time = NOW() WHERE id = $id")) {
+        log_admin_action($conn, 'บังคับปิดแคมเปญ Flash Sale', "จบแคมเปญ Flash Sale ทันที รหัส #$id สำหรับสินค้า '$p_name' (รหัสสินค้า #$pid)");
         $_SESSION['success_msg'] = "สิ้นสุดแคมเปญดังกล่าวทันทีเรียบร้อยแล้ว";
     } else {
         $_SESSION['error_msg'] = "ไม่สามารถปิดแคมเปญได้";
@@ -144,6 +157,9 @@ if (isset($_POST['update'])) {
                     end_time = '$end_time' 
                     WHERE id = $id";
             if (mysqli_query($conn, $sql)) {
+                $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id = '$product_id'");
+                $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
+                log_admin_action($conn, 'แก้ไขแคมเปญ Flash Sale', "แก้ไขแคมเปญ Flash Sale รหัส #$id ของสินค้า '$p_name' (รหัสสินค้า #$product_id): ราคาพิเศษ = ฿$flash_price, โควตา = $flash_stock ชิ้น, เริ่ม = $start_time, สิ้นสุด = $end_time");
                 $_SESSION['success_msg'] = "อัปเดตแคมเปญเรียบร้อย!";
                 header("Location: admin_flash_sale.php");
                 exit();

@@ -64,6 +64,46 @@ $extra_css = "
         cursor: pointer; transition: 0.2s;
     }
     .btn-del-addr:hover { background: #dc3545; color: white; }
+
+    /* Timeline styles */
+    .timeline-activity {
+        position: relative;
+        padding-left: 20px;
+        border-left: 2px solid #E2E8F0;
+        margin-left: 10px;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -26px;
+        top: 6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #7FB5FF;
+        border: 2px solid white;
+        box-shadow: 0 0 0 3px rgba(127, 181, 255, 0.2);
+    }
+    .timeline-time {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+    .timeline-title {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 2px 0;
+    }
+    .timeline-desc {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
 </style>
 ";
 include 'header.php';
@@ -99,6 +139,9 @@ include 'header.php';
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password-pane" type="button"><i class="bi bi-shield-lock"></i> รหัสผ่าน</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button"><i class="bi bi-clock-history"></i> ประวัติบัญชี & แต้มสะสม</button>
                     </li>
                 </ul>
 
@@ -207,6 +250,113 @@ include 'header.php';
                                 </div>
                             </div>
                         </form>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="history-pane" role="tabpanel">
+                        <div class="row g-4">
+                            <!-- คอลัมน์ซ้าย: สรุปแต้มสะสม -->
+                            <div class="col-lg-4 animate__animated animate__fadeInLeft">
+                                <div class="card border-0 rounded-4 p-4 text-white shadow-sm mb-4" style="background: linear-gradient(135deg, #FFE07D 0%, #FFB100 100%);">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <h6 class="text-white-50 mb-1 fw-bold">คะแนนสะสมของคุณ</h6>
+                                            <h2 class="fw-bold mb-0 text-white" style="font-size: 2.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                                                <i class="bi bi-coin me-1 text-white"></i><?= number_format($user['points'] ?? 0) ?> <span style="font-size: 1.1rem;">แต้ม</span>
+                                            </h2>
+                                        </div>
+                                        <div class="opacity-25 display-5">
+                                            <i class="bi bi-trophy-fill"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card border-0 shadow-sm rounded-4 p-4 bg-light mb-4">
+                                    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-info-circle me-1 text-primary"></i> กฎการสะสมคะแนน</h6>
+                                    <ul class="small text-secondary ps-3 mb-0" style="line-height: 1.6;">
+                                        <?php
+                                        $shop_q = mysqli_query($conn, "SELECT points_earn_rate, points_spend_rate FROM shop_settings WHERE id = 1");
+                                        $shop_info = mysqli_fetch_assoc($shop_q);
+                                        $earn_rate = intval($shop_info['points_earn_rate'] ?? 100);
+                                        $spend_rate = floatval($shop_info['points_spend_rate'] ?? 1.0);
+                                        ?>
+                                        <li class="mb-2">ทุกๆ ยอดซื้อ <strong>฿<?= number_format($earn_rate) ?></strong> จะได้รับ <strong>1 คะแนน</strong></li>
+                                        <li><strong>1 คะแนน</strong> แลกส่วนลดแทนเงินสดได้ <strong>฿<?= number_format($spend_rate, 2) ?></strong></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <!-- คอลัมน์ขวา: ประวัติการใช้งาน & คะแนนสะสม -->
+                            <div class="col-lg-8 animate__animated animate__fadeInRight">
+                                <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-receipt text-primary me-1"></i> ประวัติคะแนนสะสม (Points Ledger)</h6>
+                                <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                                    <div class="table-responsive">
+                                        <table class="table align-middle table-hover mb-0" style="font-size: 0.9rem;">
+                                            <thead class="bg-light">
+                                                <tr class="text-secondary small">
+                                                    <th class="ps-4">วัน-เวลา</th>
+                                                    <th>คะแนน</th>
+                                                    <th class="pe-4">รายละเอียด</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php
+                                                $pt_q = mysqli_query($conn, "SELECT * FROM point_history WHERE user_id = '$user_id' ORDER BY id DESC LIMIT 50");
+                                                if (mysqli_num_rows($pt_q) > 0):
+                                                    while ($pt = mysqli_fetch_assoc($pt_q)):
+                                                        $is_earned = $pt['points'] > 0;
+                                                        $points_badge = $is_earned 
+                                                            ? '<span class="fw-bold text-success">+' . number_format($pt['points']) . ' แต้ม</span>' 
+                                                            : '<span class="fw-bold text-danger">' . number_format($pt['points']) . ' แต้ม</span>';
+                                                ?>
+                                                <tr>
+                                                    <td class="ps-4 text-muted small">
+                                                        <?= date('d/m/Y H:i', strtotime($pt['created_at'])) ?> น.
+                                                    </td>
+                                                    <td>
+                                                        <?= $points_badge ?>
+                                                    </td>
+                                                    <td class="pe-4 text-secondary">
+                                                        <?= htmlspecialchars($pt['description']) ?>
+                                                    </td>
+                                                </tr>
+                                                <?php 
+                                                    endwhile;
+                                                else:
+                                                ?>
+                                                <tr>
+                                                    <td colspan="3" class="text-center py-4 text-muted small">
+                                                        ยังไม่มีประวัติคะแนนสะสม
+                                                    </td>
+                                                </tr>
+                                                <?php endif; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-clock-history text-primary me-1"></i> ประวัติการเข้าใช้และตั้งค่าบัญชี (Activity Logs)</h6>
+                                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-2">
+                                    <div class="timeline-activity">
+                                        <?php
+                                        $act_q = mysqli_query($conn, "SELECT * FROM admin_logs WHERE admin_id = '$user_id' ORDER BY id DESC LIMIT 20");
+                                        if (mysqli_num_rows($act_q) > 0):
+                                            while ($act = mysqli_fetch_assoc($act_q)):
+                                        ?>
+                                        <div class="timeline-item">
+                                            <div class="timeline-time"><i class="bi bi-clock me-1"></i><?= date('d/m/Y H:i:s', strtotime($act['created_at'])) ?> น. <span class="ms-2">IP: <?= htmlspecialchars($act['ip_address'] ?: '-') ?></span></div>
+                                            <div class="timeline-title"><?= htmlspecialchars($act['action_type']) ?></div>
+                                            <div class="timeline-desc"><?= htmlspecialchars($act['details']) ?></div>
+                                        </div>
+                                        <?php 
+                                            endwhile;
+                                        else:
+                                        ?>
+                                        <p class="text-muted small mb-0">ยังไม่มีประวัติการใช้งานบัญชี</p>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                 </div>

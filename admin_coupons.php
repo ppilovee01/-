@@ -24,6 +24,7 @@ if (isset($_POST['add'])) {
         $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, max_discount, usage_limit, user_limit, expiry_date) 
                 VALUES ('$code', '$type', '$val', '$min', '$max_discount', '$usage_limit', '$user_limit', '$exp')";
         mysqli_query($conn, $sql);
+        log_admin_action($conn, 'สร้างคูปอง', "สร้างคูปองส่วนลดโค้ด $code: ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันหมดอายุ = $exp");
         header("Location: admin_coupons.php"); exit();
     }
 }
@@ -31,7 +32,11 @@ if (isset($_POST['add'])) {
 // --- Logic 2: ลบ (Delete) ---
 if (isset($_GET['del'])) {
     $id = $_GET['del'];
+    $c_q = mysqli_query($conn, "SELECT code FROM coupons WHERE id=$id");
+    $c_info = mysqli_fetch_assoc($c_q);
+    $c_code = $c_info ? $c_info['code'] : "ไม่ทราบ ID";
     mysqli_query($conn, "DELETE FROM coupons WHERE id=$id");
+    log_admin_action($conn, 'ลบคูปอง', "ลบคูปองส่วนลดโค้ด $c_code (ID #$id)");
     header("Location: admin_coupons.php"); exit();
 }
 
@@ -57,6 +62,7 @@ if (isset($_POST['update'])) {
 
     $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', max_discount='$max_discount', usage_limit='$usage_limit', user_limit='$user_limit', expiry_date='$exp' WHERE id=$id";
     mysqli_query($conn, $sql);
+    log_admin_action($conn, 'แก้ไขคูปอง', "แก้ไขคูปองส่วนลด ID #$id: โค้ด = $code, ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันหมดอายุ = $exp");
     header("Location: admin_coupons.php"); exit();
 }
 ?>

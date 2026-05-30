@@ -46,6 +46,7 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             line_notify_token='$line_notify_token'
             WHERE id=1";
     mysqli_query($conn, $sql);
+    log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', "แก้ไขข้อมูลร้านค้า, ระบบ SMTP, อัตราแต้มสะสม ($points_earn_rate บาท/แต้ม, $points_spend_rate บาท/แต้ม) และ Token LINE Notify");
 
     // 2. อัปเดต Icon (ถ้ามีการอัปโหลดใหม่)
     if (isset($_FILES['shop_icon']) && $_FILES['shop_icon']['error'] == 0) {
@@ -63,8 +64,10 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
         include 'mail_sender.php';
         $res = send_test_email($conn);
         if ($res === true) {
+            log_admin_action($conn, 'ทดสอบ SMTP', "กดทดสอบการเชื่อมต่อระบบ SMTP (ผลลัพธ์: สำเร็จ)");
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ทดสอบการเชื่อมต่อ SMTP สำเร็จแล้ว! มีอีเมลทดสอบส่งไปยังกล่องจดหมายของคุณเรียบร้อย', 'icon'=>'success'];
         } else {
+            log_admin_action($conn, 'ทดสอบ SMTP', "กดทดสอบการเชื่อมต่อระบบ SMTP (ผลลัพธ์: ล้มเหลว - $res)");
             $_SESSION['swal'] = ['title'=>'เกิดข้อผิดพลาด', 'text'=>'เชื่อมต่อล้มเหลว: ' . $res, 'icon'=>'error'];
         }
     } else {

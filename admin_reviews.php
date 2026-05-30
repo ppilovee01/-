@@ -5,9 +5,15 @@ include 'db.php';
 // แŠเน‡ค Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
-// --- Logic: ลบรีวิว ---
 if (isset($_GET['delete'])) {
     $id = mysqli_real_escape_string($conn, $_GET['delete']);
+    
+    // ดึงข้อมูลรีวิวเพื่อบันทึกประวัติก่อนลบ
+    $r_q = mysqli_query($conn, "SELECT r.comment, u.fullname, p.name as product_name FROM product_reviews r JOIN users u ON r.user_id = u.id JOIN products p ON r.product_id = p.id WHERE r.id = '$id'");
+    $r_info = mysqli_fetch_assoc($r_q);
+    $r_comment = $r_info['comment'] ?? 'ไม่ระบุความคิดเห็น';
+    $u_name = $r_info['fullname'] ?? 'ไม่ระบุผู้ใช้';
+    $p_name = $r_info['product_name'] ?? 'ไม่ระบุสินค้า';
     
     // ดึงข้อมูลรูปภาพเพื่อลบไฟล์จากโฟลเดอร์ uploads/
     $q_img = mysqli_query($conn, "SELECT image FROM product_reviews WHERE id = '$id'");
@@ -23,6 +29,7 @@ if (isset($_GET['delete'])) {
     }
     
     mysqli_query($conn, "DELETE FROM product_reviews WHERE id = '$id'");
+    log_admin_action($conn, 'ลบรีวิวสินค้า', "ลบรีวิวสินค้า '$p_name' ของลูกค้า '$u_name' (รีวิว: '$r_comment')");
     header("Location: admin_reviews.php"); exit();
 }
 ?>

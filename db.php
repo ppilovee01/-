@@ -175,6 +175,26 @@ function sendLineNotify($conn, $message) {
     }
     return false;
 }
+
+// --- Helper to log admin actions ---
+function log_admin_action($conn, $action_type, $details, $user_id = null, $fullname = null) {
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+    $admin_id = $user_id !== null ? $user_id : ($_SESSION['user_id'] ?? null);
+    $admin_name = $fullname !== null ? $fullname : ($_SESSION['fullname'] ?? 'System');
+    $ip_address = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    $admin_id_val = $admin_id !== null ? intval($admin_id) : "NULL";
+    $admin_name_esc = mysqli_real_escape_string($conn, $admin_name);
+    $action_type_esc = mysqli_real_escape_string($conn, $action_type);
+    $details_esc = mysqli_real_escape_string($conn, $details);
+    $ip_address_esc = mysqli_real_escape_string($conn, $ip_address);
+
+    $sql = "INSERT INTO admin_logs (admin_id, admin_name, action_type, details, ip_address) 
+            VALUES ($admin_id_val, '$admin_name_esc', '$action_type_esc', '$details_esc', '$ip_address_esc')";
+    mysqli_query($conn, $sql);
+}
 ?>
 <link rel="icon" type="image/x-icon" href="<?= $current_favicon ?>">
 

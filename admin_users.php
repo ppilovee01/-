@@ -23,6 +23,7 @@ if (isset($_POST['add_user'])) {
     } else {
         $sql = "INSERT INTO users (username, password, fullname, email, role, created_at) VALUES ('$user', '$pass', '$name', '$email', '$role', NOW())";
         if(mysqli_query($conn, $sql)) {
+            log_admin_action($conn, 'เพิ่มสมาชิก', "เพิ่มสมาชิกใหม่: Username = $user, ชื่อ = $name, อีเมล = $email, สิทธิ์ = $role");
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'เพิ่มสมาชิกใหม่เรียบร้อย', 'icon'=>'success'];
         } else {
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
@@ -39,6 +40,11 @@ if (isset($_POST['edit_user'])) {
     $role = $_POST['role'];
     $points = intval($_POST['points']);
     
+    // ดึงคะแนนเดิมมาเปรียบเทียบ
+    $old_p_q = mysqli_query($conn, "SELECT points FROM users WHERE id='$id'");
+    $old_p_row = mysqli_fetch_assoc($old_p_q);
+    $old_points = $old_p_row ? intval($old_p_row['points']) : 0;
+    
     if (!empty($_POST['password'])) {
         $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
         $sql = "UPDATE users SET fullname='$name', email='$email', role='$role', password='$pass', points='$points' WHERE id='$id'";
@@ -47,6 +53,15 @@ if (isset($_POST['edit_user'])) {
     }
 
     if(mysqli_query($conn, $sql)) {
+        log_admin_action($conn, 'แก้ไขสมาชิก', "แก้ไขข้อมูลสมาชิก ID #$id: ชื่อ = $name, อีเมล = $email, สิทธิ์ = $role, แต้มสะสม = $points" . (!empty($_POST['password']) ? " (เปลี่ยนรหัสผ่าน)" : ""));
+        
+        // บันทึกธุรกรรมประวัติแต้มสะสมหากแต้มมีการเปลี่ยนแปลง
+        if ($points != $old_points) {
+            $diff = $points - $old_points;
+            $desc = "ผู้ดูแลระบบแก้ไขแต้มสะสมโดยตรง (จาก $old_points เป็น $points แต้ม)";
+            mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$id', '$diff', '$desc')");
+        }
+        
         $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปเดตข้อมูลเรียบร้อย', 'icon'=>'success'];
     } else {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
@@ -60,8 +75,14 @@ if (isset($_GET['delete'])) {
     if ($id == $_SESSION['user_id']) {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'คุณไม่สามารถลบตัวเองได้!', 'icon'=>'warning'];
     } else {
+        $user_q = mysqli_query($conn, "SELECT fullname, username FROM users WHERE id = $id");
+        $user_info = mysqli_fetch_assoc($user_q);
+        $fullname = $user_info ? $user_info['fullname'] : "ไม่ทราบชื่อ";
+        $username = $user_info ? $user_info['username'] : "ไม่ทราบ ID";
+        
         $sql = "DELETE FROM users WHERE id = $id";
         if(mysqli_query($conn, $sql)) {
+            log_admin_action($conn, 'ลบสมาชิก', "ลบสมาชิก ID #$id (Username: $username, ชื่อ: $fullname)");
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ลบสมาชิกเรียบร้อยแล้ว', 'icon'=>'success'];
         } else {
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ลบไม่ได้ (อาจมีออเดอร์ค้างอยู่)', 'icon'=>'error'];
