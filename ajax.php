@@ -746,7 +746,14 @@ elseif ($action == 'get_filtered_reviews') {
         $where_clause .= " AND r.image IS NOT NULL AND r.image != ''";
     }
     
-    $sql = "SELECT r.*, u.fullname FROM product_reviews r JOIN users u ON r.user_id = u.id $where_clause ORDER BY r.created_at DESC";
+    $uid_clause = $user_id ? "'$user_id'" : "NULL";
+    $sql = "SELECT r.*, u.fullname,
+              (SELECT COUNT(*) FROM review_votes WHERE review_id = r.id) as helpful_count,
+              (SELECT COUNT(*) FROM review_votes WHERE review_id = r.id AND user_id = $uid_clause) as user_voted
+            FROM product_reviews r 
+            JOIN users u ON r.user_id = u.id 
+            $where_clause 
+            ORDER BY helpful_count DESC, r.created_at DESC";
     $query = mysqli_query($conn, $sql);
     
     $html = '';
@@ -766,6 +773,11 @@ elseif ($action == 'get_filtered_reviews') {
                 </div>';
             }
             
+            $voted = intval($r['user_voted'] ?? 0);
+            $helpful_cnt = intval($r['helpful_count'] ?? 0);
+            $btn_class = $voted ? 'btn-success text-white' : 'btn-outline-success';
+            $vote_text = $voted ? 'โหวตแล้วว่ามีประโยชน์' : 'มีประโยชน์';
+            
             $html .= '
             <div class="review-item animate__animated animate__fadeIn">
                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -777,6 +789,11 @@ elseif ($action == 'get_filtered_reviews') {
                 </div>
                 <p class="mb-2 text-secondary">' . htmlspecialchars($r['comment']) . '</p>
                 ' . $img_html . '
+                <div class="mt-2 text-start">
+                    <button class="btn btn-sm ' . $btn_class . ' rounded-pill px-3" data-rid="' . $r['id'] . '" onclick="voteHelpful(this)" style="font-size: 0.75rem; font-weight: 500; cursor: pointer; border-color: var(--blue-hover); color: ' . ($voted ? 'white' : 'var(--blue-hover)') . '; background-color: ' . ($voted ? 'var(--blue-hover)' : 'transparent') . ';">
+                        <i class="bi bi-hand-thumbs-up-fill me-1"></i> ' . $vote_text . ' (' . $helpful_cnt . ')
+                    </button>
+                </div>
             </div>';
         }
     } else {
@@ -788,6 +805,49 @@ elseif ($action == 'get_filtered_reviews') {
     }
     
     $response = ['status' => 'success', 'html' => $html, 'count' => $count];
+}
+
+// 4.9.2 โหวตคะแนนรีวิวมีประโยชน์ (Helpful Review Vote)
+elseif ($action == 'vote_review') {
+    if (!$user_id) {
+        $response = ['status' => 'error', 'message' => 'กรุณาเข้าสู่ระบบก่อนโหวตรีวิว'];
+        ob_end_clean(); echo json_encode($response); exit();
+    }
+    
+    $rid = isset($_POST['review_id']) ? intval($_POST['review_id']) : 0;
+    
+    // Check if review exists
+    $chk_r = mysqli_query($conn, "SELECT id FROM product_reviews WHERE id = '$rid'");
+    if (mysqli_num_rows($chk_r) == 0) {
+        $response = ['status' => 'error', 'message' => 'ไม่พบข้อมูลรีวิว'];
+        ob_end_clean(); echo json_encode($response); exit();
+    }
+    
+    // Check if user has already voted
+    $chk_vote = mysqli_query($conn, "SELECT id FROM review_votes WHERE review_id = '$rid' AND user_id = '$user_id'");
+    $state = '';
+    if (mysqli_num_rows($chk_vote) > 0) {
+        // Remove vote
+        mysqli_query($conn, "DELETE FROM review_votes WHERE review_id = '$rid' AND user_id = '$user_id'");
+        $state = 'unvoted';
+        $msg = 'ยกเลิกการโหวต';
+    } else {
+        // Add vote
+        mysqli_query($conn, "INSERT INTO review_votes (review_id, user_id) VALUES ('$rid', '$user_id')");
+        $state = 'voted';
+        $msg = 'โหวตรีวิวมีประโยชน์สำเร็จ';
+    }
+    
+    // Get new count
+    $cnt_q = mysqli_query($conn, "SELECT COUNT(*) as count FROM review_votes WHERE review_id = '$rid'");
+    $new_count = mysqli_fetch_assoc($cnt_q)['count'] ?? 0;
+    
+    $response = [
+        'status' => 'success',
+        'state' => $state,
+        'message' => $msg,
+        'helpful_count' => intval($new_count)
+    ];
 }
 
 // 4.10 เก็บสะสมคูปองต้อนรับ (Claim Welcome Coupon)

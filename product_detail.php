@@ -90,7 +90,12 @@ if (isset($_SESSION['user_id'])) {
     if (mysqli_num_rows($check_order) > 0 && mysqli_num_rows($check_reviewed) == 0) { $can_review = true; }
 }
 
-$reviews = mysqli_query($conn, "SELECT r.*, u.fullname FROM product_reviews r JOIN users u ON r.user_id = u.id WHERE r.product_id = '$id' ORDER BY r.created_at DESC");
+$uid_nav = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : 0;
+$uid_clause = $uid_nav ? "'$uid_nav'" : "NULL";
+$reviews = mysqli_query($conn, "SELECT r.*, u.fullname,
+    (SELECT COUNT(*) FROM review_votes WHERE review_id = r.id) as helpful_count,
+    (SELECT COUNT(*) FROM review_votes WHERE review_id = r.id AND user_id = $uid_clause) as user_voted
+    FROM product_reviews r JOIN users u ON r.user_id = u.id WHERE r.product_id = '$id' ORDER BY helpful_count DESC, r.created_at DESC");
 $avg_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT AVG(rating) as avg, COUNT(*) as count FROM product_reviews WHERE product_id = '$id'"));
 $avg_rating = $avg_data['avg'] ? round($avg_data['avg'], 1) : 0;
 $review_count = $avg_data['count'];
@@ -353,7 +358,12 @@ include 'header.php';
                 </div>
 
                 <div id="reviews-list-container" style="transition: opacity 0.2s ease;">
-                    <?php if(mysqli_num_rows($reviews) > 0): while($r = mysqli_fetch_assoc($reviews)): ?>
+                    <?php if(mysqli_num_rows($reviews) > 0): while($r = mysqli_fetch_assoc($reviews)): 
+                        $voted = intval($r['user_voted'] ?? 0);
+                        $helpful_cnt = intval($r['helpful_count'] ?? 0);
+                        $btn_class = $voted ? 'btn-success text-white' : 'btn-outline-success';
+                        $vote_text = $voted ? 'โหวตแล้วว่ามีประโยชน์' : 'มีประโยชน์';
+                    ?>
                     <div class="review-item animate__animated animate__fadeIn">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <div>
@@ -370,6 +380,11 @@ include 'header.php';
                                 <img src="<?= htmlspecialchars($r['image']) ?>" class="review-img-thumb img-thumbnail" onclick="showReviewImage('<?= htmlspecialchars($r['image']) ?>', '<?= htmlspecialchars($r['fullname'] ?? '') ?>')" alt="รูปรีวิว">
                             </div>
                         <?php endif; ?>
+                        <div class="mt-2 text-start">
+                            <button class="btn btn-sm <?= $btn_class ?> rounded-pill px-3" data-rid="<?= $r['id'] ?>" onclick="voteHelpful(this)" style="font-size: 0.75rem; font-weight: 500; cursor: pointer; border-color: var(--blue-hover); color: <?= $voted ? 'white' : 'var(--blue-hover)' ?>; background-color: <?= $voted ? 'var(--blue-hover)' : 'transparent' ?>;">
+                                <i class="bi bi-hand-thumbs-up-fill me-1"></i> <?= $vote_text ?> (<?= $helpful_cnt ?>)
+                            </button>
+                        </div>
                     </div>
                     <?php endwhile; else: ?>
                         <div class="text-center py-5 text-muted opacity-50">
@@ -395,17 +410,17 @@ $rel_query = mysqli_query($conn, "SELECT p.*,
     (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count
     FROM products p 
     WHERE p.category_id = '$cat_id' AND p.id != '$id' 
-    LIMIT 4");
+    LIMIT 8");
 
 while ($p = mysqli_fetch_assoc($rel_query)) {
     $recommended_products[] = $p;
     $recommended_ids[] = $p['id'];
 }
 
-// 2. ถ้าหากสินค้าใกล้เคียงยังมีไม่ครบ 4 ชิ้น ให้ดึงสินค้าขายดีจากร้านมาเติมให้เต็ม
+// 2. ถ้าหากสินค้าใกล้เคียงยังมีไม่ครบ 8 ชิ้น ให้ดึงสินค้าขายดีจากร้านมาเติมให้เต็ม
 $count_fetched = count($recommended_products);
-if ($count_fetched < 4) {
-    $needed = 4 - $count_fetched;
+if ($count_fetched < 8) {
+    $needed = 8 - $count_fetched;
     $not_in_clause = "";
     if (!empty($recommended_ids)) {
         $not_in_clause = "AND p.id NOT IN ('" . implode("','", $recommended_ids) . "')";
@@ -431,7 +446,7 @@ if (!empty($recommended_products)):
 <div class="container pb-4 animate__animated animate__fadeInUp">
     <div class="border-top pt-5">
         <h3 class="fw-bold mb-4 text-dark" style="font-size: 1.5rem;">สินค้าแนะนำสำหรับคุณ <span style="color:var(--blue-hover);">✨</span></h3>
-        <div class="row g-3 g-md-4">
+        <div class="scroll-menu py-2 px-1" style="display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 20px;">
             <?php foreach ($recommended_products as $p): 
                 $is_out = ($p['stock'] <= 0);
                 $rating = $p['avg_rating'] ? round($p['avg_rating'], 1) : 0;
@@ -447,47 +462,47 @@ if (!empty($recommended_products)):
                 $fav_class = $is_fav ? 'liked' : '';
                 $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
             ?>
-            <div class="col-6 col-md-3">
-                <div class="card card-product">
-                    <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด">
+            <div style="flex: 0 0 auto; width: 220px; height: 350px; position: relative;">
+                <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
+                    <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
                     <?php $rec_fs = getActiveFlashSale($conn, $p['id']); ?>
-                    <div class="product-img-wrapper">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
-                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>">
+                    <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
+                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
+                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($rec_fs !== null): ?>
-                                <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem;">⚡ FLASH</div>
+                                <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.65rem;">⚡ FLASH</div>
                             <?php endif; ?>
                             <?php if($is_out): ?>
-                                <div class="out-stock-overlay"><span class="badge-out">สินค้าหมด</span></div>
+                                <div class="out-stock-overlay" style="border-radius: var(--radius-md) var(--radius-md) 0 0;"><span class="badge-out" style="font-size: 0.75rem; padding: 4px 10px;">สินค้าหมด</span></div>
                             <?php endif; ?>
                         </a>
                     </div>
                     
-                    <div class="card-body d-flex flex-column text-center pt-0">
-                        <h6 class="fw-bold mb-1 text-truncate mt-3">
-                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name stretched-link">
+                    <div class="card-body d-flex flex-column text-center p-3 pt-2">
+                        <h6 class="fw-bold mb-1 text-truncate mt-1">
+                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
                                 <?= $p['name'] ?>
                             </a>
                         </h6>
                         <div class="small text-warning mb-2">
                             <?php for($i=1; $i<=5; $i++) echo $i<=$rating ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star text-muted opacity-25"></i>'; ?>
-                            <span class="text-muted ms-1" style="font-size: 0.8rem;">(<?= $rv_count ?>)</span>
+                            <span class="text-muted ms-1" style="font-size: 0.75rem;">(<?= $rv_count ?>)</span>
                         </div>
                         <div class="mt-auto">
-                            <div class="mb-3">
+                            <div class="mb-2">
                                 <?php if ($rec_fs !== null): ?>
-                                    <span class="fw-bold text-danger" style="font-size:1.2rem;">฿<?= number_format($rec_fs['flash_price']) ?></span>
-                                    <span class="text-muted text-decoration-line-through small ms-1" style="font-size: 0.75rem;">฿<?= number_format($p['price']) ?></span>
+                                    <span class="fw-bold text-danger" style="font-size:1.1rem;">฿<?= number_format($rec_fs['flash_price']) ?></span>
+                                    <span class="text-muted text-decoration-line-through small ms-1" style="font-size: 0.72rem;">฿<?= number_format($p['price']) ?></span>
                                 <?php else: ?>
-                                    <span class="fw-bold" style="color:var(--blue-dark); font-size:1.2rem;">฿<?= number_format($p['price']) ?></span>
+                                    <span class="fw-bold" style="color:var(--blue-dark); font-size:1.1rem;">฿<?= number_format($p['price']) ?></span>
                                 <?php endif; ?>
                             </div>
                             <?php if($is_out): ?>
-                                <button class="btn btn-secondary w-100 btn-sm rounded-pill py-2" disabled>สินค้าหมด</button>
+                                <button class="btn btn-secondary w-100 btn-sm rounded-pill py-1" style="font-size: 0.82rem;" disabled>สินค้าหมด</button>
                             <?php else: ?>
-                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative py-2" style="z-index:2;">
+                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative" style="z-index:2; padding: 6px 12px !important; font-size: 0.82rem;">
                                     <i class="bi bi-cart-plus"></i> เลือก
                                 </a>
                             <?php endif; ?>
@@ -744,6 +759,50 @@ endif;
             customClass: {
                 image: 'img-fluid rounded shadow-sm'
             }
+        });
+    }
+
+    function voteHelpful(btn) {
+        const rid = btn.dataset.rid;
+        const fd = new FormData();
+        fd.append('action', 'vote_review');
+        fd.append('review_id', rid);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
+        
+        fetch('ajax.php', {
+            method: 'POST',
+            body: fd
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                if (data.state === 'voted') {
+                    btn.className = 'btn btn-sm btn-success text-white rounded-pill px-3';
+                    btn.style.backgroundColor = 'var(--blue-hover)';
+                    btn.style.borderColor = 'var(--blue-hover)';
+                    btn.innerHTML = `<i class="bi bi-hand-thumbs-up-fill me-1"></i> โหวตแล้วว่ามีประโยชน์ (${data.helpful_count})`;
+                } else {
+                    btn.className = 'btn btn-sm btn-outline-success rounded-pill px-3';
+                    btn.style.backgroundColor = 'transparent';
+                    btn.style.borderColor = 'var(--blue-hover)';
+                    btn.style.color = 'var(--blue-hover)';
+                    btn.innerHTML = `<i class="bi bi-hand-thumbs-up-fill me-1"></i> มีประโยชน์ (${data.helpful_count})`;
+                }
+                
+                // Refresh list after 1s to re-sort by helpfulness
+                setTimeout(fetchFilteredReviews, 1000);
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'แจ้งเตือน',
+                    text: data.message,
+                    confirmButtonColor: 'var(--blue-hover)'
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire('ผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
         });
     }
 

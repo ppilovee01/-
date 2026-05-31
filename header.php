@@ -1029,6 +1029,14 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     </script>
 </head>
 <body>
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+    })();
+</script>
 
 <!-- Global Premium Preloader -->
 <div id="global-loader" class="preloader-overlay hidden">
@@ -1074,6 +1082,10 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 </ul>
 
                 <div class="icon-group">
+                    
+                    <button class="icon-btn border-0" id="darkModeToggle" title="เปลี่ยนธีมสี" type="button" style="cursor: pointer;">
+                        <i class="bi bi-moon-stars" id="darkModeIcon"></i>
+                    </button>
                     
                     <a class="icon-btn" href="wishlist.php" title="รายการโปรด">
                         <i class="bi bi-heart"></i>
@@ -1214,5 +1226,32 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     <i class="bi bi-cart3"></i>
     <span id="floating-cart-badge" class="floating-badge-count"><?= $cart_count ?></span>
 </button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById('darkModeToggle');
+    const toggleIcon = document.getElementById('darkModeIcon');
+    
+    if (document.body.classList.contains('dark-theme')) {
+        if (toggleIcon) {
+            toggleIcon.className = 'bi bi-sun';
+        }
+    }
+    
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function() {
+            document.body.classList.toggle('dark-theme');
+            let theme = 'light';
+            if (document.body.classList.contains('dark-theme')) {
+                theme = 'dark';
+                if (toggleIcon) toggleIcon.className = 'bi bi-sun';
+            } else {
+                if (toggleIcon) toggleIcon.className = 'bi bi-moon-stars';
+            }
+            localStorage.setItem('theme', theme);
+        });
+    }
+});
+</script>
 
 

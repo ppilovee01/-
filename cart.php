@@ -334,20 +334,156 @@ if (isset($_POST['confirm_order'])) {
 $page_title = "ตระกร้าสินค้า | Por Mae Bet Taled";
 $extra_css = "
 <style>
-    .card-modern { border: 1px solid rgba(226, 232, 240, 0.8); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: white; margin-bottom: 25px; overflow: hidden; }
-    .card-header-modern { background: white; border-bottom: 1px solid #E2E8F0; padding: 20px 25px; font-weight: 700; font-size: 1.1rem; color: var(--slate-dark); }
+    :root {
+        --cart-bg-card: #ffffff;
+        --cart-bg-header: #ffffff;
+        --cart-border: rgba(226, 232, 240, 0.8);
+        --cart-header-border: #E2E8F0;
+        --cart-qty-bg: #ffffff;
+        --cart-qty-btn-bg: #ffffff;
+        --cart-qty-border: #E2E8F0;
+        --cart-qty-btn-color: var(--text-secondary);
+        
+        --cart-modal-bg: rgba(255, 255, 255, 0.98);
+        --cart-modal-header-bg: linear-gradient(135deg, #f5f8ff, #ffffff);
+        --cart-modal-body-bg: #f8f9fa;
+        
+        --cart-checkout-text: #ffffff;
+        --cart-checkout-shadow: rgba(174, 226, 255, 0.4);
+        --cart-progress-track: #e2e8f0;
+    }
+    body.dark-theme {
+        --cart-bg-card: #131c2e;
+        --cart-bg-header: #131c2e;
+        --cart-border: rgba(174, 226, 255, 0.08);
+        --cart-header-border: rgba(174, 226, 255, 0.08);
+        --cart-qty-bg: #080d1a;
+        --cart-qty-btn-bg: #080d1a;
+        --cart-qty-border: rgba(174, 226, 255, 0.12);
+        --cart-qty-btn-color: #cbd5e1;
+        
+        --cart-modal-bg: #131c2e;
+        --cart-modal-header-bg: linear-gradient(135deg, #16243d, #131c2e);
+        --cart-modal-body-bg: #080d1a;
+        
+        --cart-checkout-text: #0a0f1d;
+        --cart-checkout-shadow: rgba(0, 0, 0, 0.4);
+        --cart-progress-track: #1c2a47;
+    }
+
+    .card-modern { border: 1px solid var(--cart-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: var(--cart-bg-card); margin-bottom: 25px; overflow: hidden; }
+    .card-header-modern { background: var(--cart-bg-header); border-bottom: 1px solid var(--cart-header-border); padding: 20px 25px; font-weight: 700; font-size: 1.1rem; color: var(--slate-dark); }
     .item-img { width: 70px; height: 70px; object-fit: cover; border-radius: 12px; }
-    .qty-box { display: flex; align-items: center; justify-content: center; border: 1px solid #E2E8F0; border-radius: 50px; background: white; width: 100px; padding: 3px; }
-    .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: white; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition-smooth); }
-    .qty-btn:hover { background: var(--blue-main); color: white; }
+    .qty-box { display: flex; align-items: center; justify-content: center; border: 1px solid var(--cart-qty-border); border-radius: 50px; background: var(--cart-qty-bg); width: 100px; padding: 3px; }
+    .qty-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: var(--cart-qty-btn-bg); color: var(--cart-qty-btn-color); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition-smooth); }
+    .qty-btn:hover { background: var(--blue-main); color: var(--cart-qty-bg); }
     .qty-num { flex-grow: 1; text-align: center; font-weight: bold; font-size: 0.95rem; color: var(--text-primary); user-select: none; }
     
-    .summary-card { position: sticky; top: 100px; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: white; }
-    .btn-checkout { background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%); color: white; border: none; border-radius: 50px; padding: 15px; width: 100%; font-weight: 600; font-size: 1.1rem; box-shadow: 0 8px 20px rgba(174, 226, 255, 0.4); transition: var(--transition-smooth); }
-    .btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(127, 181, 255, 0.55); color: white; }
+    .summary-card { position: sticky; top: 100px; border: 1px solid var(--cart-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: var(--cart-bg-card); }
+    .btn-checkout { background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%); color: var(--cart-checkout-text); border: none; border-radius: 50px; padding: 15px; width: 100%; font-weight: 600; font-size: 1.1rem; box-shadow: 0 8px 20px var(--cart-checkout-shadow); transition: var(--transition-smooth); }
+    .btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 12px 25px var(--cart-checkout-shadow); color: var(--cart-checkout-text); }
     .info-box { background: var(--blue-light); border: 1px dashed var(--blue-hover); border-radius: 12px; padding: 15px; margin-top: 15px; display: none; text-align: center; }
+
+    /* Payment details container */
+    .payment-detail-box {
+        background: var(--cart-bg-card);
+        border: 1px solid var(--cart-border);
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 15px;
+        display: none;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* QR Code container needs to stay white for scan reliability */
+    .qr-code-wrapper {
+        background: #ffffff !important;
+        border: 1px solid #E2E8F0 !important;
+        padding: 15px;
+        border-radius: 16px;
+        display: inline-block;
+        margin-bottom: 10px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Address check icon glow styling */
+    body.dark-theme input:checked + .option-card {
+        background-color: var(--blue-light) !important;
+        border-color: var(--blue-main) !important;
+    }
+    body.dark-theme input:checked + .option-card .check-icon {
+        color: var(--blue-main) !important;
+    }
+    
+    /* Dynamic coupon lists modal fix */
+    body.dark-theme #couponModal .modal-content {
+        background-color: var(--cart-modal-bg) !important;
+        border: 1px solid rgba(174, 226, 255, 0.08) !important;
+    }
+    body.dark-theme #couponModal .modal-header {
+        background: var(--cart-modal-header-bg) !important;
+        border-bottom: 1px solid rgba(174, 226, 255, 0.08) !important;
+    }
+    body.dark-theme #couponModal .modal-body {
+        background-color: var(--cart-modal-body-bg) !important;
+    }
+    body.dark-theme #couponModal .modal-footer {
+        background-color: var(--cart-modal-bg) !important;
+        border-top: 1px solid rgba(174, 226, 255, 0.08) !important;
+    }
+
+    /* Coupon button styling */
+    body.dark-theme .input-group .btn-dark {
+        background-color: var(--blue-main) !important;
+        color: #0a0f1d !important;
+        border-color: var(--blue-main) !important;
+        font-weight: 600;
+    }
+
+    /* Points box styling */
+    .points-info-box {
+        border: 1px solid rgba(226, 232, 240, 0.6);
+    }
+    body.dark-theme .points-info-box {
+        border: 1px solid rgba(174, 226, 255, 0.08);
+    }
+
+    /* Border highlights for dark mode */
+    body.dark-theme .border-bottom,
+    body.dark-theme .border {
+        border-color: rgba(174, 226, 255, 0.08) !important;
+    }
+
+    /* Free shipping widget track */
+    .free-shipping-bar-container {
+        background: var(--cart-progress-track) !important;
+    }
+
+    /* Save address button in modal */
+    body.dark-theme #addAddressModal .btn-dark,
+    body.dark-theme #form-add-address-cart .btn-dark {
+        background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%) !important;
+        color: #0a0f1d !important;
+        border: none !important;
+        font-weight: 700;
+        box-shadow: 0 6px 20px rgba(174, 226, 255, 0.2) !important;
+    }
+
+    /* Best coupon banner */
+    body.dark-theme .border-success.bg-success.bg-opacity-10 {
+        background-color: rgba(34, 197, 94, 0.15) !important;
+        border-color: rgba(34, 197, 94, 0.25) !important;
+        color: #4ade80 !important;
+    }
+    body.dark-theme .badge.bg-light.text-primary.border-primary {
+        background-color: rgba(174, 226, 255, 0.08) !important;
+        color: var(--blue-main) !important;
+        border-color: rgba(174, 226, 255, 0.2) !important;
+    }
 </style>
 ";
+
 include 'header.php';
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 $shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
@@ -511,16 +647,16 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                     </div>
                                     <?php endwhile; ?>
                                 </div>
-                                <div id="qrSection" class="info-box" style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 20px; display: none;">
+                                <div id="qrSection" class="payment-detail-box" style="display: none;">
                                     <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-qr-code-scan text-primary me-2"></i>สแกน QR Code พร้อมเพย์</h6>
-                                    <div class="d-inline-block bg-white p-3 border rounded-4 mb-2 shadow-sm" style="border-color: #E2E8F0 !important;">
+                                    <div class="qr-code-wrapper">
                                         <img id="qrImg" src="" style="width:230px; height:230px; object-fit:contain;" class="d-block mx-auto">
                                     </div>
                                     <div class="text-dark fw-bold mb-1" id="qr-acc-holder" style="font-size:0.95rem;"></div>
                                     <div class="text-muted small mb-2" id="qr-acc-num"></div>
                                     <div class="text-danger fw-bold" style="font-size:1.15rem;">ยอดโอน: ฿<span id="qr-total"><?= number_format($final, 2) ?></span></div>
                                 </div>
-                                <div id="bankSection" class="info-box" style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 20px; display: none;">
+                                <div id="bankSection" class="payment-detail-box" style="display: none;">
                                     <h6 class="fw-bold text-muted mb-2"><i class="bi bi-bank text-primary me-2"></i>รายละเอียดการโอนเงินธนาคาร</h6>
                                     <div class="fs-5 fw-bold text-dark mb-1" id="bankName"></div>
                                     <div id="bankAcc" class="fs-3 fw-bold text-primary my-2" style="letter-spacing: 0.5px;"></div>
@@ -544,10 +680,80 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                     <span class="free-shipping-icon" id="free-shipping-icon" style="font-size: 1.15rem;">🚚</span>
                                     <span class="fw-bold text-dark" id="free-shipping-text" style="font-size: 0.82rem; line-height: 1.2;"></span>
                                 </div>
-                                <div class="free-shipping-bar-container" style="height: 10px; background: #e2e8f0; border-radius: 10px; overflow: hidden; position: relative;">
-                                    <div class="free-shipping-bar-fill" id="free-shipping-bar-fill" style="width: 0%; height: 100%; border-radius: 10px; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease;"></div>
+                                <div class="free-shipping-bar-container">
+                                    <div class="free-shipping-bar-fill" id="free-shipping-bar-fill" style="width: 0%;"></div>
                                 </div>
                             </div>
+                            
+                            <!-- Auto-recommender Best Coupon logic -->
+                            <?php
+                            $best_coupon = null;
+                            $best_coupon_value = 0;
+                            
+                            if ($subtotal > 0) {
+                                $now_time = date('Y-m-d H:i:s');
+                                $coupon_query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= '$now_time') AND expiry_date >= '$now_time'");
+                                if ($coupon_query) {
+                                    while ($c = mysqli_fetch_assoc($coupon_query)) {
+                                        // Check min spend
+                                        if ($subtotal < floatval($c['min_spend'])) {
+                                            continue;
+                                        }
+                                        
+                                        // Check usage limit
+                                        if ($c['usage_limit'] > 0) {
+                                            $total_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND status != 'cancelled'"))['count'];
+                                            if ($total_used >= $c['usage_limit']) {
+                                                continue;
+                                            }
+                                        }
+                                        
+                                        // Check user limit
+                                        if ($user_id && $c['user_limit'] > 0) {
+                                            $user_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
+                                            if ($user_used >= $c['user_limit']) {
+                                                continue;
+                                            }
+                                        }
+                                        
+                                        // Calculate value
+                                        $val = 0;
+                                        if ($c['discount_type'] == 'fixed') {
+                                            $val = floatval($c['discount_value']);
+                                        } elseif ($c['discount_type'] == 'percent') {
+                                            $val = $subtotal * floatval($c['discount_value']) / 100;
+                                            $max_disc = floatval($c['max_discount'] ?? 0);
+                                            if ($max_disc > 0 && $val > $max_disc) {
+                                                $val = $max_disc;
+                                            }
+                                        } elseif ($c['discount_type'] == 'free_shipping') {
+                                            if ($subtotal < $shipping_free_threshold) {
+                                                $val = $shipping_fee_fixed;
+                                            }
+                                        }
+                                        
+                                        if ($c['discount_type'] !== 'free_shipping' && $val > $subtotal) {
+                                            $val = $subtotal;
+                                        }
+                                        
+                                        if ($val > $best_coupon_value) {
+                                            $best_coupon_value = $val;
+                                            $best_coupon = $c;
+                                        }
+                                    }
+                                }
+                            }
+                            ?>
+                            <?php if ($best_coupon && (!isset($_SESSION['coupon']) || $_SESSION['coupon']['code'] !== $best_coupon['code'])): ?>
+                                <div class="p-3 mb-3 rounded-4 border border-success bg-success bg-opacity-10 text-success animate__animated animate__fadeIn" style="font-size: 0.82rem;">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <span class="fs-5">💡</span>
+                                        <strong>โค้ดแนะนำที่คุ้มที่สุดสำหรับคุณ!</strong>
+                                    </div>
+                                    <div class="mb-2">ใช้โค้ด <span class="badge bg-success font-monospace"><?= htmlspecialchars($best_coupon['code']) ?></span> จะช่วยประหยัดเพิ่ม ฿<?= number_format($best_coupon_value, 2) ?></div>
+                                    <button type="button" class="btn btn-sm btn-success rounded-pill w-100 py-1" onclick="applyRecommendedCoupon('<?= htmlspecialchars($best_coupon['code']) ?>')" style="font-weight: 500;">ใช้โค้ดแนะนำอัตโนมัติ</button>
+                                </div>
+                            <?php endif; ?>
 
                             <div class="input-group input-group-sm mb-1">
                                 <input type="text" name="coupon_code" class="form-control" placeholder="โค้ดส่วนลด" value="<?= isset($_SESSION['coupon'])?$_SESSION['coupon']['code']:'' ?>">
@@ -572,7 +778,7 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                         </div>
                                         <input class="form-check-input" type="checkbox" name="use_points" id="use_points_toggle" value="1" onchange="togglePointsRedemption(this)" style="width: 2.2em; height: 1.2em; cursor: pointer; margin-left: 10px;">
                                     </div>
-                                    <div class="text-muted p-2 rounded-3 bg-white" style="font-size: 0.68rem; border: 1px solid rgba(226,232,240,0.6);">
+                                    <div class="text-muted p-2 rounded-3 bg-white points-info-box" style="font-size: 0.68rem;">
                                         <i class="bi bi-info-circle text-primary me-1"></i> <strong>กติกาแต้ม:</strong> 1 แต้ม = ฿<?= number_format($points_spend_rate) ?> ส่วนลด<br>
                                         (จะได้รับ 1 แต้ม สำหรับทุกยอดซื้อครบ ฿<?= number_format($points_earn_rate) ?> เมื่อจัดส่งออเดอร์สำเร็จ)
                                     </div>
@@ -598,7 +804,7 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                  <span>-฿<span id="points_discount_val">0.00</span></span>
                              </div>
                             <hr class="my-2 opacity-25">
-                            <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span>สุทธิ</span><span style="color:#AEE2FF">฿<span id="final_total"><?=number_format($final,2)?></span></span></div>
+                            <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span>สุทธิ</span><span style="color: var(--blue-dark) !important;">฿<span id="final_total"><?=number_format($final,2)?></span></span></div>
 
                             <input type="hidden" name="total_price_hidden" id="in_total" value="<?=$subtotal?>">
                             <input type="hidden" name="discount_hidden" id="in_disc" value="<?=$disc?>">
@@ -1119,6 +1325,33 @@ function openCouponModal() {
                     <div>เกิดข้อผิดพลาดในการโหลดคูปอง</div>
                 </div>`;
         });
+}
+
+function applyRecommendedCoupon(code) {
+    const couponInput = document.querySelector('input[name="coupon_code"]');
+    if (couponInput) {
+        couponInput.value = code;
+        
+        // Programmatically trigger coupon application form submission
+        const form = document.getElementById('checkoutForm');
+        const applyHidden = document.createElement('input');
+        applyHidden.type = 'hidden';
+        applyHidden.name = 'apply_coupon';
+        applyHidden.value = 'true';
+        form.appendChild(applyHidden);
+        
+        // Show loading Swal
+        Swal.fire({
+            title: 'กำลังใช้คูปอง...',
+            text: 'กรุณารอสักครู่',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        form.submit();
+    }
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
