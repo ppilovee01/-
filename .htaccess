@@ -1,0 +1,47 @@
+# ----------------------------------------------------------------------
+# Por Mae Bet Taled (พ่อแม่ เบ็ดเตล็ด) - Root Security Configurations
+# ----------------------------------------------------------------------
+
+# 1. Prevent Directory Indexing (Disable directory browsing)
+Options -Indexes
+
+# 2. Block Direct Access to Sensitive Files and Directories
+<FilesMatch "(db\.php|fitness_db\.sql|fitness_dbd\.sql|README\.md|\.git|\.gitignore|composer\.json|composer\.lock|package\.json|package-lock\.json)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 3. Mitigate Application-Layer DDoS & Flood Attacks
+# Limit Request Body size to 10MB to prevent resource exhaustion via heavy upload requests
+LimitRequestBody 10485760
+
+# Limit HTTP methods to safe/expected actions only
+<LimitExcept GET POST HEAD>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</LimitExcept>
+
+# 4. Implement HTTP Security Headers (Defense-in-depth)
+<IfModule mod_headers.c>
+    # Prevent MIME Sniffing attacks
+    Header set X-Content-Type-Options "nosniff"
+
+    # Prevent Clickjacking attacks
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Enable browser XSS protection mode
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Control Referrer leakage
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

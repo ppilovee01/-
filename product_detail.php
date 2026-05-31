@@ -40,6 +40,9 @@ $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
 
 // --- Logic Review (Anti-F5 Fixed) ---
 if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $uid = $_SESSION['user_id'];
     $rating = intval($_POST['rating']);
     $comment = mysqli_real_escape_string($conn, $_POST['comment']);
@@ -228,6 +231,7 @@ include 'header.php';
             </div>
 
             <form id="addCartForm" onsubmit="return false;">
+                <?= get_csrf_input() ?>
                 <input type="hidden" name="product_id" value="<?= $id ?>">
                 <input type="hidden" name="qty" id="qty_val" value="1">
                 <input type="hidden" name="action" value="add">
@@ -299,6 +303,7 @@ include 'header.php';
                 <div class="bg-light p-4 rounded-3 mb-4 border shadow-sm">
                     <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-pencil-square me-2 text-primary"></i>เขียนรีวิวสินค้า</h6>
                     <form method="POST" enctype="multipart/form-data">
+                        <?= get_csrf_input() ?>
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="small text-muted mb-1 d-block fw-bold">ความพึงพอใจ</label>
@@ -695,6 +700,7 @@ endif;
         let fd = new FormData(); 
         fd.append('action', action); 
         fd.append('product_id', pid);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
         
         fetch('ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -771,6 +777,7 @@ endif;
         fd.append('product_id', pid);
         fd.append('rating', selectedRating);
         fd.append('has_image', hasImageOnly);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
         
         fetch('ajax.php', {
             method: 'POST',

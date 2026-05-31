@@ -8,14 +8,20 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
     exit(); 
 }
 
-// --- Logic จัดการขเน‰อมูล ---
+// --- Logic จัดการข้อมูล ---
 if (isset($_GET['delete_id'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $did = mysqli_real_escape_string($conn, $_GET['delete_id']);
     mysqli_query($conn, "DELETE FROM contact_messages WHERE id = '$did'");
     header("Location: admin_contact.php"); exit();
 }
 
 if (isset($_GET['read_id'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $rid = mysqli_real_escape_string($conn, $_GET['read_id']);
     $new_status = ($_GET['status'] == 'read') ? 'read' : 'unread';
     mysqli_query($conn, "UPDATE contact_messages SET status = '$new_status' WHERE id = '$rid'");
@@ -149,10 +155,10 @@ if (isset($_GET['read_id'])) {
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex justify-content-center gap-2">
-                                            <a href="?read_id=<?= $row['id'] ?>&status=<?= $is_new ? 'read' : 'unread' ?>" class="btn-action">
+                                            <a href="?read_id=<?= $row['id'] ?>&status=<?= $is_new ? 'read' : 'unread' ?>&csrf_token=<?= get_csrf_token() ?>" class="btn-action">
                                                 <i class="bi <?= $is_new ? 'bi-envelope-open' : 'bi-envelope' ?>"></i>
                                             </a>
-                                            <a href="javascript:void(0)" onclick="confirmDelete(<?= $row['id'] ?>)" class="btn-action text-danger">
+                                            <a href="javascript:void(0)" onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn-action text-danger">
                                                 <i class="bi bi-trash3"></i>
                                             </a>
                                         </div>
@@ -171,15 +177,15 @@ if (isset($_GET['read_id'])) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function confirmDelete(id) {
+function confirmDelete(id, token) {
     Swal.fire({
         title: 'ยืนยันการลบ?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#AEE2FF',
-        confirmButtonText: 'ลบขเน‰อมูล'
+        confirmButtonText: 'ลบข้อมูล'
     }).then((result) => {
-        if (result.isConfirmed) { window.location.href = '?delete_id=' + id; }
+        if (result.isConfirmed) { window.location.href = '?delete_id=' + id + '&csrf_token=' + token; }
     })
 }
 </script>

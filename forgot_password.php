@@ -7,6 +7,9 @@ date_default_timezone_set('Asia/Bangkok');
 
 // --- Logic: สร้างรหัส OTP ส่งเข้าอีเมล ---
 if (isset($_POST['request_reset'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     
     // 1. เช็คว่ามีอีเมลนี้ในระบบไหม
@@ -80,6 +83,7 @@ if (isset($_POST['request_reset'])) {
                     <p class="text-muted small mb-4">กรอกอีเมลของคุณเพื่อรับลิงก์สำหรับตั้งรหัสผ่านใหม่</p>
                     
                     <form method="POST">
+                        <?= get_csrf_input() ?>
                         <div class="form-floating mb-3 text-start">
                             <input type="email" name="email" class="form-control rounded-4" id="emailInput" placeholder="name@example.com" required>
                             <label for="emailInput">อีเมลที่ใช้สมัครสมาชิก</label>

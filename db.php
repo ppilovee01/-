@@ -4,6 +4,40 @@ error_reporting(0);
 ini_set('display_errors', 0);
 date_default_timezone_set('Asia/Bangkok');
 
+// --- มาตรการป้องกันการแฮกเกอร์และความปลอดภัย HTTP Headers & Sessions ---
+ini_set('session.cookie_httponly', 1); // ป้องกันไม่ให้ JavaScript อ่านคุกกี้เซสชันได้ (ป้องกัน Session Hijacking จาก XSS)
+ini_set('session.use_only_cookies', 1); // บังคับให้ใช้คุกกี้ในการเก็บเซสชันเท่านั้น
+if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === 1 || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
+    ini_set('session.cookie_secure', 1); // บังคับส่งคุกกี้ผ่าน HTTPS เท่านั้น
+}
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!headers_sent()) {
+    header("X-Frame-Options: DENY"); // ป้องกัน Clickjacking (การแอบฝังเว็บใน iframe)
+    header("X-Content-Type-Options: nosniff"); // ป้องกัน MIME-type Sniffing
+    header("Referrer-Policy: strict-origin-when-cross-origin"); // ป้องกันข้อมูลหน้าอ้างอิงรั่วไหล
+}
+
+// --- สร้างและประมวลผล CSRF Token เพื่อความปลอดภัยของระบบ ---
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function get_csrf_token() {
+    return $_SESSION['csrf_token'] ?? '';
+}
+
+function get_csrf_input() {
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(get_csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
+}
+
+function verify_csrf_token($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
 $servername = "localhost";
 $username = "root";
 $password = "";

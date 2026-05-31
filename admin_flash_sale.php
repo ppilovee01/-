@@ -9,6 +9,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit(); 
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 $error_msg = "";
 $success_msg = "";
 
@@ -83,6 +89,9 @@ if (isset($_POST['add'])) {
 }
 
 if (isset($_GET['del'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['del']);
     $fs_q = mysqli_query($conn, "SELECT fs.product_id, p.name FROM flash_sales fs JOIN products p ON fs.product_id = p.id WHERE fs.id = $id");
     $fs_info = mysqli_fetch_assoc($fs_q);
@@ -100,6 +109,9 @@ if (isset($_GET['del'])) {
 }
 
 if (isset($_GET['cancel_campaign'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['cancel_campaign']);
     $fs_q = mysqli_query($conn, "SELECT fs.product_id, p.name FROM flash_sales fs JOIN products p ON fs.product_id = p.id WHERE fs.id = $id");
     $fs_info = mysqli_fetch_assoc($fs_q);
@@ -265,6 +277,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                             </h5>
                             
                             <form method="POST" action="admin_flash_sale.php">
+                                <?= get_csrf_input() ?>
                                 <?php if ($edit_data): ?>
                                     <input type="hidden" name="id" value="<?= $edit_data['id'] ?>">
                                 <?php endif; ?>
@@ -319,6 +332,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                             <p class="text-muted small mb-3">เมื่อเปิดใช้งาน หากระบบตรวจไม่พบแคมเปญ Flash Sale ที่กำลังรันอยู่ ระบบจะสุ่มเลือกสินค้าขึ้นมาจัดแคมเปญอัตโนมัติทันที</p>
                             
                             <form method="POST" action="admin_flash_sale.php">
+                                <?= get_csrf_input() ?>
                                 <div class="form-check form-switch mb-3">
                                     <input class="form-check-input" type="checkbox" name="auto_flash_sale" id="autoFlashCheck" value="1" <?= (isset($shop_s['auto_flash_sale']) && $shop_s['auto_flash_sale'] == 1) ? 'checked' : '' ?> style="cursor: pointer; width: 2.2em; height: 1.1em;">
                                     <label class="form-check-label fw-bold text-dark small ms-2" for="autoFlashCheck" style="cursor: pointer;">เปิดใช้งานระบบอัตโนมัติ</label>
@@ -444,14 +458,14 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                                 <td class="text-center">
                                                     <div class="d-flex justify-content-center gap-1">
                                                         <?php if ($is_active): ?>
-                                                            <a href="admin_flash_sale.php?cancel_campaign=<?= $camp['id'] ?>" class="btn btn-outline-danger btn-sm rounded-3 px-2" title="จบแคมเปญทันที" onclick="return confirm('คุณต้องการบังคับปิดแคมเปญนี้ทันทีใช่หรือไม่?')">
+                                                            <a href="admin_flash_sale.php?cancel_campaign=<?= $camp['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-outline-danger btn-sm rounded-3 px-2" title="จบแคมเปญทันที" onclick="return confirm('คุณต้องการบังคับปิดแคมเปญนี้ทันทีใช่หรือไม่?')">
                                                                 <i class="bi bi-stop-fill"></i>
                                                             </a>
                                                         <?php endif; ?>
                                                         <a href="admin_flash_sale.php?edit=<?= $camp['id'] ?>" class="btn btn-light btn-sm rounded-3 text-warning border" title="แก้ไข">
                                                             <i class="bi bi-pencil-fill"></i>
                                                         </a>
-                                                        <a href="admin_flash_sale.php?del=<?= $camp['id'] ?>" class="btn btn-light btn-sm rounded-3 text-danger border" title="ลบ" onclick="return confirm('คุณต้องการลบแคมเปญนี้ใช่หรือไม่?')">
+                                                        <a href="admin_flash_sale.php?del=<?= $camp['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light btn-sm rounded-3 text-danger border" title="ลบ" onclick="return confirm('คุณต้องการลบแคมเปญนี้ใช่หรือไม่?')">
                                                             <i class="bi bi-trash-fill"></i>
                                                         </a>
                                                     </div>

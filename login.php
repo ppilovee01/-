@@ -4,6 +4,9 @@ include 'db.php';
 
 // --- Logic: สมัครสมาชิก (Anti-F5 Fixed) ---
 if (isset($_POST['register'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
@@ -31,11 +34,15 @@ if (isset($_POST['register'])) {
 
 // --- Logic: เข้าสู่ระบบ ---
 if (isset($_POST['login'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $pass = $_POST['password'];
     $res = mysqli_query($conn, "SELECT * FROM users WHERE username='$user'");
     $u = mysqli_fetch_assoc($res);
     if ($u && password_verify($pass, $u['password'])) {
+        session_regenerate_id(true);
         $_SESSION['user_id'] = $u['id'];
         $_SESSION['fullname'] = $u['fullname'];
         $_SESSION['role'] = $u['role'];
@@ -107,6 +114,7 @@ unset($_SESSION['active_tab']);
                 <div class="tab-content">
                     <div class="tab-pane fade <?= $active_tab=='login'?'show active':'' ?>" id="login-form">
                         <form method="POST">
+                            <?= get_csrf_input() ?>
                             <div class="mb-3">
                                 <div class="input-group">
                                     <span class="input-group-text rounded-start-4 text-muted"><i class="bi bi-person"></i></span>
@@ -129,6 +137,7 @@ unset($_SESSION['active_tab']);
 
                     <div class="tab-pane fade <?= $active_tab=='register'?'show active':'' ?>" id="reg-form">
                         <form method="POST">
+                            <?= get_csrf_input() ?>
                             <div class="mb-3"><input type="text" name="fullname" class="form-control rounded-4 ps-3" placeholder="ชื่อ-นามสกุล" required></div>
                             <div class="mb-3"><input type="email" name="email" class="form-control rounded-4 ps-3" placeholder="อีเมล" required></div>
                             <div class="row">

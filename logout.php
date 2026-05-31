@@ -2,6 +2,7 @@
 session_start();
 session_destroy();
 header("Location: index.php");
+exit();
 ?>
 <div id="loader" style="position:fixed; width:100%; height:100%; background:white; z-index:9999; display:flex; align-items:center; justify-content:center;">
     <div class="spinner-border text-blue" role="status" style="width: 3rem; height: 3rem; color: #AEE2FF;"></div>

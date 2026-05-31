@@ -4,6 +4,12 @@ include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 if (isset($_POST['add_cat'])) {
     $name = mysqli_real_escape_string($conn, $_POST['cat_name']);
     mysqli_query($conn, "INSERT INTO categories (name) VALUES ('$name')");
@@ -11,6 +17,9 @@ if (isset($_POST['add_cat'])) {
     header("Location: admin_categories.php"); exit();
 }
 if (isset($_GET['delete'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['delete']);
     $c_q = mysqli_query($conn, "SELECT name FROM categories WHERE id=$id");
     $c_name = mysqli_fetch_assoc($c_q)['name'] ?? 'ไม่พบชื่อหมวดหมู่';
@@ -68,6 +77,7 @@ if (isset($_POST['edit_cat'])) {
                     <div class="card border-0 shadow-sm rounded-4 p-4">
                         <h5 class="fw-bold mb-3">สร้างหมวดหมู่ใหม่</h5>
                         <form method="POST">
+                            <?= get_csrf_input() ?>
                             <div class="mb-3">
                                 <label class="text-muted small">ชื่อหมวดหมู่</label>
                                 <input type="text" name="cat_name" class="form-control" placeholder="ขนม" required>
@@ -98,7 +108,7 @@ if (isset($_POST['edit_cat'])) {
                                         <td><span class="badge bg-light text-dark border"><?= $row['prod_count'] ?> ชิ้น</span></td>
                                         <td class="text-end pe-4">
                                             <button onclick="editCat(<?= $row['id'] ?>, '<?= $row['name'] ?>')" class="btn btn-light text-primary btn-sm rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill"></i></button>
-                                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm" onclick="return confirm('ยืนยันลบ?');"><i class="bi bi-trash-fill"></i></a>
+                                            <a href="?delete=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm" onclick="return confirm('ยืนยันลบ?');"><i class="bi bi-trash-fill"></i></a>
                                         </td>
                                     </tr>
                                     <?php endwhile; else: ?>
@@ -119,6 +129,7 @@ if (isset($_POST['edit_cat'])) {
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header border-0"><h5 class="modal-title fw-bold">เนเเน‰เน„ขชื่อหมวดหมู่</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <form method="POST">
+                <?= get_csrf_input() ?>
                 <div class="modal-body">
                     <input type="hidden" name="edit_id" id="edit_id">
                     <input type="text" name="edit_name" id="edit_name" class="form-control" required>

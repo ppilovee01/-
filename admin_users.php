@@ -8,6 +8,12 @@ date_default_timezone_set('Asia/Bangkok');
 // 2. เช็คสิทธิ์ Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // --- Logic 1: เพิ่มสมาชิกใหม่ (Anti-F5 Fixed) ---
 if (isset($_POST['add_user'])) {
     $user = mysqli_real_escape_string($conn, $_POST['username']);
@@ -71,6 +77,9 @@ if (isset($_POST['edit_user'])) {
 
 // --- Logic 3: ลบสมาชิก ---
 if (isset($_GET['delete'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['delete']);
     if ($id == $_SESSION['user_id']) {
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'คุณไม่สามารถลบตัวเองได้!', 'icon'=>'warning'];
@@ -182,7 +191,7 @@ if (isset($_GET['delete'])) {
                                     </button>
                                     
                                     <?php if($row['id'] != $_SESSION['user_id']): ?>
-                                    <button onclick="confirmBan(<?= $row['id'] ?>, '<?= $row['fullname'] ?>')" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm">
+                                    <button onclick="confirmBan(<?= $row['id'] ?>, '<?= addslashes($row['fullname']) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm">
                                         <i class="bi bi-trash-fill"></i>
                                     </button>
                                     <?php endif; ?>
@@ -205,6 +214,7 @@ if (isset($_GET['delete'])) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
+                <?= get_csrf_input() ?>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="small text-muted">Username</label>
@@ -251,6 +261,7 @@ if (isset($_GET['delete'])) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
+                <?= get_csrf_input() ?>
                 <input type="hidden" name="edit_id" id="edit_id">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -304,7 +315,7 @@ if (isset($_GET['delete'])) {
         document.getElementById('edit_points').value = data.points || 0;
     }
 
-    function confirmBan(id, name) {
+    function confirmBan(id, name, token) {
         Swal.fire({
             title: 'ยืนยันการลบ?',
             text: "ต้องการลบสมาชิก '" + name + "' หรือไม่?",
@@ -315,7 +326,7 @@ if (isset($_GET['delete'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = '?delete=' + id;
+                window.location.href = '?delete=' + id + '&csrf_token=' + token;
             }
         })
     }

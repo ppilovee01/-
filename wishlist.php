@@ -72,6 +72,7 @@ include 'header.php';
 <script>
 function toggleFeature(action, pid, btn) {
     let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid);
+    fd.append('csrf_token', '<?= get_csrf_token() ?>');
     fetch('ajax.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => {
         const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1000});
         Toast.fire({icon: 'success', title: 'ลบเรียบร้อย'});

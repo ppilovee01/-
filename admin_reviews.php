@@ -2,10 +2,13 @@
 session_start();
 include 'db.php';
 
-// แŠเน‡ค Admin
+// เช็ค Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
 if (isset($_GET['delete'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['delete']);
     
     // ดึงข้อมูลรีวิวเพื่อบันทึกประวัติก่อนลบ
@@ -115,7 +118,7 @@ if (isset($_GET['delete'])) {
                                 </td>
                                 <td class="small text-muted"><?= date('d/m/Y H:i', strtotime($row['created_at'])) ?></td>
                                 <td class="text-end">
-                                    <button onclick="confirmDelete(<?= $row['id'] ?>)" class="btn btn-sm btn-outline-danger rounded-circle">
+                                    <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-sm btn-outline-danger rounded-circle">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </td>
@@ -133,7 +136,7 @@ if (isset($_GET['delete'])) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    function confirmDelete(id) {
+    function confirmDelete(id, token) {
         Swal.fire({
             title: 'ลบรีวิวนี้?',
             text: "ข้อมูลจะหายไปถาวร",
@@ -143,7 +146,7 @@ if (isset($_GET['delete'])) {
             confirmButtonText: 'ลบเลย'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = '?delete=' + id;
+                window.location.href = '?delete=' + id + '&csrf_token=' + token;
             }
         })
     }

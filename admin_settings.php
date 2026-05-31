@@ -4,6 +4,12 @@ include 'db.php';
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // --- การบันทึกข้อมูลตั้งค่าร้านค้า ---
 if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $name = mysqli_real_escape_string($conn, $_POST['shop_name']);
@@ -130,6 +136,7 @@ if ($coupons_query) {
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <form method="POST" enctype="multipart/form-data">
+                    <?= get_csrf_input() ?>
                     
                     <div class="d-flex flex-column flex-sm-row align-items-center mb-4 p-3 border rounded bg-light">
                         <div class="me-sm-4 text-center mb-3 mb-sm-0">

@@ -7,6 +7,12 @@ date_default_timezone_set('Asia/Bangkok');
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // --- Logic 1: เพิ่มข้อมูล (Add) ---
 if (isset($_POST['add'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
@@ -24,6 +30,9 @@ if (isset($_POST['add'])) {
 
 // --- Logic 2: ลบข้อมูล (Delete) ---
 if (isset($_GET['del'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['del']);
     $p_q = mysqli_query($conn, "SELECT name, account_number FROM payment_methods WHERE id=$id");
     $p_info = mysqli_fetch_assoc($p_q);
@@ -105,6 +114,7 @@ if (isset($_POST['update'])) {
                         </h5>
                         
                         <form method="POST">
+                            <?= get_csrf_input() ?>
                             <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>">
                             
                             <div class="mb-2">
@@ -206,7 +216,7 @@ if (isset($_POST['update'])) {
                                             <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1" title="แก้ไข">
                                                 <i class="bi bi-pencil-fill"></i>
                                             </a>
-                                            <a href="?del=<?= $row['id'] ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" title="ลบ" onclick="return confirm('ยืนยันการลบ?');">
+                                            <a href="?del=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" title="ลบ" onclick="return confirm('ยืนยันการลบ?');">
                                                 <i class="bi bi-trash-fill"></i>
                                             </a>
                                         </td>

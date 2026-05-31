@@ -8,6 +8,12 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit(); 
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // 2. ล้างประวัติการทำงาน (ต้องกรอกรหัสผ่านยืนยัน)
 if (isset($_POST['clear_logs'])) {
     $password = $_POST['admin_password'];
@@ -319,6 +325,7 @@ if ($type_query) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="admin_logs.php">
+                <?= get_csrf_input() ?>
                 <div class="modal-body py-3">
                     <p class="small text-muted mb-3">กรุณากรอกรหัสผ่านบัญชีแอดมินของคุณเพื่อยืนยันการล้างประวัติการทำงานทั้งหมดถาวร</p>
                     <div class="mb-1">

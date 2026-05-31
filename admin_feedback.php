@@ -3,11 +3,14 @@ session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
 
-// แŠเน‡ค Admin
+// เช็ค Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
 // Logic: ลบ Feedback
 if (isset($_GET['delete'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['delete']);
     mysqli_query($conn, "DELETE FROM feedback WHERE id=$id");
     header("Location: admin_feedback.php"); exit();
@@ -68,7 +71,7 @@ if (isset($_GET['delete'])) {
                                 <h6 class="fw-bold m-0 text-truncate"><?= htmlspecialchars($row['fullname']) ?></h6>
                                 <small class="text-muted text-truncate d-block"><?= htmlspecialchars($row['email']) ?></small>
                             </div>
-                            <a href="?delete=<?= intval($row['id']) ?>" class="btn btn-light text-danger btn-sm rounded-circle ms-auto" onclick="return confirm('ลบข้อความนี้?')">
+                            <a href="?delete=<?= intval($row['id']) ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light text-danger btn-sm rounded-circle ms-auto" onclick="return confirm('ลบข้อความนี้?')">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </div>

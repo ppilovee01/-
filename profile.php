@@ -149,6 +149,7 @@ include 'header.php';
                     
                     <div class="tab-pane fade show active" id="profile-pane" role="tabpanel">
                         <form id="form-profile">
+                            <?= get_csrf_input() ?>
                             <input type="hidden" name="action" value="update_profile">
                             <div class="row g-4">
                                 <div class="col-md-12 text-center mb-2">
@@ -214,6 +215,7 @@ include 'header.php';
 
                     <div class="tab-pane fade" id="password-pane" role="tabpanel">
                         <form id="form-password" class="py-2">
+                            <?= get_csrf_input() ?>
                             <input type="hidden" name="action" value="change_password">
                             <div class="row g-3 justify-content-center">
                                 <div class="col-lg-8">
@@ -370,6 +372,7 @@ include 'header.php';
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-0"><h5 class="modal-title fw-bold">เพิ่มที่อยู่ใหม่</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <form id="form-add-address">
+                <?= get_csrf_input() ?>
                 <input type="hidden" name="action" value="add_address">
                 <div class="modal-body">
                     <div class="row g-2">
@@ -525,6 +528,7 @@ include 'header.php';
                 const formData = new FormData();
                 formData.append('action', 'delete_address');
                 formData.append('address_id', id);
+                formData.append('csrf_token', '<?= get_csrf_token() ?>');
                 fetch('ajax.php', { method: 'POST', body: formData })
                 .then(res => res.json())
                 .then(data => {

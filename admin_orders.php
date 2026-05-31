@@ -6,6 +6,19 @@ include 'mail_sender.php';
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrf_token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verify_csrf_token($csrf_token)) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            ob_clean();
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // ฟังก์ชันสำหรับขอเลขสถิติออเดอร์ในแต่ละสถานะล่าสุดแบบเรียลไทม์
 function get_stats_counts($conn) {
     return [
@@ -464,7 +477,7 @@ if (isset($_POST['save_note'])) {
                 </div>
             </div>
 
-            <div class="modal fade" id="noteModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">หมายเหตุ</h6></div><form id="note-form-<?= $oid ?>" onsubmit="submitNoteAjax(event, '<?= $oid ?>')"><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><textarea name="admin_note" class="form-control" rows="3"><?= htmlspecialchars($row['admin_note']) ?></textarea></div><div class="modal-footer border-0 pt-0"><button type="submit" class="btn btn-primary w-100 btn-sm shadow-sm">บันทึก</button></div></form></div></div></div>
+            <div class="modal fade" id="noteModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header border-0 pb-0"><h6 class="modal-title fw-bold">หมายเหตุ</h6></div><form id="note-form-<?= $oid ?>" onsubmit="submitNoteAjax(event, '<?= $oid ?>')"><?= get_csrf_input() ?><div class="modal-body"><input type="hidden" name="order_id" value="<?= $oid ?>"><textarea name="admin_note" class="form-control" rows="3"><?= htmlspecialchars($row['admin_note']) ?></textarea></div><div class="modal-footer border-0 pt-0"><button type="submit" class="btn btn-primary w-100 btn-sm shadow-sm">บันทึก</button></div></form></div></div></div>
             <div class="modal fade" id="trackingModal<?= $oid ?>" tabindex="-1">
                 <div class="modal-dialog modal-sm modal-dialog-centered">
                     <div class="modal-content">
@@ -472,6 +485,7 @@ if (isset($_POST['save_note'])) {
                             <h6 class="modal-title fw-bold text-dark">บันทึกส่งพัสดุ #<?= $oid ?></h6>
                         </div>
                         <form id="tracking-form-<?= $oid ?>" onsubmit="submitTrackingAjax(event, '<?= $oid ?>')">
+                            <?= get_csrf_input() ?>
                             <div class="modal-body py-3">
                                 <input type="hidden" name="order_id" value="<?= $oid ?>">
                                 <div class="mb-2">
@@ -564,6 +578,7 @@ function submitStatusAjax(selectEl, orderId) {
     formData.append('status', status);
     formData.append('update_status', '1');
     formData.append('ajax', '1');
+    formData.append('csrf_token', '<?= get_csrf_token() ?>');
     
     fetch('admin_orders.php', {
         method: 'POST',

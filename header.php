@@ -23,6 +23,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $page_title ?></title>
+    <meta name="csrf-token" content="<?= get_csrf_token() ?>">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -625,6 +626,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             let fd = new FormData();
             fd.append('action', 'mark_read');
             fd.append('notification_id', id);
+            fd.append('csrf_token', '<?= get_csrf_token() ?>');
             
             fetch('ajax.php', { method: 'POST', body: fd })
             .then(r => r.json())
@@ -643,6 +645,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
         window.markAllNotificationsAsRead = function() {
             let fd = new FormData();
             fd.append('action', 'mark_read');
+            fd.append('csrf_token', '<?= get_csrf_token() ?>');
             
             fetch('ajax.php', { method: 'POST', body: fd })
             .then(r => r.json())
@@ -668,6 +671,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 if (result.isConfirmed) {
                     let fd = new FormData();
                     fd.append('action', 'clear_notifications');
+                    fd.append('csrf_token', '<?= get_csrf_token() ?>');
                     fetch('ajax.php', { method: 'POST', body: fd })
                     .then(r => r.json())
                     .then(data => {
@@ -874,6 +878,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             data.append('action', 'update_qty');
             data.append('product_id', cartKey);
             data.append('type', type);
+            data.append('csrf_token', '<?= get_csrf_token() ?>');
             
             fetch('ajax.php', {
                 method: 'POST',
@@ -943,6 +948,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             const data = new FormData();
             data.append('action', 'remove_item');
             data.append('product_id', cartKey);
+            data.append('csrf_token', '<?= get_csrf_token() ?>');
             
             fetch('ajax.php', {
                 method: 'POST',

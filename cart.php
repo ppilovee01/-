@@ -9,12 +9,18 @@ if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
 $user_id = $_SESSION['user_id'];
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // --- 2. ใช้คูปอง ---
 if (isset($_POST['apply_coupon'])) {
     $code = mysqli_real_escape_string($conn, $_POST['coupon_code']); 
     $current_total = str_replace(',', '', $_POST['current_total']); 
-    $today = date('Y-m-d'); 
-    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND expiry_date >= '$today'");
+    $now = date('Y-m-d H:i:s'); 
+    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now'");
     if (mysqli_num_rows($check) > 0) {
         $c = mysqli_fetch_assoc($check);
         
@@ -94,7 +100,8 @@ if (isset($_POST['confirm_order'])) {
                 $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
                 
                 if (!empty($coupon)) {
-                    $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active'"));
+                    $now = date('Y-m-d H:i:s');
+                    $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now'"));
                     if ($chk_c) {
                         if ($chk_c['usage_limit'] > 0) {
                             $tot_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND status != 'cancelled'"))['count'];
@@ -370,6 +377,7 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
             <h3 class="fw-bold mb-4">🛒 ตะกร้าสินค้า</h3>
             
             <form method="POST" enctype="multipart/form-data" id="checkoutForm">
+                <?= get_csrf_input() ?>
                 <div class="row g-4">
                     <div class="col-xl-8">
                         <div class="card-modern animate__animated animate__fadeInUp">
@@ -614,6 +622,7 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
         <div class="modal-content">
             <div class="modal-header border-0"><h5 class="modal-title fw-bold">เพิ่มที่อยู่ใหม่</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
             <form id="form-add-address-cart" onsubmit="saveAddressCart(); return false;">
+                <?= get_csrf_input() ?>
                 <input type="hidden" name="action" value="add_address">
                 <div class="modal-body">
                     <div class="row g-2">
@@ -764,6 +773,7 @@ function updateQty(id, type) {
     formData.append('action', 'update_qty');
     formData.append('product_id', id);
     formData.append('type', type);
+    formData.append('csrf_token', '<?= get_csrf_token() ?>');
 
     fetch('ajax.php', { method: 'POST', body: formData })
     .then(res => res.json())
@@ -816,6 +826,7 @@ function removeItem(id) {
     }).then((r)=>{
         if(r.isConfirmed) {
             let fd = new FormData(); fd.append('action','remove_item'); fd.append('product_id',id);
+            fd.append('csrf_token', '<?= get_csrf_token() ?>');
             fetch('ajax.php', { method:'POST', body:fd }).then(r=>r.json()).then(data=>{
                 if(data.status==='success') {
                     const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true});

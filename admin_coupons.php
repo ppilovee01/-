@@ -3,8 +3,14 @@ session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
 
-// แŠเน‡ค Admin
+// เช็ค Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
 
 // --- Logic 1: เพิ่มคูปอง (Add) ---
 if (isset($_POST['add'])) {
@@ -15,22 +21,27 @@ if (isset($_POST['add'])) {
     $max_discount = floatval($_POST['max_discount'] ?? 0);
     $usage_limit = intval($_POST['usage_limit'] ?? 0);
     $user_limit = intval($_POST['user_limit'] ?? 0);
-    $exp = mysqli_real_escape_string($conn, $_POST['expiry_date']);
+    $start_date = !empty($_POST['start_date']) ? date('Y-m-d H:i:s', strtotime($_POST['start_date'])) : null;
+    $exp = !empty($_POST['expiry_date']) ? date('Y-m-d H:i:s', strtotime($_POST['expiry_date'])) : '';
     
     $check = mysqli_query($conn, "SELECT id FROM coupons WHERE code='$code'");
     if(mysqli_num_rows($check) > 0) {
         echo "<script>alert('โค้ดนี้มีอยู่แล้ว!');</script>";
     } else {
-        $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, max_discount, usage_limit, user_limit, expiry_date) 
-                VALUES ('$code', '$type', '$val', '$min', '$max_discount', '$usage_limit', '$user_limit', '$exp')";
+        $start_date_val = $start_date ? "'$start_date'" : "NULL";
+        $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, max_discount, usage_limit, user_limit, start_date, expiry_date) 
+                VALUES ('$code', '$type', '$val', '$min', '$max_discount', '$usage_limit', '$user_limit', $start_date_val, '$exp')";
         mysqli_query($conn, $sql);
-        log_admin_action($conn, 'สร้างคูปอง', "สร้างคูปองส่วนลดโค้ด $code: ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันหมดอายุ = $exp");
+        log_admin_action($conn, 'สร้างคูปอง', "สร้างคูปองส่วนลดโค้ด $code: ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันเริ่มใช้งาน = " . ($start_date ?? 'ทันที') . ", วันหมดอายุ = $exp");
         header("Location: admin_coupons.php"); exit();
     }
 }
 
 // --- Logic 2: ลบ (Delete) ---
 if (isset($_GET['del'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['del']);
     $c_q = mysqli_query($conn, "SELECT code FROM coupons WHERE id=$id");
     $c_info = mysqli_fetch_assoc($c_q);
@@ -58,11 +69,13 @@ if (isset($_POST['update'])) {
     $max_discount = floatval($_POST['max_discount'] ?? 0);
     $usage_limit = intval($_POST['usage_limit'] ?? 0);
     $user_limit = intval($_POST['user_limit'] ?? 0);
-    $exp = mysqli_real_escape_string($conn, $_POST['expiry_date']);
+    $start_date = !empty($_POST['start_date']) ? date('Y-m-d H:i:s', strtotime($_POST['start_date'])) : null;
+    $exp = !empty($_POST['expiry_date']) ? date('Y-m-d H:i:s', strtotime($_POST['expiry_date'])) : '';
 
-    $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', max_discount='$max_discount', usage_limit='$usage_limit', user_limit='$user_limit', expiry_date='$exp' WHERE id=$id";
+    $start_date_val = $start_date ? "'$start_date'" : "NULL";
+    $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', max_discount='$max_discount', usage_limit='$usage_limit', user_limit='$user_limit', start_date=$start_date_val, expiry_date='$exp' WHERE id=$id";
     mysqli_query($conn, $sql);
-    log_admin_action($conn, 'แก้ไขคูปอง', "แก้ไขคูปองส่วนลด ID #$id: โค้ด = $code, ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันหมดอายุ = $exp");
+    log_admin_action($conn, 'แก้ไขคูปอง', "แก้ไขคูปองส่วนลด ID #$id: โค้ด = $code, ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันเริ่มใช้งาน = " . ($start_date ?? 'ทันที') . ", วันหมดอายุ = $exp");
     header("Location: admin_coupons.php"); exit();
 }
 ?>
@@ -108,6 +121,7 @@ if (isset($_POST['update'])) {
                         </h5>
                         
                         <form method="POST">
+                            <?= get_csrf_input() ?>
                             <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>">
                             
                             <div class="mb-3">
@@ -152,9 +166,15 @@ if (isset($_POST['update'])) {
                                 </div>
                             </div>
 
-                            <div class="mb-4">
-                                <label class="small text-muted">วันหมดอายุ</label>
-                                <input type="date" name="expiry_date" class="form-control" value="<?= $edit_data['expiry_date'] ?? date('Y-m-d', strtotime('+1 month')) ?>" required>
+                            <div class="row g-2 mb-4">
+                                <div class="col-6">
+                                    <label class="small text-muted">วันเริ่มใช้งาน</label>
+                                    <input type="datetime-local" name="start_date" class="form-control" value="<?= isset($edit_data['start_date']) ? date('Y-m-d\TH:i', strtotime($edit_data['start_date'])) : date('Y-m-d\T00:00') ?>">
+                                </div>
+                                <div class="col-6">
+                                    <label class="small text-muted">วันหมดอายุ</label>
+                                    <input type="datetime-local" name="expiry_date" class="form-control" value="<?= isset($edit_data['expiry_date']) ? date('Y-m-d\TH:i', strtotime($edit_data['expiry_date'])) : date('Y-m-d\T23:59', strtotime('+1 month')) ?>" required>
+                                </div>
                             </div>
                             
                             <?php if($edit_data): ?>
@@ -178,7 +198,7 @@ if (isset($_POST['update'])) {
                                         <th>โค้ด</th>
                                         <th>ส่วนลด</th>
                                         <th>เงื่อนไข</th>
-                                        <th>วันหมดอายุ</th>
+                                        <th>ระยะเวลาใช้งาน</th>
                                         <th>สถานะ</th>
                                         <th class="text-end">จัดการ</th>
                                     </tr>
@@ -187,7 +207,9 @@ if (isset($_POST['update'])) {
                                     <?php 
                                     $res = mysqli_query($conn, "SELECT * FROM coupons ORDER BY id DESC"); 
                                     while($row = mysqli_fetch_assoc($res)): 
-                                        $is_expired = (date('Y-m-d') > $row['expiry_date']);
+                                        $now = date('Y-m-d H:i:s');
+                                        $is_expired = ($now > $row['expiry_date']);
+                                        $not_started = ($row['start_date'] && $now < $row['start_date']);
                                         $is_editing = ($edit_data && $edit_data['id'] == $row['id']) ? 'table-warning' : '';
                                     ?>
                                     <tr class="<?= $is_editing ?>">
@@ -213,17 +235,22 @@ if (isset($_POST['update'])) {
                                                  สิทธิ์ต่อคน: <?= $row['user_limit'] > 0 ? number_format($row['user_limit']).' ครั้ง' : 'ไม่จำกัด' ?>
                                              </div>
                                          </td>
-                                        <td><?= date('d/m/Y', strtotime($row['expiry_date'])) ?></td>
+                                        <td class="small text-muted" style="line-height: 1.4;">
+                                            <div>เริ่ม: <?= $row['start_date'] ? date('d/m/Y H:i', strtotime($row['start_date'])) : 'ทันที' ?></div>
+                                            <div class="text-danger">หมด: <?= date('d/m/Y H:i', strtotime($row['expiry_date'])) ?></div>
+                                        </td>
                                         <td>
                                             <?php if($is_expired): ?>
                                                 <span class="badge bg-secondary">หมดอายุ</span>
+                                            <?php elseif($not_started): ?>
+                                                <span class="badge bg-warning text-dark">ยังไม่เริ่ม</span>
                                             <?php else: ?>
                                                 <span class="badge bg-success">ใช้งานได้</span>
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-end">
                                             <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1"><i class="bi bi-pencil-fill"></i></a>
-                                            <a href="?del=<?= $row['id'] ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" onclick="return confirm('ลบคูปองนี้?');"><i class="bi bi-trash-fill"></i></a>
+                                            <a href="?del=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" onclick="return confirm('ลบคูปองนี้?');"><i class="bi bi-trash-fill"></i></a>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>

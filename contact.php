@@ -24,6 +24,7 @@ include 'header.php';
                     <div class="col-md-7 p-5">
                         <h4 class="fw-bold mb-4 text-dark">ส่งข้อความถึงเรา</h4>
                         <form id="contactForm" onsubmit="sendContact(); return false;">
+                            <?= get_csrf_input() ?>
                             <div class="mb-3">
                                 <label class="form-label small text-muted">ชื่อของคุณ</label>
                                 <input type="text" name="name" class="form-control" required>

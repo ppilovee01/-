@@ -9,6 +9,16 @@ error_reporting(0);
 ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrf_token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verify_csrf_token($csrf_token)) {
+        $response = ['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)'];
+        ob_end_clean();
+        echo json_encode($response);
+        exit();
+    }
+}
+
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $response = ['status' => 'error', 'message' => 'เกิดข้อผิดพลาด'];
 
@@ -435,11 +445,11 @@ elseif ($action == 'clear_notifications') {
 
 // 4.7 ดึงข้อมูลคูปองที่พร้อมใช้ (Get Available Coupons)
 elseif ($action == 'get_available_coupons') {
-    $today = date('Y-m-d');
+    $now = date('Y-m-d H:i:s');
     $cart_data = calculate_cart_totals($conn);
     $subtotal = $cart_data['subtotal'];
     
-    $query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND expiry_date >= '$today' ORDER BY expiry_date ASC");
+    $query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now' ORDER BY expiry_date ASC");
     $html = '<div class="row g-3">';
     $count = 0;
     
@@ -454,7 +464,7 @@ elseif ($action == 'get_available_coupons') {
                 $discount_text = $c['discount_type'] == 'percent' ? intval($c['discount_value']) . '%' : '฿' . number_format($c['discount_value']);
             }
             $min_spend = floatval($c['min_spend']);
-            $expiry = date('d/m/Y', strtotime($c['expiry_date']));
+            $expiry = date('d/m/Y H:i', strtotime($c['expiry_date']));
             
             // Check usage limit
             $is_claimed_out = false;
@@ -783,9 +793,9 @@ elseif ($action == 'get_filtered_reviews') {
 // 4.10 เก็บสะสมคูปองต้อนรับ (Claim Welcome Coupon)
 elseif ($action == 'claim_welcome_coupon') {
     $code = mysqli_real_escape_string($conn, $_POST['coupon_code'] ?? '');
-    $today = date('Y-m-d');
+    $now = date('Y-m-d H:i:s');
     
-    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND expiry_date >= '$today'");
+    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now'");
     if (mysqli_num_rows($check) > 0) {
         $c = mysqli_fetch_assoc($check);
         

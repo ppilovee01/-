@@ -15,6 +15,9 @@ $cart_count = isset($_SESSION['cart']) ? array_sum(is_array($_SESSION['cart']) ?
 
 // --- Logic: ลูกค้ารีวิวสินค้าผ่าน Modal ---
 if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $uid = $_SESSION['user_id'];
     $pid = mysqli_real_escape_string($conn, $_POST['product_id']);
     $rating = intval($_POST['rating']);
@@ -58,6 +61,9 @@ if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
 
 // --- Logic: ลูกค้ายกเลิกออเดอร์ ---
 if (isset($_GET['cancel_my_order'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $oid = mysqli_real_escape_string($conn, $_GET['cancel_my_order']);
     
     // เช็คความเป็นเจ้าของ + สถานะ pending
@@ -427,6 +433,7 @@ date_default_timezone_set('Asia/Bangkok');
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="POST" enctype="multipart/form-data" id="modalReviewForm">
+                <?= get_csrf_input() ?>
                 <div class="modal-body py-4">
                     <input type="hidden" name="product_id" id="review-product-id">
                     <input type="hidden" name="rating" id="modal-rating-val" value="5">
@@ -469,7 +476,7 @@ date_default_timezone_set('Asia/Bangkok');
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     function viewSlip(url){ new bootstrap.Modal(document.getElementById('slipModal')).show(); document.getElementById('slipImage').src = url; }
-    function confirmCancel(id){ Swal.fire({title:'ยืนยันยกเลิก?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'ยกเลิกออเดอร์'}).then((r)=>{if(r.isConfirmed) window.location.href='?cancel_my_order='+id;}) }
+    function confirmCancel(id){ Swal.fire({title:'ยืนยันยกเลิก?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'ยกเลิกออเดอร์'}).then((r)=>{if(r.isConfirmed) window.location.href='?cancel_my_order='+id+'&csrf_token=<?= get_csrf_token() ?>';}) }
     
     function formatThaiDate(dateObj) {
         const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];

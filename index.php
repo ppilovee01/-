@@ -13,13 +13,13 @@ if (!isset($_SESSION['welcome_popup_shown'])) {
     $promo_coupon = $shop_sett['welcome_promo_coupon'] ?? '';
     
     if ($promo_enabled == 1) {
-        $today = date('Y-m-d');
+        $now = date('Y-m-d H:i:s');
         if (!empty($promo_coupon)) {
             $promo_coupon_escaped = mysqli_real_escape_string($conn, $promo_coupon);
-            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$promo_coupon_escaped' AND status='active' AND expiry_date >= '$today' LIMIT 1");
+            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$promo_coupon_escaped' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now' LIMIT 1");
         } else {
             // Auto mode: fetch the best coupon
-            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND expiry_date >= '$today' ORDER BY (code = 'WELCOME100') DESC, discount_type DESC, discount_value DESC LIMIT 1");
+            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now' ORDER BY (code = 'WELCOME100') DESC, discount_type DESC, discount_value DESC LIMIT 1");
         }
         
         if ($cp_q && mysqli_num_rows($cp_q) > 0) {
@@ -805,7 +805,7 @@ endif;
     }
 
     function toggleFeature(action, pid, btn) {
-        let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid);
+        let fd = new FormData(); fd.append('action', action); fd.append('product_id', pid); fd.append('csrf_token', '<?= get_csrf_token() ?>');
         fetch('ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
@@ -1015,6 +1015,7 @@ endif;
         fd.append('product_id', productId);
         fd.append('qty', qty);
         fd.append('options', options);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
 
         fetch('ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1107,6 +1108,7 @@ endif;
         const fd = new FormData();
         fd.append('action', 'claim_welcome_coupon');
         fd.append('coupon_code', code);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
         
         fetch('ajax.php', {
             method: 'POST',

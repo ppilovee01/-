@@ -10,6 +10,9 @@ $session_email = isset($_SESSION['reset_email']) ? $_SESSION['reset_email'] : ''
 
 // เมื่อกดปุ่ม "บันทึกรหัสผ่านใหม่" (ป้องกันการทำธุรกรรมซ้ำซ้อน)
 if (isset($_POST['save_password'])) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $otp = mysqli_real_escape_string($conn, trim($_POST['otp']));
     $new_pass = $_POST['new_password'];
@@ -86,6 +89,7 @@ if (isset($_POST['save_password'])) {
                     <p class="text-muted text-center small mb-4">กรอกอีเมล รหัส OTP 6 หลัก และตั้งรหัสผ่านใหม่ของคุณ</p>
                     
                     <form method="POST">
+                        <?= get_csrf_input() ?>
                         <div class="mb-3 text-start">
                             <label class="form-label text-muted small fw-bold">อีเมลที่ลงทะเบียน</label>
                             <input type="email" name="email" class="form-control rounded-4" placeholder="name@example.com" value="<?= htmlspecialchars($session_email) ?>" required>

@@ -6,6 +6,12 @@ date_default_timezone_set('Asia/Bangkok');
 // แŠเน‡คสิทธิเนŒ Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // --- Logic: บันทึกขเน‰อมูล ---
 if (isset($_POST['save_about'])) {
     $title = mysqli_real_escape_string($conn, $_POST['title']);
@@ -81,6 +87,7 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <form method="POST" enctype="multipart/form-data">
+                    <?= get_csrf_input() ?>
                     <div class="row">
                         <div class="col-md-4 mb-4 text-center">
                             <label class="form-label fw-bold d-block">รูปภาพ</label>

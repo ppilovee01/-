@@ -3,6 +3,12 @@ session_start();
 include 'db.php';
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 // --- ฟังก์ชันซิงค์สต๊อกและราคาจากล็อต (คำนวณ FIFO อัตโนมัติ) ---
 function sync_product_stock($conn, $product_id) {
     $q_stock = mysqli_query($conn, "SELECT SUM(stock) as total_stock FROM product_lots WHERE product_id='$product_id' AND stock > 0");
@@ -90,6 +96,9 @@ if (isset($_POST['save_product'])) {
 
 // --- Logic: ลบสินค้า ---
 if (isset($_GET['delete'])) { 
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $del_id = intval($_GET['delete']);
     $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id='$del_id'");
     $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
@@ -101,6 +110,9 @@ if (isset($_GET['delete'])) {
 
 // --- Logic: ลบล็อตย่อย ---
 if (isset($_GET['delete_lot']) && isset($_GET['pid'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $del_lot = intval($_GET['delete_lot']);
     $pid = intval($_GET['pid']);
     $l_q = mysqli_query($conn, "SELECT l.lot_number, p.name FROM product_lots l JOIN products p ON l.product_id = p.id WHERE l.id = '$del_lot'");
@@ -221,6 +233,7 @@ if($res) {
                                 <?php else: ?><i class="bi bi-plus-circle-fill text-success"></i> เพิ่มสินค้าใหม่<?php endif; ?>
                             </h5>
                             <form method="POST" enctype="multipart/form-data" onsubmit="prepareOptionsBeforeSubmit()">
+                                <?= get_csrf_input() ?>
                                 <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>">
                                 <input type="hidden" name="old_image" value="<?= $edit_data['image'] ?? '' ?>">
                                 <div class="mb-3"><label class="fw-bold small text-muted">ชื่อสินค้า</label><input type="text" name="name" class="form-control" value="<?= $edit_data['name'] ?? '' ?>" required></div>
@@ -371,7 +384,7 @@ if($res) {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <a href="?delete_lot=<?= $lot['id'] ?>&pid=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger py-1 px-2 rounded-3" onclick="return confirm('ต้องการลบล็อตนี้ทิ้งใช่หรือไม่? (สต๊อกจะหายไปด้วย)')"><i class="bi bi-trash"></i></a>
+                                    <a href="?delete_lot=<?= $lot['id'] ?>&pid=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-sm btn-outline-danger py-1 px-2 rounded-3" onclick="return confirm('ต้องการลบล็อตนี้ทิ้งใช่หรือไม่? (สต๊อกจะหายไปด้วย)')"><i class="bi bi-trash"></i></a>
                                 </td>
                             </tr>
                             <?php endwhile; else: ?>
@@ -394,6 +407,7 @@ if($res) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
+                <?= get_csrf_input() ?>
                 <div class="modal-body p-4">
                     <input type="hidden" name="lot_product_id" id="lot_product_id">
                     <div class="mb-4 text-center p-3 bg-light rounded-3">
@@ -436,7 +450,7 @@ if($res) {
         new bootstrap.Modal(document.getElementById('addLotModal')).show();
     }
 
-    function confirmDelete(id) { Swal.fire({ title:'ยืนยันลบ?', text:'สินค้าและลอตทั้งหมดจะหายไปถาวร', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33', confirmButtonText:'ลบเลย', cancelButtonText:'ยกเลิก' }).then((r)=>{ if(r.isConfirmed) window.location.href='?delete='+id; }) }
+    function confirmDelete(id) { Swal.fire({ title:'ยืนยันลบ?', text:'สินค้าและลอตทั้งหมดจะหายไปถาวร', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33', confirmButtonText:'ลบเลย', cancelButtonText:'ยกเลิก' }).then((r)=>{ if(r.isConfirmed) window.location.href='?delete='+id+'&csrf_token=<?= get_csrf_token() ?>'; }) }
     const container = document.getElementById('option-container'); const realInput = document.getElementById('real_options_input');
     window.onload = function() { if(realInput.value) { let groups = realInput.value.split('|'); groups.forEach(group => { let parts = group.split(':'); if(parts.length === 2) addOptionRow(parts[0], parts[1]); }); } };
     function addOptionRow(name = '', values = '') { const div = document.createElement('div'); div.className = 'option-row animate__animated animate__fadeIn'; div.innerHTML = `<div class="d-flex gap-2 mb-1"><input type="text" class="form-control form-control-sm fw-bold opt-name" placeholder="ชื่อตัวเลือก" value="${name}"><button type="button" class="btn btn-sm btn-light text-danger" onclick="this.parentElement.parentElement.remove()"><i class="bi bi-trash"></i></button></div><input type="text" class="form-control form-control-sm opt-values" placeholder="รายการ (คั่นด้วยลูกน้ำ)" value="${values}">`; container.appendChild(div); }

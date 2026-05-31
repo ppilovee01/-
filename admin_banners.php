@@ -4,6 +4,12 @@ include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: index.php"); exit(); }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+}
+
 if (isset($_POST['upload_banner'])) {
     if (isset($_FILES['banner_img']) && $_FILES['banner_img']['error'] == 0) {
         $ext = pathinfo($_FILES['banner_img']['name'], PATHINFO_EXTENSION);
@@ -28,6 +34,9 @@ if (isset($_POST['upload_banner'])) {
 }
 
 if (isset($_GET['delete'])) {
+    if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
     $id = intval($_GET['delete']);
     $q = mysqli_query($conn, "SELECT image FROM banners WHERE id=$id");
     if ($q && mysqli_num_rows($q) > 0) {
@@ -76,6 +85,7 @@ if (isset($_GET['delete'])) {
 
             <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                 <form method="POST" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-3 align-items-end">
+                    <?= get_csrf_input() ?>
                     <div class="flex-grow-1 w-100">
                         <label class="form-label fw-bold">อัปโหลดรูปใหม่</label>
                         <input type="file" name="banner_img" class="form-control" accept="image/*" required>
@@ -97,7 +107,7 @@ if (isset($_GET['delete'])) {
                         <img src="<?= $row['image'] ?>" class="banner-preview">
                         <div class="card-body p-3 d-flex justify-content-between align-items-center">
                             <small class="text-muted">ID: <?= $row['id'] ?></small>
-                            <a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('ลบรูปนี้?')">
+                            <a href="?delete=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('ลบรูปนี้?')">
                                 <i class="bi bi-trash-fill"></i>
                             </a>
                         </div>
