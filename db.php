@@ -39,12 +39,16 @@ function verify_csrf_token($token) {
 }
 
 $servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "fitness_db"; 
+$username = "herbar79_1234";
+$password = "Dc6JtpaKJb2HTNff2qs3";
+$dbname = "herbar79_1234"; 
 
-// สร้างการเชื่อมต่อ
-$conn = mysqli_connect($servername, $username, $password, $dbname);
+// สร้างการเชื่อมต่อ (รองรับ PHP 8.1+ ที่ throw exception)
+try {
+    $conn = mysqli_connect($servername, $username, $password, $dbname);
+} catch (mysqli_sql_exception $e) {
+    $conn = false;
+}
 
 // ตรวจสอบการเชื่อมต่อ
 if (!$conn) {
@@ -53,6 +57,13 @@ if (!$conn) {
 
 // ตั้งค่าชุดตัวอักษรเป็น UTF-8
 mysqli_set_charset($conn, "utf8");
+
+// ========================================================
+// ตั้งค่า Timezone ของ MySQL Session ให้ตรงกับ Asia/Bangkok
+// แก้ปัญหาเวลาไม่ตรงระหว่าง PHP (UTC+7) กับ MySQL Server
+// ที่อาจ default เป็น UTC หรือ timezone อื่นบน hosting
+// ========================================================
+mysqli_query($conn, "SET time_zone = '+07:00'");
 
 // ดึงข้อมูลการตั้งค่าร้านค้า (เช่น Icon)
 $current_favicon = "assets/default_icon.png"; 
@@ -135,9 +146,8 @@ function getProductPriceText($conn, $product_id, $qty) {
 
 // --- Helper to check and automatically generate a flash sale campaign if enabled ---
 function checkAndGenerateAutoFlashSale($conn) {
-    $now_str = date('Y-m-d H:i:s');
-    // Check if there is an active flash sale campaign
-    $q = mysqli_query($conn, "SELECT id FROM flash_sales WHERE '$now_str' BETWEEN start_time AND end_time AND flash_sold < flash_stock LIMIT 1");
+    // Check if there is an active flash sale campaign (ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone)
+    $q = mysqli_query($conn, "SELECT id FROM flash_sales WHERE NOW() BETWEEN start_time AND end_time AND flash_sold < flash_stock LIMIT 1");
     if ($q && mysqli_num_rows($q) > 0) {
         return; // Campaign is already active
     }
@@ -148,10 +158,10 @@ function checkAndGenerateAutoFlashSale($conn) {
         $s = mysqli_fetch_assoc($s_q);
         if ($s['auto_flash_sale'] == 1) {
             // Find a product with stock > 5 and no upcoming campaigns
-            $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 5 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > '$now_str') ORDER BY RAND() LIMIT 1");
+            $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 5 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > NOW()) ORDER BY RAND() LIMIT 1");
             if (!$p_q || mysqli_num_rows($p_q) == 0) {
                 // Fallback: any product with stock > 0 and no upcoming campaigns
-                $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 0 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > '$now_str') ORDER BY RAND() LIMIT 1");
+                $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 0 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > NOW()) ORDER BY RAND() LIMIT 1");
             }
 
             if ($p_q && mysqli_num_rows($p_q) > 0) {
@@ -166,15 +176,12 @@ function checkAndGenerateAutoFlashSale($conn) {
                 // Calculate stock quota: 30% of current stock, min 1, max 10
                 $flash_stock = min(10, max(1, round($product['stock'] * 0.3)));
                 
-                // Set start and end times
+                // Set start and end times (ใช้ MySQL NOW() และ DATE_ADD เพื่อให้ timezone ตรงกัน)
                 $duration_hours = intval($s['auto_flash_duration']);
                 if ($duration_hours <= 0) $duration_hours = 2;
                 
-                $start = date('Y-m-d H:i:s');
-                $end = date('Y-m-d H:i:s', time() + 3600 * $duration_hours);
-                
                 mysqli_query($conn, "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
-                    VALUES ('$pid', '$flash_price', '$flash_stock', 0, '$start', '$end')");
+                    VALUES ('$pid', '$flash_price', '$flash_stock', 0, NOW(), DATE_ADD(NOW(), INTERVAL $duration_hours HOUR))");
             }
         }
     }
@@ -230,5 +237,3 @@ function log_admin_action($conn, $action_type, $details, $user_id = null, $fulln
     mysqli_query($conn, $sql);
 }
 ?>
-<link rel="icon" type="image/x-icon" href="<?= $current_favicon ?>">
-

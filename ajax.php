@@ -445,11 +445,11 @@ elseif ($action == 'clear_notifications') {
 
 // 4.7 ดึงข้อมูลคูปองที่พร้อมใช้ (Get Available Coupons)
 elseif ($action == 'get_available_coupons') {
-    $now = date('Y-m-d H:i:s');
     $cart_data = calculate_cart_totals($conn);
     $subtotal = $cart_data['subtotal'];
     
-    $query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now' ORDER BY expiry_date ASC");
+    // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
+    $query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW() ORDER BY expiry_date ASC");
     $html = '<div class="row g-3">';
     $count = 0;
     
@@ -853,9 +853,9 @@ elseif ($action == 'vote_review') {
 // 4.10 เก็บสะสมคูปองต้อนรับ (Claim Welcome Coupon)
 elseif ($action == 'claim_welcome_coupon') {
     $code = mysqli_real_escape_string($conn, $_POST['coupon_code'] ?? '');
-    $now = date('Y-m-d H:i:s');
     
-    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now'");
+    // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
+    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW()");
     if (mysqli_num_rows($check) > 0) {
         $c = mysqli_fetch_assoc($check);
         

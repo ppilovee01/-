@@ -17,19 +17,23 @@ Options -Indexes
 </FilesMatch>
 
 # 3. Mitigate Application-Layer DDoS & Flood Attacks
-# Limit Request Body size to 10MB to prevent resource exhaustion via heavy upload requests
-LimitRequestBody 10485760
+# Limit Request Body size to 10MB (wrapped in IfModule for hosting compatibility)
+<IfModule mod_core.c>
+    LimitRequestBody 10485760
+</IfModule>
 
 # Limit HTTP methods to safe/expected actions only
-<LimitExcept GET POST HEAD>
-    <IfModule mod_authz_core.c>
+<IfModule mod_authz_core.c>
+    <LimitExcept GET POST HEAD>
         Require all denied
-    </IfModule>
-    <IfModule !mod_authz_core.c>
+    </LimitExcept>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <LimitExcept GET POST HEAD>
         Order allow,deny
         Deny from all
-    </IfModule>
-</LimitExcept>
+    </LimitExcept>
+</IfModule>
 
 # 4. Implement HTTP Security Headers (Defense-in-depth)
 <IfModule mod_headers.c>

@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_POST['apply_coupon'])) {
     $code = mysqli_real_escape_string($conn, $_POST['coupon_code']); 
     $current_total = str_replace(',', '', $_POST['current_total']); 
-    $now = date('Y-m-d H:i:s'); 
-    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now'");
+    // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
+    $check = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$code' AND status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW()");
     if (mysqli_num_rows($check) > 0) {
         $c = mysqli_fetch_assoc($check);
         
@@ -100,8 +100,8 @@ if (isset($_POST['confirm_order'])) {
                 $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
                 
                 if (!empty($coupon)) {
-                    $now = date('Y-m-d H:i:s');
-                    $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now'"));
+                    // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
+                    $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW()"));
                     if ($chk_c) {
                         if ($chk_c['usage_limit'] > 0) {
                             $tot_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '$coupon' AND status != 'cancelled'"))['count'];
@@ -691,8 +691,8 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                             $best_coupon_value = 0;
                             
                             if ($subtotal > 0) {
-                                $now_time = date('Y-m-d H:i:s');
-                                $coupon_query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= '$now_time') AND expiry_date >= '$now_time'");
+                                // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
+                                $coupon_query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW()");
                                 if ($coupon_query) {
                                     while ($c = mysqli_fetch_assoc($coupon_query)) {
                                         // Check min spend

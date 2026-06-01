@@ -19,11 +19,11 @@ if (isset($_POST['request_reset'])) {
         $user = mysqli_fetch_assoc($check);
         
         // 2. สร้างรหัส OTP 6 หลัก และวันหมดอายุ (15 นาที)
+        // ใช้ NOW() ของ MySQL เพื่อป้องกันปัญหา timezone ต่างกันระหว่าง PHP กับ MySQL server
         $otp = sprintf("%06d", rand(100000, 999999));
-        $expiry = date('Y-m-d H:i:s', strtotime('+15 minutes'));
         
-        // 3. บันทึกลงฐานข้อมูล
-        $sql = "UPDATE users SET reset_token='$otp', reset_expiry='$expiry' WHERE email='$email'";
+        // 3. บันทึกลงฐานข้อมูล (expiry ใช้ MySQL NOW() + 15 min เพื่อให้ timezone ตรงกันเสมอ)
+        $sql = "UPDATE users SET reset_token='$otp', reset_expiry=DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE email='$email'";
         
         if (mysqli_query($conn, $sql)) {
             include 'mail_sender.php';

@@ -25,9 +25,8 @@ if (isset($_POST['save_password'])) {
     } elseif (strlen($new_pass) < 6) {
         $form_error = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
     } else {
-        $now = date('Y-m-d H:i:s');
-        // ตรวจสอบความถูกต้องของ OTP
-        $sql = "SELECT id FROM users WHERE email = '$email' AND reset_token = '$otp' AND reset_expiry > '$now'";
+        // ตรวจสอบความถูกต้องของ OTP (ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL)
+        $sql = "SELECT id FROM users WHERE email = '$email' AND reset_token = '$otp' AND reset_expiry > NOW()";
         $result = mysqli_query($conn, $sql);
         
         if (mysqli_num_rows($result) > 0) {

@@ -13,13 +13,13 @@ if (!isset($_SESSION['welcome_popup_shown'])) {
     $promo_coupon = $shop_sett['welcome_promo_coupon'] ?? '';
     
     if ($promo_enabled == 1) {
-        $now = date('Y-m-d H:i:s');
+        // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
         if (!empty($promo_coupon)) {
             $promo_coupon_escaped = mysqli_real_escape_string($conn, $promo_coupon);
-            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$promo_coupon_escaped' AND status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now' LIMIT 1");
+            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE code='$promo_coupon_escaped' AND status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW() LIMIT 1");
         } else {
             // Auto mode: fetch the best coupon
-            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= '$now') AND expiry_date >= '$now' ORDER BY (code = 'WELCOME100') DESC, discount_type DESC, discount_value DESC LIMIT 1");
+            $cp_q = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW() ORDER BY (code = 'WELCOME100') DESC, discount_type DESC, discount_value DESC LIMIT 1");
         }
         
         if ($cp_q && mysqli_num_rows($cp_q) > 0) {
@@ -225,11 +225,11 @@ include 'header.php';
 <?php
 // --- Query Active Flash Sale Campaigns ---
 $active_flash_sales = [];
-$now_str = date('Y-m-d H:i:s');
+// ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
 $fs_query = mysqli_query($conn, "SELECT fs.*, p.name, p.image, p.price as original_price 
     FROM flash_sales fs 
     JOIN products p ON fs.product_id = p.id 
-    WHERE '$now_str' BETWEEN fs.start_time AND fs.end_time 
+    WHERE NOW() BETWEEN fs.start_time AND fs.end_time 
     AND fs.flash_sold < fs.flash_stock 
     ORDER BY fs.end_time ASC");
 while ($fs_row = mysqli_fetch_assoc($fs_query)) {

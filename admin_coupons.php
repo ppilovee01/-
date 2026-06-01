@@ -205,11 +205,13 @@ if (isset($_POST['update'])) {
                                 </thead>
                                 <tbody>
                                     <?php 
-                                    $res = mysqli_query($conn, "SELECT * FROM coupons ORDER BY id DESC"); 
-                                    while($row = mysqli_fetch_assoc($res)): 
-                                        $now = date('Y-m-d H:i:s');
-                                        $is_expired = ($now > $row['expiry_date']);
-                                        $not_started = ($row['start_date'] && $now < $row['start_date']);
+                                    $res = mysqli_query($conn, "SELECT *, 
+                                        (expiry_date < NOW()) as is_expired,
+                                        (start_date IS NOT NULL AND start_date > NOW()) as not_started
+                                        FROM coupons ORDER BY id DESC"); 
+                                    while($row = mysqli_fetch_assoc($res)):
+                                        $is_expired = $row['is_expired'];
+                                        $not_started = $row['not_started'];
                                         $is_editing = ($edit_data && $edit_data['id'] == $row['id']) ? 'table-warning' : '';
                                     ?>
                                     <tr class="<?= $is_editing ?>">
