@@ -39,9 +39,9 @@ function verify_csrf_token($token) {
 }
 
 $servername = "localhost";
-$username = "herbar79_1234";
-$password = "Dc6JtpaKJb2HTNff2qs3";
-$dbname = "herbar79_1234"; 
+$username = "root";
+$password = "";
+$dbname = "fitness_db"; 
 
 // สร้างการเชื่อมต่อ (รองรับ PHP 8.1+ ที่ throw exception)
 try {
