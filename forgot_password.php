@@ -22,8 +22,9 @@ if (isset($_POST['request_reset'])) {
         // ใช้ NOW() ของ MySQL เพื่อป้องกันปัญหา timezone ต่างกันระหว่าง PHP กับ MySQL server
         $otp = sprintf("%06d", rand(100000, 999999));
         
-        // 3. บันทึกลงฐานข้อมูล (expiry ใช้ MySQL NOW() + 15 min เพื่อให้ timezone ตรงกันเสมอ)
-        $sql = "UPDATE users SET reset_token='$otp', reset_expiry=DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE email='$email'";
+        // 3. บันทึกลงฐานข้อมูล (คำนวณวันหมดอายุใน PHP เพื่อหลีกเลี่ยงปัญหาความเหลื่อมล้ำของนาฬิกาบน Hosting)
+        $expiry_str = date('Y-m-d H:i:s', time() + 900); // 15 นาที
+        $sql = "UPDATE users SET reset_token='$otp', reset_expiry='$expiry_str' WHERE email='$email'";
         
         if (mysqli_query($conn, $sql)) {
             include 'mail_sender.php';

@@ -31,6 +31,12 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $points_spend_rate = intval($_POST['points_spend_rate'] ?? 1);
     $line_notify_token = mysqli_real_escape_string($conn, $_POST['line_notify_token'] ?? '');
     
+    // ตั้งค่า AI สแกนสลิปแบบยืดหยุ่นหลายค่าย
+    $slip_ai_provider = mysqli_real_escape_string($conn, $_POST['slip_ai_provider'] ?? 'none');
+    $openai_api_key = mysqli_real_escape_string($conn, trim($_POST['openai_api_key'] ?? ''));
+    $gemini_api_key = mysqli_real_escape_string($conn, trim($_POST['gemini_api_key'] ?? ''));
+    $claude_api_key = mysqli_real_escape_string($conn, trim($_POST['claude_api_key'] ?? ''));
+    
     // 1. อัปเดตข้อมูลข้อความ
     $sql = "UPDATE shop_settings SET 
             shop_name='$name', 
@@ -49,10 +55,14 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             shipping_free_threshold='$shipping_free_threshold',
             points_earn_rate='$points_earn_rate',
             points_spend_rate='$points_spend_rate',
-            line_notify_token='$line_notify_token'
+            line_notify_token='$line_notify_token',
+            slip_ai_provider='$slip_ai_provider',
+            openai_api_key='$openai_api_key',
+            gemini_api_key='$gemini_api_key',
+            claude_api_key='$claude_api_key'
             WHERE id=1";
     mysqli_query($conn, $sql);
-    log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', "แก้ไขข้อมูลร้านค้า, ระบบ SMTP, อัตราแต้มสะสม ($points_earn_rate บาท/แต้ม, $points_spend_rate บาท/แต้ม) และ Token LINE Notify");
+    log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', "แก้ไขข้อมูลร้านค้า, ระบบ SMTP, อัตราแต้มสะสม ($points_earn_rate บาท/แต้ม, $points_spend_rate บาท/แต้ม), LINE Notify และตั้งค่าสแกนสลิปด้วย AI ($slip_ai_provider)");
 
     // 2. อัปเดต Icon (ถ้ามีการอัปโหลดใหม่)
     if (isset($_FILES['shop_icon']) && $_FILES['shop_icon']['error'] == 0) {
@@ -269,6 +279,58 @@ if ($coupons_query) {
                         </div>
                     </div>
 
+                    <hr class="my-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-robot me-1"></i> ตั้งค่าระบบตรวจสอบสลิปด้วย AI (AI Slip Verification Settings)</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-4 mb-3">
+                            <label class="form-label small fw-bold text-muted">เลือกผู้ให้บริการหลัก (AI Provider)</label>
+                            <select name="slip_ai_provider" class="form-select" onchange="toggleAIKeys(this.value)">
+                                <option value="none" <?= ($shop['slip_ai_provider'] ?? 'none') === 'none' ? 'selected' : '' ?>>ปิดใช้งาน (Disabled)</option>
+                                <option value="openai" <?= ($shop['slip_ai_provider'] ?? '') === 'openai' ? 'selected' : '' ?>>OpenAI (GPT-4o-mini)</option>
+                                <option value="gemini" <?= ($shop['slip_ai_provider'] ?? '') === 'gemini' ? 'selected' : '' ?>>Google Gemini (Gemini 2.5 Flash)</option>
+                                <option value="claude" <?= ($shop['slip_ai_provider'] ?? '') === 'claude' ? 'selected' : '' ?>>Anthropic Claude (Claude 3.5 Haiku)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mb-4" id="ai-keys-container">
+                        <!-- OpenAI Key Input -->
+                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="openai-key-box" style="<?= ($shop['slip_ai_provider'] ?? '') === 'openai' ? '' : 'display:none;' ?>">
+                            <label class="form-label small fw-bold text-muted">OpenAI API Key</label>
+                            <div class="input-group">
+                                <input type="password" name="openai_api_key" id="openaiKeyInput" class="form-control" value="<?= htmlspecialchars($shop['openai_api_key'] ?? '') ?>" placeholder="sk-...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('openaiKeyInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">ไปที่ <a href="https://platform.openai.com/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">OpenAI Platform</a> เพื่อสร้าง API Key สำหรับสแกนสลิปด้วยโมเดล GPT-4o-mini</div>
+                        </div>
+                        
+                        <!-- Gemini Key Input -->
+                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="gemini-key-box" style="<?= ($shop['slip_ai_provider'] ?? '') === 'gemini' ? '' : 'display:none;' ?>">
+                            <label class="form-label small fw-bold text-muted">Google Gemini API Key</label>
+                            <div class="input-group">
+                                <input type="password" name="gemini_api_key" id="geminiKeyInput" class="form-control" value="<?= htmlspecialchars($shop['gemini_api_key'] ?? '') ?>" placeholder="AIzaSy...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('geminiKeyInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">ไปที่ <a href="https://aistudio.google.com/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">Google AI Studio</a> เพื่อสร้าง API Key สำหรับโมเดล Gemini 2.5 Flash</div>
+                        </div>
+                        
+                        <!-- Claude Key Input -->
+                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="claude-key-box" style="<?= ($shop['slip_ai_provider'] ?? '') === 'claude' ? '' : 'display:none;' ?>">
+                            <label class="form-label small fw-bold text-muted">Anthropic Claude API Key</label>
+                            <div class="input-group">
+                                <input type="password" name="claude_api_key" id="claudeKeyInput" class="form-control" value="<?= htmlspecialchars($shop['claude_api_key'] ?? '') ?>" placeholder="sk-ant-...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('claudeKeyInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">ไปที่ <a href="https://console.anthropic.com/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">Anthropic Console</a> เพื่อสร้าง API Key สำหรับสแกนด้วยโมเดล Claude 3.5 Haiku</div>
+                        </div>
+                    </div>
+
                     <div class="row g-2">
                         <div class="col-md-8">
                             <button type="submit" name="save_settings" class="btn btn-pastel-blue rounded-pill px-4 w-100 py-2 fw-bold shadow-sm">
@@ -316,6 +378,19 @@ if ($coupons_query) {
             input.type = 'password';
             icon.classList.remove('bi-eye-slash');
             icon.classList.add('bi-eye');
+        }
+    }
+
+    function toggleAIKeys(val) {
+        document.querySelectorAll('.ai-key-input-box').forEach(box => {
+            box.style.display = 'none';
+        });
+        if (val === 'openai') {
+            document.getElementById('openai-key-box').style.display = 'block';
+        } else if (val === 'gemini') {
+            document.getElementById('gemini-key-box').style.display = 'block';
+        } else if (val === 'claude') {
+            document.getElementById('claude-key-box').style.display = 'block';
         }
     }
 </script>

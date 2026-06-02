@@ -433,7 +433,47 @@ if (isset($_POST['save_note'])) {
                             ?>
                             <div>สถานะ: <span class="badge rounded-pill <?= $badge_color ?>" id="status-badge-<?= $oid ?>"><?= $st_th ?></span></div>
                             <?php if($row['payment_slip']): ?>
-                                <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill">ดูสลิป</button>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill py-1 px-2" style="font-size: 0.8rem;">
+                                        <i class="bi bi-image me-1"></i> ดูสลิป
+                                    </button>
+                                    
+                                    <?php 
+                                    $ai_st = $row['slip_ai_status'];
+                                    $ai_amt = $row['slip_ai_amount'];
+                                    $ai_note = $row['slip_ai_note'] ?? '';
+                                    
+                                    if ($ai_st === 'verified'): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:0.7rem;" title="ยอดเงินโอนตรงกับคำสั่งซื้อ">
+                                            🤖 AI: ตรงยอด (฿<?= number_format($ai_amt, 2) ?>)
+                                        </span>
+                                    <?php elseif ($ai_st === 'mismatch'): ?>
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="ยอดเงินโอนไม่ตรงกับคำสั่งซื้อ (สลิปโอนเงิน: ฿<?= number_format($ai_amt, 2) ?>)">
+                                            🤖 AI: ยอดไม่ตรง (฿<?= number_format($ai_amt, 2) ?>)
+                                        </span>
+                                        <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
+                                            🤖 ลองสแกนใหม่
+                                        </button>
+                                    <?php elseif ($ai_st === 'invalid'): ?>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="AI ประเมินว่ารูปนี้ไม่ใช่สลิป หรือชื่อผู้รับเงินไม่ตรง: <?= htmlspecialchars($ai_note) ?>">
+                                            🤖 AI: ไม่ผ่าน (<?= htmlspecialchars($ai_note) ?>)
+                                        </span>
+                                        <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
+                                            🤖 ลองสแกนใหม่
+                                        </button>
+                                    <?php elseif ($ai_st === 'error' || $ai_st === 'skipped'): ?>
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem; cursor:help;" data-bs-toggle="tooltip" data-bs-placement="top" title="ระบบขัดข้อง: <?= htmlspecialchars($ai_note ?: 'กรุณาลองสแกนใหม่อีกครั้ง') ?>">
+                                            ⚠️ 😱 AI ขัดข้อง
+                                        </span>
+                                        <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
+                                            🤖 ลองสแกนใหม่
+                                        </button>
+                                    <?php else: ?>
+                                        <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ส่งสลิปนี้ให้ AI ตรวจสอบความถูกต้อง">
+                                            🤖 สแกนสลิป
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             <?php endif; ?>
                         </div>
 
@@ -543,9 +583,66 @@ if (isset($_POST['save_note'])) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
 function viewSlip(url){ 
     new bootstrap.Modal(document.getElementById('slipModal')).show(); 
     document.getElementById('slipImage').src=url; 
+}
+
+function runSlipAI(orderId, filename, expected, btn) {
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem; height:0.7rem;"></span> กำลังตรวจ...';
+    
+    const formData = new FormData();
+    formData.append('order_id', orderId);
+    formData.append('expected_amount', expected);
+    formData.append('slip_filename', filename);
+    formData.append('csrf_token', '<?= get_csrf_token() ?>');
+    
+    fetch('verify_slip.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.status === 'success') {
+            Swal.fire({
+                icon: data.ai_status === 'verified' ? 'success' : (data.ai_status === 'invalid' ? 'error' : 'warning'),
+                title: 'ผลการตรวจสลิปด้วย AI',
+                text: data.message,
+                confirmButtonColor: '#AEE2FF'
+            }).then(() => {
+                window.location.reload();
+            });
+        } else {
+            btn.innerHTML = originalText;
+            Swal.fire({
+                icon: 'error',
+                title: 'ไม่สามารถตรวจสอบได้',
+                text: data.message,
+                confirmButtonColor: '#AEE2FF'
+            });
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        console.error(err);
+        Swal.fire({
+            icon: 'error',
+            title: 'ผิดพลาด',
+            text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ตรวจสอบได้',
+            confirmButtonColor: '#AEE2FF'
+        });
+    });
 }
 
 const Toast = Swal.mixin({

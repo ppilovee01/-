@@ -25,33 +25,41 @@ if (isset($_POST['save_password'])) {
     } elseif (strlen($new_pass) < 6) {
         $form_error = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
     } else {
-        // ตรวจสอบความถูกต้องของ OTP (ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL)
-        $sql = "SELECT id FROM users WHERE email = '$email' AND reset_token = '$otp' AND reset_expiry > NOW()";
+        // ตรวจสอบความถูกต้องของ OTP (เปรียบเทียบวันหมดอายุใน PHP เพื่อตัดปัญหาความเหลื่อมล้ำของนาฬิกาและ Timezone ระหว่างเซิร์ฟเวอร์เว็บกับฐานข้อมูล)
+        $sql = "SELECT id, reset_expiry FROM users WHERE email = '$email' AND reset_token = '$otp'";
         $result = mysqli_query($conn, $sql);
         
-        if (mysqli_num_rows($result) > 0) {
-            // เข้ารหัสรหัสผ่านใหม่
-            $hashed_pass = password_hash($new_pass, PASSWORD_DEFAULT);
+        if ($result && mysqli_num_rows($result) > 0) {
+            $user_data = mysqli_fetch_assoc($result);
+            $reset_expiry = $user_data['reset_expiry'];
+            $now_str = date('Y-m-d H:i:s');
             
-            // อัปเดตลงฐานข้อมูล + ล้าง OTP ทิ้ง
-            $update = "UPDATE users SET password='$hashed_pass', reset_token=NULL, reset_expiry=NULL WHERE email='$email'";
-            
-            if (mysqli_query($conn, $update)) {
-                // เคลียร์ session อีเมล
-                unset($_SESSION['reset_email']);
+            if ($reset_expiry && $reset_expiry > $now_str) {
+                // เข้ารหัสรหัสผ่านใหม่
+                $hashed_pass = password_hash($new_pass, PASSWORD_DEFAULT);
                 
-                // ส่งข้อความแจ้งเตือนผ่าน Session ไปหน้า Login
-                $_SESSION['swal'] = [
-                    'title' => 'สำเร็จ!',
-                    'text' => 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว! กรุณาเข้าสู่ระบบด้วยรหัสใหม่',
-                    'icon' => 'success'
-                ];
-                header("Location: login.php"); exit();
+                // อัปเดตลงฐานข้อมูล + ล้าง OTP ทิ้ง
+                $update = "UPDATE users SET password='$hashed_pass', reset_token=NULL, reset_expiry=NULL WHERE email='$email'";
+                
+                if (mysqli_query($conn, $update)) {
+                    // เคลียร์ session อีเมล
+                    unset($_SESSION['reset_email']);
+                    
+                    // ส่งข้อความแจ้งเตือนผ่าน Session ไปหน้า Login
+                    $_SESSION['swal'] = [
+                        'title' => 'สำเร็จ!',
+                        'text' => 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว! กรุณาเข้าสู่ระบบด้วยรหัสใหม่',
+                        'icon' => 'success'
+                    ];
+                    header("Location: login.php"); exit();
+                } else {
+                    $form_error = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
+                }
             } else {
-                $form_error = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
+                $form_error = "รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่";
             }
         } else {
-            $form_error = "รหัส OTP ไม่ถูกต้อง หรือหมดอายุแล้ว กรุณาขอรหัสใหม่";
+            $form_error = "รหัส OTP ไม่ถูกต้อง กรุณากรอกรหัสใหม่อีกครั้ง";
         }
     }
 }

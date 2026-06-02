@@ -240,13 +240,13 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             }
             .icon-group .dropdown-menu {
                 position: absolute !important;
-                top: 55px !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                transform: none !important;
+                top: 50px !important;
+                left: 50% !important;
+                right: auto !important;
+                transform: translateX(-50%) !important;
+                width: 290px !important;
                 border-radius: 16px;
-                box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+                box-shadow: 0 12px 30px rgba(0,0,0,0.15);
                 border: 1px solid #f1f5f9;
                 padding: 10px;
                 z-index: 1100;

@@ -121,7 +121,8 @@ if (isset($_POST['confirm_order'])) {
                 }
                 
                 $slip = "";
-                if ($pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {
+                $is_free_order = (floatval($final) <= 0);
+                if (!$is_free_order && $pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {
                     $ext = pathinfo($_FILES['payment_slip']['name'], PATHINFO_EXTENSION);
                     $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
                     if (!in_array(strtolower($ext), $allowed)) {
@@ -131,9 +132,10 @@ if (isset($_POST['confirm_order'])) {
                         if(!is_dir("uploads")) mkdir("uploads");
                         move_uploaded_file($_FILES['payment_slip']['tmp_name'], "uploads/" . $slip);
                     }
-                } elseif ($pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
+                } elseif (!$is_free_order && $pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
                      $error_msg = "กรุณาแนบสลิปโอนเงิน";
                 }
+                // ถ้ายอด 0 บาท ไม่ต้องการสลิป
             }
 
             if (!isset($error_msg)) {
@@ -169,8 +171,17 @@ if (isset($_POST['confirm_order'])) {
                     mysqli_query($conn, "UPDATE users SET points = points - $points_spent WHERE id = '$user_id'");
                 }
 
-                $sql = "INSERT INTO orders (user_id, total_price, discount_amount, final_price, coupon_code, status, address, payment_slip, payment_method, order_date, points_earned, points_spent, points_discount) 
-                        VALUES ('$user_id', '$total', '$disc', '$final', '$coupon', 'pending', '$full_addr', '$slip', '{$pm['name']}', NOW(), '$points_earned', '$points_spent', '$points_discount')";
+                $ai_status = mysqli_real_escape_string($conn, $_POST['slip_ai_status'] ?? '');
+                $ai_amount_raw = $_POST['slip_ai_amount'] ?? '';
+                $ai_amount = ($ai_amount_raw !== '' && $ai_amount_raw !== 'null') ? floatval($ai_amount_raw) : null;
+                $ai_note = mysqli_real_escape_string($conn, $_POST['slip_ai_note'] ?? '');
+                
+                $ai_status_val = !empty($ai_status) ? "'$ai_status'" : "NULL";
+                $ai_amount_val = ($ai_amount !== null) ? "'$ai_amount'" : "NULL";
+                $ai_note_val = !empty($ai_note) ? "'$ai_note'" : "NULL";
+
+                $sql = "INSERT INTO orders (user_id, total_price, discount_amount, final_price, coupon_code, status, address, payment_slip, payment_method, order_date, points_earned, points_spent, points_discount, slip_ai_status, slip_ai_amount, slip_ai_note) 
+                        VALUES ('$user_id', '$total', '$disc', '$final', '$coupon', 'pending', '$full_addr', '$slip', '{$pm['name']}', NOW(), '$points_earned', '$points_spent', '$points_discount', $ai_status_val, $ai_amount_val, $ai_note_val)";
                 
                 if(mysqli_query($conn, $sql)){
                     $order_id = mysqli_insert_id($conn);
@@ -662,9 +673,19 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                     <div id="bankAcc" class="fs-3 fw-bold text-primary my-2" style="letter-spacing: 0.5px;"></div>
                                     <div class="small text-muted" style="font-size:0.95rem;">ชื่อบัญชี: <span id="bankHolder" class="fw-bold text-dark"></span></div>
                                 </div>
+                                <div id="freeOrderNotice" class="mt-3 p-3 rounded-3 text-center" style="display:none; background: linear-gradient(135deg, #d1fae5, #ecfdf5); border: 1px dashed #10b981;">
+                                    <i class="bi bi-gift-fill text-success fs-3 d-block mb-1"></i>
+                                    <div class="fw-bold text-success">🎉 ออเดอร์นี้ไม่มีค่าใช้จ่าย!</div>
+                                    <div class="small text-muted mt-1">ส่วนลดครอบคลุมทั้งหมด — กดยืนยันได้เลยโดยไม่ต้องโอนเงิน</div>
+                                </div>
                                 <div id="slipUploadSection" class="mt-3" style="display:none;">
-                                    <label class="form-label fw-bold text-dark small">แนบสลิปโอนเงิน</label>
-                                    <input type="file" name="payment_slip" class="form-control form-control-sm" accept="image/*">
+                                    <label class="form-label fw-bold text-dark small"><i class="bi bi-paperclip me-1"></i>แนบสลิปโอนเงิน</label>
+                                    <input type="file" name="payment_slip" id="slipFileInput" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp" onchange="verifySlipWithAI(this)">
+                                    <!-- AI Verification Result Box -->
+                                    <div id="slipVerifyResult" class="mt-2 p-2 rounded-3 small" style="display:none;"></div>
+                                    <div id="slipVerifyLoader" class="mt-2 text-muted small" style="display:none;">
+                                        <span class="spinner-border spinner-border-sm me-1"></span> กำลังตรวจสอบสลิปด้วย AI...
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -809,6 +830,11 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                             <input type="hidden" name="total_price_hidden" id="in_total" value="<?=$subtotal?>">
                             <input type="hidden" name="discount_hidden" id="in_disc" value="<?=$disc?>">
                             <input type="hidden" name="final_price_hidden" id="in_final" value="<?=$final?>">
+                            
+                            <!-- ฟิลด์รับค่าผลลัพธ์การสแกนสลิปด้วย AI เพื่อส่งไปบันทึกลงฐานข้อมูลตอนสร้างออเดอร์ -->
+                            <input type="hidden" name="slip_ai_status" id="in_slip_ai_status" value="">
+                            <input type="hidden" name="slip_ai_amount" id="in_slip_ai_amount" value="">
+                            <input type="hidden" name="slip_ai_note" id="in_slip_ai_note" value="">
                             
                             <?php if($subtotal > 0): ?>
                                 <button type="button" onclick="validateForm()" class="btn btn-checkout">สั่งซื้อเลย</button>
@@ -1135,14 +1161,23 @@ function updatePaymentUI(radio) {
     const acc = radio.dataset.acc || '';
     const holder = radio.dataset.holder || '';
     const name = radio.dataset.name || '';
-    const total = document.getElementById('final_total').innerText.replace(/,/g, '');
+    const totalStr = document.getElementById('final_total').innerText.replace(/,/g, '');
+    const floatTotal = parseFloat(totalStr);
+    const isFreeOrder = (!isNaN(floatTotal) && floatTotal <= 0);
     
     document.getElementById('qrSection').style.display = 'none';
     document.getElementById('bankSection').style.display = 'none';
     document.getElementById('slipUploadSection').style.display = 'none';
 
+    // ถ้ายอด 0 บาท ไม่ต้องแสดง QR/บัญชี หรือบังคับสลิป
+    if (isFreeOrder) {
+        // แสดงข้อความแจ้งว่าไม่ต้องชำระ
+        document.getElementById('freeOrderNotice').style.display = 'block';
+        return;
+    }
+    document.getElementById('freeOrderNotice').style.display = 'none';
+
     if (type === 'promptpay') {
-        const floatTotal = parseFloat(total);
         const sanitizedTotal = isNaN(floatTotal) ? '0.00' : floatTotal.toFixed(2);
         
         // Generate standard EMVCo payload
@@ -1152,6 +1187,11 @@ function updatePaymentUI(radio) {
         document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(ppPayload)}`;
         document.getElementById('qr-acc-holder').innerText = 'ชื่อบัญชี: ' + (holder || '-');
         document.getElementById('qr-acc-num').innerText = 'เบอร์โทรศัพท์/เลขพร้อมเพย์: ' + acc;
+        
+        // อัปเดตตัวเลขยอดเงินโอนใต้ภาพ QR code แบบไดนามิกตามเหรียญหรือคูปองสะสมที่ถูกหักทอน
+        if (document.getElementById('qr-total')) {
+            document.getElementById('qr-total').innerText = floatTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
         
         document.getElementById('qrSection').style.display = 'block';
         document.getElementById('slipUploadSection').style.display = 'block';
@@ -1172,7 +1212,32 @@ function validateForm() {
     if(!pm) { Swal.fire('ข้อมูลไม่ครบ','กรุณาเลือกวิธีการชำระเงิน','warning'); return; }
     const type = pm.dataset.type;
     const file = document.querySelector('input[name="payment_slip"]');
-    if(type !== 'cod' && file.files.length === 0) { Swal.fire('ยังไม่แนบสลิป','กรุณาโอนเงินและแนบหลักฐานการโอน','warning'); return; }
+    
+    // ตรวจสอบยอดชำระ — ถ้า 0 บาท ไม่ต้องแนบสลิป
+    const finalTotalStr = document.getElementById('final_total').innerText.replace(/,/g, '');
+    const finalTotal = parseFloat(finalTotalStr);
+    const isFreeOrder = (!isNaN(finalTotal) && finalTotal <= 0);
+    
+    if(!isFreeOrder && type !== 'cod' && file.files.length === 0) { 
+        Swal.fire('ยังไม่แนบสลิป','กรุณาโอนเงินและแนบหลักฐานการโอน','warning'); 
+        return; 
+    }
+    
+    // ตรวจสอบผลการวิเคราะห์สลิปจาก AI (หาก Error สามารถผ่านไปได้แต่ไปเตือนที่แอดมินหลังบ้านแทน)
+    if (!isFreeOrder && type !== 'cod') {
+        if (slipVerifyStatus === 'loading') {
+            Swal.fire('ระบบกำลังตรวจสอบ','กรุณารอสักครู่ ระบบกำลังตรวจสอบสลิปโอนเงินด้วย AI','warning');
+            return;
+        }
+        if (slipVerifyStatus === 'invalid') {
+            Swal.fire('สลิปโอนเงินไม่ถูกต้อง','สลิปนี้ไม่ผ่านการตรวจสอบ กรุณาแนบสลิปโอนเงินใหม่ที่ถูกต้อง หรือตรวจสอบยอดและชื่อผู้รับเงินโอน','error');
+            return;
+        }
+        if (slipVerifyStatus === 'mismatch') {
+            Swal.fire('ยอดโอนไม่ตรงกับคำสั่งซื้อ','ยอดเงินในสลิปโอนเงินไม่ตรงกับราคาสุทธิ กรุณาแนบรูปภาพสลิปโอนเงินที่ถูกต้อง','error');
+            return;
+        }
+    }
     
     Swal.fire({
         title: 'ยืนยันการสั่งซื้อ?', text: "กรุณาตรวจสอบข้อมูลให้ถูกต้อง", icon: 'question',
@@ -1233,6 +1298,106 @@ function recalculateCheckoutSummary() {
     // Update QR payment UI if a radio is selected
     const pm = document.querySelector('input[name="payment_method_id"]:checked');
     if (pm) updatePaymentUI(pm);
+}
+
+// ===== AI Slip Verification =====
+let slipVerifyStatus = 'none'; // none | loading | verified | mismatch | invalid | error
+
+function verifySlipWithAI(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    // ตรวจขนาดไฟล์ฝั่ง client
+    if (file.size > 5 * 1024 * 1024) {
+        showSlipResult('error', '❌ ไฟล์ใหญ่เกิน 5MB กรุณาเลือกไฟล์ใหม่');
+        slipVerifyStatus = 'invalid';
+        return;
+    }
+    
+    const expected = parseFloat(document.getElementById('in_final').value) || 0;
+    
+    // ถ้า 0 บาท ไม่ต้องตรวจ
+    if (expected <= 0) {
+        slipVerifyStatus = 'verified';
+        return;
+    }
+    
+    // แสดง loading
+    slipVerifyStatus = 'loading';
+    document.getElementById('slipVerifyLoader').style.display = 'block';
+    document.getElementById('slipVerifyResult').style.display = 'none';
+    
+    // รีเซ็ตค่าฟิลด์ซ่อนเป็นค่าว่างก่อนเริ่มสแกนใหม่
+    document.getElementById('in_slip_ai_status').value = 'loading';
+    document.getElementById('in_slip_ai_amount').value = '';
+    document.getElementById('in_slip_ai_note').value = '';
+    
+    const pmRadio = document.querySelector('input[name="payment_method_id"]:checked');
+    const pmId = pmRadio ? pmRadio.value : 0;
+    
+    const formData = new FormData();
+    formData.append('slip_file', file);
+    formData.append('expected_amount', expected.toFixed(2));
+    formData.append('payment_method_id', pmId);
+    formData.append('order_id', '0'); // จะบันทึกหลังสร้าง order จริง
+    
+    fetch('verify_slip.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('slipVerifyLoader').style.display = 'none';
+        
+        if (data.status === 'error') {
+            // กรณีระบบขัดข้อง (เช่น API Key ไม่สมบูรณ์) อนุญาตให้ผ่านได้ตามเงื่อนไข แต่บันทึกสถานะขัดข้อง
+            slipVerifyStatus = 'error';
+            document.getElementById('in_slip_ai_status').value = 'error';
+            document.getElementById('in_slip_ai_note').value = data.message || 'System Config Error';
+            
+            showSlipResult('warning', '⚠️ ไม่สามารถเปิดระบบตรวจสอบสลิปอัตโนมัติได้ในขณะนี้ — ออเดอร์ของคุณจะได้รับการตรวจสอบด้วยแอดมิน');
+            return;
+        }
+        
+        slipVerifyStatus = data.ai_status;
+        document.getElementById('in_slip_ai_status').value = data.ai_status || '';
+        document.getElementById('in_slip_ai_amount').value = data.ai_amount || '';
+        document.getElementById('in_slip_ai_note').value = data.note || '';
+        
+        if (data.ai_status === 'verified') {
+            showSlipResult('success', `✅ ${data.message}`);
+        } else if (data.ai_status === 'mismatch') {
+            showSlipResult('danger', `❌ ${data.message}\n\nกรุณาแนบสลิปโอนเงินที่ถูกต้อง`);
+        } else if (data.ai_status === 'invalid') {
+            showSlipResult('danger', `❌ ${data.message}\n\nกรุณาแนบสลิปโอนเงินที่ถูกต้อง`);
+        } else {
+            showSlipResult('info', `ℹ️ ${data.message}`);
+        }
+    })
+    .catch((err) => {
+        document.getElementById('slipVerifyLoader').style.display = 'none';
+        slipVerifyStatus = 'error';
+        
+        document.getElementById('in_slip_ai_status').value = 'error';
+        document.getElementById('in_slip_ai_amount').value = '';
+        document.getElementById('in_slip_ai_note').value = 'API Connection Error: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
+        
+        showSlipResult('warning', '⚠️ ไม่สามารถเชื่อมต่อระบบตรวจสลิปอัตโนมัติได้ — ออเดอร์ของคุณจะได้รับการตรวจสอบด้วยแอดมิน');
+    });
+}
+
+function showSlipResult(type, message) {
+    const el = document.getElementById('slipVerifyResult');
+    const colorMap = {
+        'success': { bg: '#d1fae5', border: '#10b981', color: '#065f46' },
+        'warning': { bg: '#fffbeb', border: '#f59e0b', color: '#78350f' },
+        'danger':  { bg: '#fef2f2', border: '#ef4444', color: '#7f1d1d' },
+        'info':    { bg: '#eff6ff', border: '#3b82f6', color: '#1e40af' },
+        'error':   { bg: '#fef2f2', border: '#ef4444', color: '#7f1d1d' }
+    };
+    const c = colorMap[type] || colorMap['info'];
+    el.style.cssText = `background:${c.bg}; border:1px solid ${c.border}; color:${c.color}; white-space:pre-line; display:block;`;
+    el.textContent = message;
 }
 </script>
 
