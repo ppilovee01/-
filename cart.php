@@ -77,7 +77,6 @@ if (isset($_POST['confirm_order'])) {
             $stock_error = true; 
             break; 
         }
-        // คลายนโยบายความจำกัดโควตา (ลูกค้าสามารถซื้อเกินโควตาได้ โดยจะคำนวณแยกส่วนเป็นราคาทั่วไปแทน)
     }
 
     if (!$stock_error) {
@@ -100,7 +99,6 @@ if (isset($_POST['confirm_order'])) {
                 $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
                 
                 if (!empty($coupon)) {
-                    // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
                     $chk_c = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM coupons WHERE code='$coupon' AND status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW()"));
                     if ($chk_c) {
                         if ($chk_c['usage_limit'] > 0) {
@@ -135,7 +133,6 @@ if (isset($_POST['confirm_order'])) {
                 } elseif (!$is_free_order && $pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
                      $error_msg = "กรุณาแนบสลิปโอนเงิน";
                 }
-                // ถ้ายอด 0 บาท ไม่ต้องการสลิป
             }
 
             if (!isset($error_msg)) {
@@ -210,19 +207,16 @@ if (isset($_POST['confirm_order'])) {
                             $lot_cost = floatval($lot['import_cost']);
                             
                             if ($lot_stock >= $qty_needed) {
-                                // ล็อตนี้ของพอ ตัดสต๊อกและจบการทำงาน
                                 mysqli_query($conn, "UPDATE product_lots SET stock = stock - $qty_needed WHERE id='$lot_id'");
                                 $total_import_cost += $qty_needed * $lot_cost;
                                 $qty_needed = 0;
                             } else {
-                                // ล็อตนี้ของไม่พอ ตัดจนเหลือ 0 แล้วไปเอาล็อตถัดไปต่อ
                                 mysqli_query($conn, "UPDATE product_lots SET stock = 0 WHERE id='$lot_id'");
                                 $total_import_cost += $lot_stock * $lot_cost;
                                 $qty_needed -= $lot_stock;
                             }
                         }
                         
-                        // หากมีส่วนต่างที่หลงเหลือ (เช่น สต๊อกไม่ตรงกัน) ให้ดึงทุนจากล็อตล่าสุด
                         if ($qty_needed > 0) {
                             $last_lot_q = mysqli_query($conn, "SELECT import_cost FROM product_lots WHERE product_id='$pid' ORDER BY id DESC LIMIT 1");
                             $last_cost = 0;
@@ -237,14 +231,11 @@ if (isset($_POST['confirm_order'])) {
                         $pr = mysqli_fetch_assoc(mysqli_query($conn, "SELECT name, price FROM products WHERE id='$pid'"));
                         $opts_esc = mysqli_real_escape_string($conn, $opts);
                         
-                        // คำนวณราคาขายแบบแยกส่วน (ส่วนที่อยู่ในโควตา = ราคา Flash, ส่วนเกินโควตา = ราคาปกติ)
                         $line_total_price = getProductTotalPrice($conn, $pid, $qty);
                         $average_unit_price = $qty > 0 ? ($line_total_price / $qty) : 0;
                         
-                        // บันทึกรายการลงบิล พร้อมทุนต้นทุน FIFO
                         mysqli_query($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, import_cost, selected_option) VALUES ('$order_id', '$pid', '$qty', '$average_unit_price', '$unit_import_cost', '$opts_esc')");
                         
-                        // เพิ่มยอดขายในระบบ Flash Sale (ไม่เกินจำนวนโควตาที่เหลือในแคมเปญ)
                         $active_fs = getActiveFlashSale($conn, $pid);
                         if ($active_fs !== null) {
                             $fs_remaining = $active_fs['flash_stock'] - $active_fs['flash_sold'];
@@ -254,7 +245,6 @@ if (isset($_POST['confirm_order'])) {
                             }
                         }
                         
-                        // ซิงค์ตารางสินค้าหลัก (อัปเดตราคาใหม่ล่าสุด และสต๊อกรวม)
                         $q_tot = mysqli_query($conn, "SELECT SUM(stock) as total_stock FROM product_lots WHERE product_id='$pid' AND stock > 0");
                         $tot = mysqli_fetch_assoc($q_tot)['total_stock'] ?? 0;
 
@@ -269,12 +259,9 @@ if (isset($_POST['confirm_order'])) {
                             mysqli_query($conn, "UPDATE products SET stock=0 WHERE id='$pid'");
                         }
 
-                        // ระบบแจ้งเตือนสินค้าใกล้หมดเข้ากระดิ่งแอดมินอัตโนมัติ (ต่ำกว่า 5 ชิ้น)
                         if ($final_stock < 5) {
                             $p_name_esc = mysqli_real_escape_string($conn, $pr['name']);
                             $title_alert = "สินค้าใกล้หมดคลัง: " . $p_name_esc;
-                            
-                            // เช็กป้องกันการแจ้งเตือนซ้ำซ้อน หากรายการแจ้งเตือนก่อนหน้านี้ของสินค้าชิ้นนี้ยังไม่ได้อ่าน
                             $chk_notif = mysqli_query($conn, "SELECT id FROM notifications WHERE title = '$title_alert' AND is_read = 0 AND is_admin = 1");
                             if (mysqli_num_rows($chk_notif) == 0) {
                                 $msg_alert = "สินค้า " . $p_name_esc . " เหลือในคลังเพียง " . $final_stock . " ชิ้น กรุณาตรวจสอบและเติมสต๊อก";
@@ -282,7 +269,6 @@ if (isset($_POST['confirm_order'])) {
                                 mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$title_alert', '$msg_alert', '$url_alert', 0, 1)");
                             }
                         }
-                        // =============================
                         
                         $discord_items .= "- {$pr['name']} (x$qty) $opts\n";
                     }
@@ -295,12 +281,11 @@ if (isset($_POST['confirm_order'])) {
                         curl_setopt($ch, CURLOPT_POST, 1);
                         curl_setopt($ch, CURLOPT_POSTFIELDS, $json_data);
                         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); // หมดเวลาเชื่อมต่อใน 2 วิ
-                        curl_setopt($ch, CURLOPT_TIMEOUT, 2); // หมดเวลารอข้อมูลใน 2 วิ
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); 
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 2); 
                         curl_exec($ch); curl_close($ch);
                     }
 
-                    // ส่งแจ้งเตือนผ่าน Line Notify ไปยังแอดมิน
                     $line_msg = "\n💰 มีคำสั่งซื้อใหม่! (#" . str_pad($order_id, 5, '0', STR_PAD_LEFT) . ")\n"
                               . "👤 ลูกค้า: " . $a['recipient_name'] . " (" . $a['phone'] . ")\n"
                               . "📦 สินค้าที่สั่งซื้อ:\n" . $discord_items
@@ -308,14 +293,12 @@ if (isset($_POST['confirm_order'])) {
                               . "💳 ชำระผ่าน: " . $pm['name'];
                     sendLineNotify($conn, $line_msg);
 
-                    // Insert admin notification for new order
                     $cust_name = mysqli_real_escape_string($conn, $a['recipient_name']);
                     $title = "มีคำสั่งซื้อใหม่เข้ามา #$order_id";
                     $message = "มีคำสั่งซื้อใหม่เข้ามา #$order_id จากคุณ $cust_name ยอดชำระ ฿" . number_format($final);
                     $url = "admin_orders.php";
                     mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$title', '$message', '$url', 0, 1)");
 
-                    // บันทึกกิจกรรมการสั่งซื้อและการหักแต้มสะสม
                     log_admin_action($conn, 'สั่งซื้อสินค้า', "ลูกค้าสั่งซื้อสินค้าสำเร็จ ใบสั่งซื้อ #$order_id ยอดชำระสุทธิ: ฿" . number_format($final, 2) . ($coupon ? " (ใช้คูปอง: $coupon)" : "") . ($points_spent > 0 ? " (ใช้แต้มลด: $points_spent แต้ม)" : ""), $user_id, $_SESSION['fullname']);
                     if ($points_spent > 0) {
                         mysqli_query($conn, "INSERT INTO point_history (user_id, points, description) VALUES ('$user_id', '-$points_spent', 'ใช้คะแนนแลกส่วนลดในออเดอร์ #$order_id')");
@@ -681,7 +664,6 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                 <div id="slipUploadSection" class="mt-3" style="display:none;">
                                     <label class="form-label fw-bold text-dark small"><i class="bi bi-paperclip me-1"></i>แนบสลิปโอนเงิน</label>
                                     <input type="file" name="payment_slip" id="slipFileInput" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp" onchange="verifySlipWithAI(this)">
-                                    <!-- AI Verification Result Box -->
                                     <div id="slipVerifyResult" class="mt-2 p-2 rounded-3 small" style="display:none;"></div>
                                     <div id="slipVerifyLoader" class="mt-2 text-muted small" style="display:none;">
                                         <span class="spinner-border spinner-border-sm me-1"></span> กำลังตรวจสอบสลิปด้วย AI...
@@ -695,7 +677,6 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                         <div class="card-modern summary-card p-4">
                             <h5 class="fw-bold mb-3">สรุปยอด</h5>
                             
-                            <!-- Free Shipping Progress Bar Widget -->
                             <div class="free-shipping-widget mb-4 p-3 rounded-4 border bg-light" id="free-shipping-widget-wrapper" style="display: none;">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <span class="free-shipping-icon" id="free-shipping-icon" style="font-size: 1.15rem;">🚚</span>
@@ -706,56 +687,35 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                 </div>
                             </div>
                             
-                            <!-- Auto-recommender Best Coupon logic -->
                             <?php
                             $best_coupon = null;
                             $best_coupon_value = 0;
                             
                             if ($subtotal > 0) {
-                                // ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone ระหว่าง PHP กับ MySQL server
                                 $coupon_query = mysqli_query($conn, "SELECT * FROM coupons WHERE status='active' AND (start_date IS NULL OR start_date <= NOW()) AND expiry_date >= NOW()");
                                 if ($coupon_query) {
                                     while ($c = mysqli_fetch_assoc($coupon_query)) {
-                                        // Check min spend
-                                        if ($subtotal < floatval($c['min_spend'])) {
-                                            continue;
-                                        }
-                                        
-                                        // Check usage limit
+                                        if ($subtotal < floatval($c['min_spend'])) continue;
                                         if ($c['usage_limit'] > 0) {
                                             $total_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND status != 'cancelled'"))['count'];
-                                            if ($total_used >= $c['usage_limit']) {
-                                                continue;
-                                            }
+                                            if ($total_used >= $c['usage_limit']) continue;
                                         }
-                                        
-                                        // Check user limit
                                         if ($user_id && $c['user_limit'] > 0) {
                                             $user_used = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE coupon_code = '{$c['code']}' AND user_id = '$user_id' AND status != 'cancelled'"))['count'];
-                                            if ($user_used >= $c['user_limit']) {
-                                                continue;
-                                            }
+                                            if ($user_used >= $c['user_limit']) continue;
                                         }
                                         
-                                        // Calculate value
                                         $val = 0;
                                         if ($c['discount_type'] == 'fixed') {
                                             $val = floatval($c['discount_value']);
                                         } elseif ($c['discount_type'] == 'percent') {
                                             $val = $subtotal * floatval($c['discount_value']) / 100;
                                             $max_disc = floatval($c['max_discount'] ?? 0);
-                                            if ($max_disc > 0 && $val > $max_disc) {
-                                                $val = $max_disc;
-                                            }
+                                            if ($max_disc > 0 && $val > $max_disc) $val = $max_disc;
                                         } elseif ($c['discount_type'] == 'free_shipping') {
-                                            if ($subtotal < $shipping_free_threshold) {
-                                                $val = $shipping_fee_fixed;
-                                            }
+                                            if ($subtotal < $shipping_free_threshold) $val = $shipping_fee_fixed;
                                         }
-                                        
-                                        if ($c['discount_type'] !== 'free_shipping' && $val > $subtotal) {
-                                            $val = $subtotal;
-                                        }
+                                        if ($c['discount_type'] !== 'free_shipping' && $val > $subtotal) $val = $subtotal;
                                         
                                         if ($val > $best_coupon_value) {
                                             $best_coupon_value = $val;
@@ -787,7 +747,6 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                                 </button>
                             </div>
 
-                            <!-- ส่วนของแต้มสะสม -->
                             <?php if ($user_points > 0): ?>
                                 <div class="p-3 mb-3 rounded-4 border bg-light" style="border-style: dashed !important; border-color: var(--blue-hover) !important;">
                                     <div class="form-check form-switch d-flex align-items-center justify-content-between p-0 mb-2">
@@ -831,7 +790,6 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                             <input type="hidden" name="discount_hidden" id="in_disc" value="<?=$disc?>">
                             <input type="hidden" name="final_price_hidden" id="in_final" value="<?=$final?>">
                             
-                            <!-- ฟิลด์รับค่าผลลัพธ์การสแกนสลิปด้วย AI เพื่อส่งไปบันทึกลงฐานข้อมูลตอนสร้างออเดอร์ -->
                             <input type="hidden" name="slip_ai_status" id="in_slip_ai_status" value="">
                             <input type="hidden" name="slip_ai_amount" id="in_slip_ai_amount" value="">
                             <input type="hidden" name="slip_ai_note" id="in_slip_ai_note" value="">
@@ -858,13 +816,41 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                 <input type="hidden" name="action" value="add_address">
                 <div class="modal-body">
                     <div class="row g-2">
-                        <div class="col-6"><input type="text" name="recipient_name" class="form-control" placeholder="ชื่อ-นามสกุล" required></div>
-                        <div class="col-6"><input type="text" name="phone" class="form-control" placeholder="เบอร์โทรศัพท์" required></div>
-                        <div class="col-12"><textarea name="address_line1" class="form-control" placeholder="บ้านเลขที่, หมู่บ้าน, ซอย, ถนน" rows="2" required></textarea></div>
-                        <div class="col-6"><input type="text" name="subdistrict" class="form-control" placeholder="ตำบล/แขวง" required></div>
-                        <div class="col-6"><input type="text" name="district" class="form-control" placeholder="อำเภอ/เขต" required></div>
-                        <div class="col-6"><input type="text" name="province" class="form-control" placeholder="จังหวัด" required></div>
-                        <div class="col-6"><input type="text" name="zipcode" class="form-control" placeholder="รหัสไปรษณีย์" required></div>
+                        <div class="col-6">
+                            <label class="small text-muted">ชื่อผู้รับ</label>
+                            <input type="text" name="recipient_name" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">เบอร์โทร</label>
+                            <input type="text" name="phone" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="small text-muted">ที่อยู่ (บ้านเลขที่, ซอย, ถนน)</label>
+                            <input type="text" name="address_line1" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-6">
+                            <label class="small text-muted">จังหวัด</label>
+                            <select name="province" id="addr_province" class="form-select" required>
+                                <option value="">เลือกจังหวัด...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">อำเภอ/เขต</label>
+                            <select name="district" id="addr_district" class="form-select" required disabled>
+                                <option value="">เลือกอำเภอ...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">ตำบล/แขวง</label>
+                            <select name="subdistrict" id="addr_subdistrict" class="form-select" required disabled>
+                                <option value="">เลือกตำบล...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">รหัสไปรษณีย์</label>
+                            <input type="text" name="zipcode" id="addr_zipcode" class="form-control" readonly required>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0"><button type="submit" class="btn btn-dark w-100 rounded-pill">บันทึกที่อยู่</button></div>
@@ -1037,12 +1023,10 @@ function updateQty(id, type) {
             const isFreeCoupon = parseFloat(data.shipping_fee.replace(/,/g, '')) === 0;
             updateFreeShippingProgressBar(subFloat, isFreeCoupon);
 
-            // Recalculate points redemption if checked
             if (typeof recalculateCheckoutSummary === 'function') {
                 recalculateCheckoutSummary();
             }
 
-            // Sync with interactive cart drawer if available
             if (typeof window.loadCartDrawer === 'function') {
                 window.loadCartDrawer();
             }
@@ -1093,12 +1077,10 @@ function removeItem(id) {
                             const isFreeCoupon = parseFloat(data.shipping_fee.replace(/,/g, '')) === 0;
                             updateFreeShippingProgressBar(subFloat, isFreeCoupon);
 
-                            // Recalculate points redemption if checked
                             if (typeof recalculateCheckoutSummary === 'function') {
                                 recalculateCheckoutSummary();
                             }
 
-                            // Sync with interactive cart drawer if available
                             if (typeof window.loadCartDrawer === 'function') {
                                 window.loadCartDrawer();
                             }
@@ -1169,9 +1151,7 @@ function updatePaymentUI(radio) {
     document.getElementById('bankSection').style.display = 'none';
     document.getElementById('slipUploadSection').style.display = 'none';
 
-    // ถ้ายอด 0 บาท ไม่ต้องแสดง QR/บัญชี หรือบังคับสลิป
     if (isFreeOrder) {
-        // แสดงข้อความแจ้งว่าไม่ต้องชำระ
         document.getElementById('freeOrderNotice').style.display = 'block';
         return;
     }
@@ -1180,15 +1160,12 @@ function updatePaymentUI(radio) {
     if (type === 'promptpay') {
         const sanitizedTotal = isNaN(floatTotal) ? '0.00' : floatTotal.toFixed(2);
         
-        // Generate standard EMVCo payload
         const ppPayload = generatePromptPayPayload(acc, sanitizedTotal);
         
-        // Render QR code using high-reliability standard QR server
         document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(ppPayload)}`;
         document.getElementById('qr-acc-holder').innerText = 'ชื่อบัญชี: ' + (holder || '-');
         document.getElementById('qr-acc-num').innerText = 'เบอร์โทรศัพท์/เลขพร้อมเพย์: ' + acc;
         
-        // อัปเดตตัวเลขยอดเงินโอนใต้ภาพ QR code แบบไดนามิกตามเหรียญหรือคูปองสะสมที่ถูกหักทอน
         if (document.getElementById('qr-total')) {
             document.getElementById('qr-total').innerText = floatTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
@@ -1213,7 +1190,6 @@ function validateForm() {
     const type = pm.dataset.type;
     const file = document.querySelector('input[name="payment_slip"]');
     
-    // ตรวจสอบยอดชำระ — ถ้า 0 บาท ไม่ต้องแนบสลิป
     const finalTotalStr = document.getElementById('final_total').innerText.replace(/,/g, '');
     const finalTotal = parseFloat(finalTotalStr);
     const isFreeOrder = (!isNaN(finalTotal) && finalTotal <= 0);
@@ -1223,7 +1199,6 @@ function validateForm() {
         return; 
     }
     
-    // ตรวจสอบผลการวิเคราะห์สลิปจาก AI (หาก Error สามารถผ่านไปได้แต่ไปเตือนที่แอดมินหลังบ้านแทน)
     if (!isFreeOrder && type !== 'cod') {
         if (slipVerifyStatus === 'loading') {
             Swal.fire('ระบบกำลังตรวจสอบ','กรุณารอสักครู่ ระบบกำลังตรวจสอบสลิปโอนเงินด้วย AI','warning');
@@ -1295,19 +1270,16 @@ function recalculateCheckoutSummary() {
     document.getElementById('final_total').innerText = finalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('in_final').value = finalPrice.toFixed(2);
     
-    // Update QR payment UI if a radio is selected
     const pm = document.querySelector('input[name="payment_method_id"]:checked');
     if (pm) updatePaymentUI(pm);
 }
 
-// ===== AI Slip Verification =====
-let slipVerifyStatus = 'none'; // none | loading | verified | mismatch | invalid | error
+let slipVerifyStatus = 'none';
 
 function verifySlipWithAI(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     
-    // ตรวจขนาดไฟล์ฝั่ง client
     if (file.size > 5 * 1024 * 1024) {
         showSlipResult('error', '❌ ไฟล์ใหญ่เกิน 5MB กรุณาเลือกไฟล์ใหม่');
         slipVerifyStatus = 'invalid';
@@ -1316,18 +1288,15 @@ function verifySlipWithAI(input) {
     
     const expected = parseFloat(document.getElementById('in_final').value) || 0;
     
-    // ถ้า 0 บาท ไม่ต้องตรวจ
     if (expected <= 0) {
         slipVerifyStatus = 'verified';
         return;
     }
     
-    // แสดง loading
     slipVerifyStatus = 'loading';
     document.getElementById('slipVerifyLoader').style.display = 'block';
     document.getElementById('slipVerifyResult').style.display = 'none';
     
-    // รีเซ็ตค่าฟิลด์ซ่อนเป็นค่าว่างก่อนเริ่มสแกนใหม่
     document.getElementById('in_slip_ai_status').value = 'loading';
     document.getElementById('in_slip_ai_amount').value = '';
     document.getElementById('in_slip_ai_note').value = '';
@@ -1339,7 +1308,7 @@ function verifySlipWithAI(input) {
     formData.append('slip_file', file);
     formData.append('expected_amount', expected.toFixed(2));
     formData.append('payment_method_id', pmId);
-    formData.append('order_id', '0'); // จะบันทึกหลังสร้าง order จริง
+    formData.append('order_id', '0'); 
     
     fetch('verify_slip.php', {
         method: 'POST',
@@ -1350,7 +1319,6 @@ function verifySlipWithAI(input) {
         document.getElementById('slipVerifyLoader').style.display = 'none';
         
         if (data.status === 'error') {
-            // กรณีระบบขัดข้อง (เช่น API Key ไม่สมบูรณ์) อนุญาตให้ผ่านได้ตามเงื่อนไข แต่บันทึกสถานะขัดข้อง
             slipVerifyStatus = 'error';
             document.getElementById('in_slip_ai_status').value = 'error';
             document.getElementById('in_slip_ai_note').value = data.message || 'System Config Error';
@@ -1399,9 +1367,98 @@ function showSlipResult(type, message) {
     el.style.cssText = `background:${c.bg}; border:1px solid ${c.border}; color:${c.color}; white-space:pre-line; display:block;`;
     el.textContent = message;
 }
+
+// ==========================================
+// ระบบดึงข้อมูลที่อยู่ประเทศไทย (อัปเดตใช้ฐานข้อมูล V2 ล่าสุด CDN)
+// ==========================================
+document.addEventListener('DOMContentLoaded', function() {
+    const provSelect = document.getElementById('addr_province');
+    const distSelect = document.getElementById('addr_district');
+    const subSelect = document.getElementById('addr_subdistrict');
+    const zipInput = document.getElementById('addr_zipcode');
+    
+    if(provSelect && distSelect && subSelect && zipInput) {
+        provSelect.innerHTML = '<option value="">กำลังโหลดข้อมูล...</option>';
+        
+        let provinces = [];
+        let districts = [];
+        let subdistricts = [];
+
+        // ดึง 3 ไฟล์ผ่านลิงก์ CDN ที่ไม่มีปัญหาเรื่อง CORS
+        Promise.all([
+            fetch('https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api/latest/province.json').then(res => res.json()),
+            fetch('https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api/latest/district.json').then(res => res.json()),
+            fetch('https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api/latest/sub_district.json').then(res => res.json())
+        ]).then(data => {
+            provinces = data[0];
+            districts = data[1];
+            subdistricts = data[2];
+
+            provSelect.innerHTML = '<option value="">เลือกจังหวัด...</option>';
+            provinces.forEach(prov => {
+                let opt = new Option(prov.name_th, prov.name_th);
+                opt.setAttribute('data-id', prov.id);
+                provSelect.add(opt);
+            });
+        }).catch(err => {
+            console.error('Fetch Error:', err);
+            provSelect.innerHTML = '<option value="">โหลดข้อมูลล้มเหลว</option>';
+        });
+
+        provSelect.addEventListener('change', function() {
+            distSelect.innerHTML = '<option value="">เลือกอำเภอ/เขต...</option>';
+            subSelect.innerHTML = '<option value="">เลือกตำบล/แขวง...</option>';
+            zipInput.value = '';
+            distSelect.disabled = true;
+            subSelect.disabled = true;
+
+            if(!this.value) return;
+
+            const selectedOption = this.options[this.selectedIndex];
+            const provId = selectedOption.getAttribute('data-id');
+
+            const filteredDistricts = districts.filter(d => d.province_id == provId);
+            filteredDistricts.forEach(dist => {
+                let opt = new Option(dist.name_th, dist.name_th);
+                opt.setAttribute('data-id', dist.id);
+                distSelect.add(opt);
+            });
+            distSelect.disabled = false;
+        });
+
+        distSelect.addEventListener('change', function() {
+            subSelect.innerHTML = '<option value="">เลือกตำบล/แขวง...</option>';
+            zipInput.value = '';
+            subSelect.disabled = true;
+
+            if(!this.value) return;
+
+            const selectedOption = this.options[this.selectedIndex];
+            const distId = selectedOption.getAttribute('data-id');
+
+            const filteredSubs = subdistricts.filter(s => s.district_id == distId);
+            filteredSubs.forEach(sub => {
+                let opt = new Option(sub.name_th, sub.name_th);
+                opt.setAttribute('data-zip', sub.zip_code);
+                subSelect.add(opt);
+            });
+            subSelect.disabled = false;
+        });
+
+        subSelect.addEventListener('change', function() {
+            zipInput.value = '';
+            if(!this.value) return;
+
+            const selectedOption = this.options[this.selectedIndex];
+            const zip = selectedOption.getAttribute('data-zip');
+            if (zip) {
+                zipInput.value = zip;
+            }
+        });
+    }
+});
 </script>
 
-<!-- Modal สำหรับดูคูปองส่วนลด -->
 <div class="modal fade" id="couponModal" tabindex="-1" aria-labelledby="couponModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md">
         <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
@@ -1434,14 +1491,12 @@ function openCouponModal() {
     }
     couponModalInstance.show();
     
-    // Fetch coupons via AJAX
     fetch('ajax.php?action=get_available_coupons')
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 document.getElementById('coupon-list-container').innerHTML = data.html;
                 
-                // Bind click event to apply coupon buttons
                 document.querySelectorAll('.btn-apply-coupon').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const code = this.dataset.code;
@@ -1449,10 +1504,8 @@ function openCouponModal() {
                         if (couponInput) {
                             couponInput.value = code;
                             
-                            // Close modal
                             couponModalInstance.hide();
                             
-                            // Programmatically trigger coupon application form submission
                             const form = document.getElementById('checkoutForm');
                             const applyHidden = document.createElement('input');
                             applyHidden.type = 'hidden';
@@ -1460,7 +1513,6 @@ function openCouponModal() {
                             applyHidden.value = 'true';
                             form.appendChild(applyHidden);
                             
-                            // Show loading Swal
                             Swal.fire({
                                 title: 'กำลังใช้คูปอง...',
                                 text: 'กรุณารอสักครู่',
@@ -1497,7 +1549,6 @@ function applyRecommendedCoupon(code) {
     if (couponInput) {
         couponInput.value = code;
         
-        // Programmatically trigger coupon application form submission
         const form = document.getElementById('checkoutForm');
         const applyHidden = document.createElement('input');
         applyHidden.type = 'hidden';
@@ -1505,7 +1556,6 @@ function applyRecommendedCoupon(code) {
         applyHidden.value = 'true';
         form.appendChild(applyHidden);
         
-        // Show loading Swal
         Swal.fire({
             title: 'กำลังใช้คูปอง...',
             text: 'กรุณารอสักครู่',

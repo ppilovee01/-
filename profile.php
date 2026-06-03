@@ -5,7 +5,6 @@ include 'db.php';
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
 $user_id = $_SESSION['user_id'];
 
-// นับจำนวนสินค้าในตะกร้า
 $cart_count = 0;
 if(isset($_SESSION['cart'])) {
     foreach($_SESSION['cart'] as $item) {
@@ -13,7 +12,6 @@ if(isset($_SESSION['cart'])) {
     }
 }
 
-// ดึงข้อมูล User ล่าสุด
 $q = mysqli_query($conn, "SELECT * FROM users WHERE id = '$user_id'");
 $user = mysqli_fetch_assoc($q);
 
@@ -256,7 +254,6 @@ include 'header.php';
                     
                     <div class="tab-pane fade" id="history-pane" role="tabpanel">
                         <div class="row g-4">
-                            <!-- คอลัมน์ซ้าย: สรุปแต้มสะสม -->
                             <div class="col-lg-4 animate__animated animate__fadeInLeft">
                                 <div class="card border-0 rounded-4 p-4 text-white shadow-sm mb-4" style="background: linear-gradient(135deg, #FFE07D 0%, #FFB100 100%);">
                                     <div class="d-flex align-items-center justify-content-between">
@@ -287,7 +284,6 @@ include 'header.php';
                                 </div>
                             </div>
                             
-                            <!-- คอลัมน์ขวา: ประวัติการใช้งาน & คะแนนสะสม -->
                             <div class="col-lg-8 animate__animated animate__fadeInRight">
                                 <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-receipt text-primary me-1"></i> ประวัติคะแนนสะสม (Points Ledger)</h6>
                                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
@@ -376,13 +372,41 @@ include 'header.php';
                 <input type="hidden" name="action" value="add_address">
                 <div class="modal-body">
                     <div class="row g-2">
-                        <div class="col-6"><label class="small text-muted">ชื่อผู้รับ</label><input type="text" name="recipient_name" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted">เบอร์โทร</label><input type="text" name="phone" class="form-control" required></div>
-                        <div class="col-12"><label class="small text-muted">ที่อยู่ (บ้านเลขที่, ซอย, ถนน)</label><input type="text" name="address_line1" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted">ตำบล/แขวง</label><input type="text" name="subdistrict" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted">อำเภอ/เขต</label><input type="text" name="district" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted">จังหวัด</label><input type="text" name="province" class="form-control" required></div>
-                        <div class="col-6"><label class="small text-muted">รหัสไปรษณีย์</label><input type="text" name="zipcode" class="form-control" required></div>
+                        <div class="col-6">
+                            <label class="small text-muted">ชื่อผู้รับ</label>
+                            <input type="text" name="recipient_name" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">เบอร์โทร</label>
+                            <input type="text" name="phone" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="small text-muted">ที่อยู่ (บ้านเลขที่, ซอย, ถนน)</label>
+                            <input type="text" name="address_line1" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-6">
+                            <label class="small text-muted">จังหวัด</label>
+                            <select name="province" id="addr_province" class="form-select" required>
+                                <option value="">เลือกจังหวัด...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">อำเภอ/เขต</label>
+                            <select name="district" id="addr_district" class="form-select" required disabled>
+                                <option value="">เลือกอำเภอ...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">ตำบล/แขวง</label>
+                            <select name="subdistrict" id="addr_subdistrict" class="form-select" required disabled>
+                                <option value="">เลือกตำบล...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">รหัสไปรษณีย์</label>
+                            <input type="text" name="zipcode" id="addr_zipcode" class="form-control" readonly required>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
@@ -396,6 +420,105 @@ include 'header.php';
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+    // ==========================================
+    // ระบบดึงข้อมูลที่อยู่ประเทศไทย (อัปเดตใช้ฐานข้อมูล V2 ล่าสุด)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const provSelect = document.getElementById('addr_province');
+        const distSelect = document.getElementById('addr_district');
+        const subSelect = document.getElementById('addr_subdistrict');
+        const zipInput = document.getElementById('addr_zipcode');
+        
+        if(provSelect && distSelect && subSelect && zipInput) {
+            provSelect.innerHTML = '<option value="">กำลังโหลดข้อมูล...</option>';
+            
+            let provinces = [];
+            let districts = [];
+            let subdistricts = [];
+
+            // ดึงข้อมูล 3 ไฟล์พร้อมกันจาก API โครงสร้างใหม่
+            Promise.all([
+                fetch('https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/province.json').then(res => res.json()),
+                fetch('https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/district.json').then(res => res.json()),
+                fetch('https://raw.githubusercontent.com/kongvut/thai-province-data/master/api/latest/sub_district.json').then(res => res.json())
+            ]).then(data => {
+                provinces = data[0];
+                districts = data[1];
+                subdistricts = data[2];
+
+                provSelect.innerHTML = '<option value="">เลือกจังหวัด...</option>';
+                provinces.forEach(prov => {
+                    let opt = new Option(prov.name_th, prov.name_th);
+                    opt.setAttribute('data-id', prov.id); // เก็บ ID ไว้ดึงอำเภอ
+                    provSelect.add(opt);
+                });
+            }).catch(err => {
+                console.error('Fetch Error:', err);
+                provSelect.innerHTML = '<option value="">โหลดข้อมูลล้มเหลว</option>';
+            });
+
+            // 1. เมื่อเลือก "จังหวัด"
+            provSelect.addEventListener('change', function() {
+                distSelect.innerHTML = '<option value="">เลือกอำเภอ/เขต...</option>';
+                subSelect.innerHTML = '<option value="">เลือกตำบล/แขวง...</option>';
+                zipInput.value = '';
+                distSelect.disabled = true;
+                subSelect.disabled = true;
+
+                if(!this.value) return;
+
+                const selectedOption = this.options[this.selectedIndex];
+                const provId = selectedOption.getAttribute('data-id');
+
+                // กรองเฉพาะอำเภอที่อยู่ในจังหวัดนี้
+                const filteredDistricts = districts.filter(d => d.province_id == provId);
+                filteredDistricts.forEach(dist => {
+                    let opt = new Option(dist.name_th, dist.name_th);
+                    opt.setAttribute('data-id', dist.id);
+                    distSelect.add(opt);
+                });
+                distSelect.disabled = false;
+            });
+
+            // 2. เมื่อเลือก "อำเภอ"
+            distSelect.addEventListener('change', function() {
+                subSelect.innerHTML = '<option value="">เลือกตำบล/แขวง...</option>';
+                zipInput.value = '';
+                subSelect.disabled = true;
+
+                if(!this.value) return;
+
+                const selectedOption = this.options[this.selectedIndex];
+                const distId = selectedOption.getAttribute('data-id');
+
+                // กรองเฉพาะตำบลที่อยู่ในอำเภอนี้
+                const filteredSubs = subdistricts.filter(s => s.district_id == distId);
+                filteredSubs.forEach(sub => {
+                    let opt = new Option(sub.name_th, sub.name_th);
+                    opt.setAttribute('data-zip', sub.zip_code);
+                    subSelect.add(opt);
+                });
+                subSelect.disabled = false;
+            });
+
+            // 3. เมื่อเลือก "ตำบล" (เติมรหัสไปรษณีย์)
+            subSelect.addEventListener('change', function() {
+                zipInput.value = '';
+                if(!this.value) return;
+
+                const selectedOption = this.options[this.selectedIndex];
+                const zip = selectedOption.getAttribute('data-zip');
+                if (zip) {
+                    zipInput.value = zip;
+                }
+            });
+        }
+    });
+
+    // ==========================================
+    // ส่วนล่างคือโค้ดระบบบันทึกโปรไฟล์เดิมของคุณ (ไม่ต้องแก้)
+    // ==========================================
+    
     // 1. อัปโหลดโปรไฟล์
     let isProfileSubmitting = false;
     document.getElementById('form-profile').addEventListener('submit', function(e) {
@@ -518,7 +641,7 @@ include 'header.php';
         });
     });
 
-    // 4. ลบที่อยู่ (ไม่ต้องรีเฟรช!)
+    // 4. ลบที่อยู่
     function deleteAddress(id) {
         Swal.fire({
             title: 'ลบที่อยู่?', text: "ต้องการลบที่อยู่นี้ใช่ไหม", icon: 'warning',
@@ -533,7 +656,6 @@ include 'header.php';
                 .then(res => res.json())
                 .then(data => {
                     if(data.status === 'success') {
-                        // ✅ ลบ Element ออกจากหน้าจอเลย
                         const item = document.getElementById('addr-' + id);
                         if(item) {
                             item.classList.remove('animate__fadeIn');
