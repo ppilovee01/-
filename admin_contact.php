@@ -116,6 +116,39 @@ if (isset($_GET['read_id'])) {
 
         .btn-action { width: 35px; height: 35px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: #f8f9fa; color: #888; border: none; transition: 0.2s; }
         .btn-action:hover { background: var(--blue-primary); color: white; transform: translateY(-2px); }
+            
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 12px !important;
+                font-weight: 500;
+                padding: 6px 12px;
+                font-size: 0.78rem;
+            }
+            .card-modern-mobile .btn-light {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+            }
+            .card-modern-mobile .btn-light:hover {
+                background: #f1f5f9 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -149,7 +182,7 @@ if (isset($_GET['read_id'])) {
                     </div>
 
                     <div class="table-responsive">
-                        <table class="custom-table" style="min-width: 600px;">
+                        <table class="custom-table">
                             <thead>
                                 <tr class="text-muted small uppercase">
                                     <th class="ps-4">ผู้ติดต่อ</th>
@@ -164,7 +197,8 @@ if (isset($_GET['read_id'])) {
                                 while($row = mysqli_fetch_assoc($res)):
                                     $is_new = ($row['status'] == 'unread');
                                 ?>
-                                <tr id="message-row-<?= $row['id'] ?>" style="<?= $is_new ? 'border-left: 4px solid var(--blue-primary);' : '' ?>">
+                                <!-- Desktop Row -->
+                                <tr id="message-row-<?= $row['id'] ?>" class="d-none d-md-table-row" style="<?= $is_new ? 'border-left: 4px solid var(--blue-primary);' : '' ?>">
                                     <td class="ps-4">
                                         <div class="mb-1">
                                             <span class="status-badge badge-status <?= $is_new ? 'bg-unread' : 'bg-read' ?>">
@@ -191,6 +225,38 @@ if (isset($_GET['read_id'])) {
                                             <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn-action text-danger" title="ลบ">
                                                 <i class="bi bi-trash3"></i>
                                             </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Mobile Row -->
+                                <tr id="message-mob-row-<?= $row['id'] ?>" class="d-md-none" style="<?= $is_new ? 'border-left: 4px solid var(--blue-primary);' : '' ?>">
+                                    <td colspan="4" class="p-0 border-0">
+                                        <div class="card-modern-mobile p-3 mb-3 text-start">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="fw-bold text-dark" style="font-size: 0.95rem;"><?= htmlspecialchars($row['name']) ?></div>
+                                                <span class="status-badge badge-status <?= $is_new ? 'bg-unread' : 'bg-read' ?>">
+                                                    <?= $is_new ? 'ยังไม่อ่าน' : 'อ่านแล้ว' ?>
+                                                </span>
+                                            </div>
+                                            <div class="text-muted small mb-2"><?= htmlspecialchars($row['email']) ?></div>
+                                            <div class="mb-2">
+                                                <div class="fw-bold text-blue small"><?= htmlspecialchars($row['subject']) ?></div>
+                                                <div class="text-muted small" style="white-space: pre-line; word-break: break-word;">
+                                                    <?= htmlspecialchars($row['message']) ?>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
+                                                <span class="small text-muted" style="font-size: 0.75rem;"><i class="bi bi-clock me-1"></i><?= date('d/m/Y', strtotime($row['created_at'])) ?></span>
+                                                <div class="d-flex gap-2">
+                                                    <button onclick="toggleRead(this, <?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn-action" title="<?= $is_new ? 'ทำเครื่องหมายว่าอ่านแล้ว' : 'ทำเครื่องหมายว่ายังไม่อ่าน' ?>">
+                                                        <i class="bi <?= $is_new ? 'bi-envelope' : 'bi-envelope-open' ?>"></i>
+                                                    </button>
+                                                    <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn-action text-danger" title="ลบ">
+                                                        <i class="bi bi-trash3"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -224,7 +290,7 @@ function toggleRead(btn, id, token) {
     const targetStatus = isUnread ? 'read' : 'unread';
     
     btn.disabled = true;
-    fetch(`admin_contact.php?read_id=${id}&status=${targetStatus}&csrf_token=${token}&ajax=1`)
+    fetch(window.location.pathname + `?read_id=${id}&status=${targetStatus}&csrf_token=${token}&ajax=1`)
     .then(res => res.json())
     .then(data => {
         btn.disabled = false;
@@ -278,7 +344,7 @@ function confirmDelete(id, token) {
         cancelButtonText: 'ยกเลิก'
     }).then((result) => {
         if (result.isConfirmed) { 
-            fetch(`admin_contact.php?delete_id=${id}&csrf_token=${token}&ajax=1`)
+            fetch(window.location.pathname + `?delete_id=${id}&csrf_token=${token}&ajax=1`)
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {

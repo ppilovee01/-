@@ -238,6 +238,31 @@ if (isset($_GET['delete'])) {
         .btn-gradient:hover { color: white; opacity: 0.9; }
         .user-row { transition: all 0.3s ease; }
         .user-row.fade-out { opacity: 0; transform: translateX(30px); }
+        
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 12px !important;
+                font-weight: 500;
+                padding: 8px 16px;
+                font-size: 0.82rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -267,7 +292,7 @@ if (isset($_GET['delete'])) {
             </div>
 
             <div class="card table-card p-3">
-                <div class="table-responsive">
+                <div class="table-responsive d-none d-md-block">
                     <table class="table align-middle table-hover" style="min-width: 800px;">
                         <thead class="bg-light">
                             <tr>
@@ -284,8 +309,14 @@ if (isset($_GET['delete'])) {
                             <?php 
                             $sql = "SELECT * FROM users ORDER BY id DESC";
                             $result = mysqli_query($conn, $sql);
+                            $users_list = [];
+                            if ($result && mysqli_num_rows($result) > 0) {
+                                while($row = mysqli_fetch_assoc($result)) {
+                                    $users_list[] = $row;
+                                }
+                            }
 
-                            while($row = mysqli_fetch_assoc($result)):
+                            foreach($users_list as $row):
                                 $role_badge = ($row['role'] == 'admin') ? '<span class="badge bg-dark">Admin</span>' : '<span class="badge bg-light text-dark border">User</span>';
                             ?>
                             <tr id="user-row-<?= $row['id'] ?>" class="user-row">
@@ -317,9 +348,49 @@ if (isset($_GET['delete'])) {
                                     <?php endif; ?>
                                 </td>
                             </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Mobile Cards View -->
+                <div class="d-md-none" id="users-mobile-list">
+                    <?php if (count($users_list) > 0): ?>
+                        <?php foreach ($users_list as $row): 
+                            $role_badge = ($row['role'] == 'admin') ? '<span class="badge bg-dark">Admin</span>' : '<span class="badge bg-light text-dark border">User</span>';
+                        ?>
+                            <div class="card-modern-mobile p-3 mb-3 shadow-sm user-row" id="user-card-<?= $row['id'] ?>">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="text-muted small fw-bold">#<?= str_pad($row['id'], 4, '0', STR_PAD_LEFT) ?></span>
+                                    <span class="user-role-badge"><?= $role_badge ?></span>
+                                </div>
+                                <div class="d-flex align-items-center gap-3 mb-3">
+                                    <div class="user-icon" style="width:34px; height:34px; font-size: 0.9rem;"><i class="bi bi-person-fill"></i></div>
+                                    <div>
+                                        <div class="fw-bold text-dark user-fullname" style="font-size: 0.95rem;"><?= htmlspecialchars($row['fullname']) ?></div>
+                                        <div class="small text-muted" style="font-size: 0.8rem;">Username: <?= htmlspecialchars($row['username']) ?></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3" style="font-size: 0.85rem; line-height: 1.5;">
+                                    <div class="text-muted"><i class="bi bi-envelope me-1"></i> <span class="user-email"><?= htmlspecialchars($row['email']) ?></span></div>
+                                    <div class="text-muted mt-1">🪙 แต้มสะสม: <span class="fw-bold text-warning user-points"><?= number_format($row['points'] ?? 0) ?></span> แต้ม</div>
+                                    <div class="text-muted mt-1"><i class="bi bi-calendar3 me-1"></i> สมัครเมื่อ: <?= isset($row['created_at']) ? date('d/m/Y', strtotime($row['created_at'])) : '-' ?></div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button onclick='editUser(<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' class="btn btn-light text-primary btn-sm rounded-pill py-2 px-3 flex-grow-1 shadow-sm edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal">
+                                        <i class="bi bi-pencil-fill me-1"></i> แก้ไข
+                                    </button>
+                                    <?php if($row['id'] != $_SESSION['user_id']): ?>
+                                        <button onclick="confirmBan(<?= $row['id'] ?>, '<?= htmlspecialchars($row['fullname'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light text-danger btn-sm rounded-pill py-2 px-3 shadow-sm">
+                                            <i class="bi bi-trash-fill me-1"></i> ลบ
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="text-center py-4 text-muted small">ไม่พบข้อมูลสมาชิก</div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -460,7 +531,7 @@ if (isset($_GET['delete'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
         
-        fetch('admin_users.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -514,6 +585,50 @@ if (isset($_GET['delete'])) {
                     </td>
                 `;
                 tbody.insertBefore(tr, tbody.firstChild);
+                
+                // Prepend to mobile list
+                const mobList = document.getElementById('users-mobile-list');
+                if (mobList) {
+                    const emptyPlaceholder = mobList.querySelector('.text-center');
+                    if (emptyPlaceholder && emptyPlaceholder.innerText.includes('ไม่พบข้อมูล')) {
+                        emptyPlaceholder.remove();
+                    }
+                    
+                    const card = document.createElement('div');
+                    card.id = 'user-card-' + data.user.id;
+                    card.className = 'card-modern-mobile p-3 mb-3 shadow-sm user-row';
+                    
+                    const paddedId = String(data.user.id).padStart(4, '0');
+                    const roleBadge = data.user.role === 'admin' ? '<span class="badge bg-dark">Admin</span>' : '<span class="badge bg-light text-dark border">User</span>';
+                    
+                    card.innerHTML = `
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-bold">#${paddedId}</span>
+                            <span class="user-role-badge">${roleBadge}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="user-icon" style="width:34px; height:34px; font-size: 0.9rem;"><i class="bi bi-person-fill"></i></div>
+                            <div>
+                                <div class="fw-bold text-dark user-fullname" style="font-size: 0.95rem;">${escapeHtml(data.user.fullname)}</div>
+                                <div class="small text-muted" style="font-size: 0.8rem;">Username: ${escapeHtml(data.user.username)}</div>
+                            </div>
+                        </div>
+                        <div class="mb-3" style="font-size: 0.85rem; line-height: 1.5;">
+                            <div class="text-muted"><i class="bi bi-envelope me-1"></i> <span class="user-email">${escapeHtml(data.user.email)}</span></div>
+                            <div class="text-muted mt-1">🪙 แต้มสะสม: <span class="fw-bold text-warning user-points">0</span> แต้ม</div>
+                            <div class="text-muted mt-1"><i class="bi bi-calendar3 me-1"></i> สมัครเมื่อ: ${formatDate(data.user.created_at)}</div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button onclick='editUser(${JSON.stringify(data.user)})' class="btn btn-light text-primary btn-sm rounded-pill py-2 px-3 flex-grow-1 shadow-sm edit-user-btn" data-bs-toggle="modal" data-bs-target="#editUserModal">
+                                <i class="bi bi-pencil-fill me-1"></i> แก้ไข
+                            </button>
+                            <button onclick="confirmBan(${data.user.id}, '${escapeHtmlString(data.user.fullname)}', '${currentCsrfToken}')" class="btn btn-light text-danger btn-sm rounded-pill py-2 px-3 shadow-sm">
+                                <i class="bi bi-trash-fill me-1"></i> ลบ
+                            </button>
+                        </div>
+                    `;
+                    mobList.insertBefore(card, mobList.firstChild);
+                }
             } else {
                 Toast.fire({
                     icon: 'error',
@@ -544,7 +659,7 @@ if (isset($_GET['delete'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
         
-        fetch('admin_users.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -569,6 +684,20 @@ if (isset($_GET['delete'])) {
                     row.querySelector('.user-role-badge').innerHTML = data.user.role === 'admin' ? '<span class="badge bg-dark">Admin</span>' : '<span class="badge bg-light text-dark border">User</span>';
                     
                     const editBtn = row.querySelector('.edit-user-btn');
+                    if (editBtn) {
+                        editBtn.setAttribute('onclick', `editUser(${JSON.stringify(data.user)})`);
+                    }
+                }
+                
+                // Update card values
+                const card = document.getElementById('user-card-' + id);
+                if (card) {
+                    card.querySelector('.user-fullname').innerText = data.user.fullname;
+                    card.querySelector('.user-email').innerText = data.user.email;
+                    card.querySelector('.user-points').innerText = Number(data.user.points).toLocaleString();
+                    card.querySelector('.user-role-badge').innerHTML = data.user.role === 'admin' ? '<span class="badge bg-dark">Admin</span>' : '<span class="badge bg-light text-dark border">User</span>';
+                    
+                    const editBtn = card.querySelector('.edit-user-btn');
                     if (editBtn) {
                         editBtn.setAttribute('onclick', `editUser(${JSON.stringify(data.user)})`);
                     }
@@ -601,7 +730,7 @@ if (isset($_GET['delete'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_users.php?delete=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?delete=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -613,6 +742,11 @@ if (isset($_GET['delete'])) {
                         if (row) {
                             row.classList.add('fade-out');
                             setTimeout(() => row.remove(), 300);
+                        }
+                        const card = document.getElementById('user-card-' + id);
+                        if (card) {
+                            card.classList.add('fade-out');
+                            setTimeout(() => card.remove(), 300);
                         }
                     } else {
                         Toast.fire({

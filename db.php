@@ -31,13 +31,16 @@ function loadEnv($path) {
 function updateEnv($key, $value, $path) {
     if (!file_exists($path)) {
         if (file_exists(dirname($path) . '/.env.example')) {
-            copy(dirname($path) . '/.env.example', $path);
+            @copy(dirname($path) . '/.env.example', $path);
         } else {
-            file_put_contents($path, "");
+            @file_put_contents($path, "");
         }
     }
     
-    $content = file_get_contents($path);
+    $content = @file_get_contents($path);
+    if ($content === false) {
+        $content = '';
+    }
     $pattern = "/^" . preg_quote($key, '/') . "=(.*)$/m";
     $escapedValue = trim($value);
     
@@ -54,7 +57,7 @@ function updateEnv($key, $value, $path) {
         $content .= "{$key}={$escapedValue}\n";
     }
     
-    return file_put_contents($path, $content) !== false;
+    return @file_put_contents($path, $content) !== false;
 }
 loadEnv(__DIR__ . '/.env');
 
@@ -271,6 +274,50 @@ checkAndGenerateAutoFlashSale($conn);
 
 // --- Helper to send Line Notify alerts ---
 function sendLineNotify($conn, $message) {
+    // 1. ลองใช้ LINE Messaging API (แนะนำ)
+    $channel_token = getenv('LINE_CHANNEL_ACCESS_TOKEN') ?: '';
+    $user_id = getenv('LINE_USER_ID') ?: '';
+    
+    if (empty($channel_token) || empty($user_id)) {
+        $q = mysqli_query($conn, "SELECT line_channel_access_token, line_user_id FROM shop_settings WHERE id = 1");
+        if ($q && mysqli_num_rows($q) > 0) {
+            $row = mysqli_fetch_assoc($q);
+            if (empty($channel_token)) $channel_token = $row['line_channel_access_token'] ?? '';
+            if (empty($user_id)) $user_id = $row['line_user_id'] ?? '';
+        }
+    }
+    
+    if (!empty($channel_token) && !empty($user_id)) {
+        $url = "https://api.line.me/v2/bot/message/push";
+        $data = [
+            'to' => $user_id,
+            'messages' => [
+                [
+                    'type' => 'text',
+                    'text' => $message
+                ]
+            ]
+        ];
+        $payload = json_encode($data);
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $channel_token
+        ];
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $res = curl_exec($ch);
+        curl_close($ch);
+        return $res;
+    }
+
+    // 2. Fallback ไปที่ LINE Notify (Deprecated)
     $token = getenv('LINE_NOTIFY_TOKEN') ?: '';
     if (empty($token)) {
         $q = mysqli_query($conn, "SELECT line_notify_token FROM shop_settings WHERE id = 1");
@@ -281,22 +328,22 @@ function sendLineNotify($conn, $message) {
     }
     
     if (!empty($token)) {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, "https://notify-api.line.me/api/notify");
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, "message=" . urlencode($message));
-            $headers = array(
-                'Content-type: application/x-www-form-urlencoded',
-                'Authorization: Bearer ' . $token,
-            );
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $res = curl_exec($ch);
-            curl_close($ch);
-            return $res;
-        }
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://notify-api.line.me/api/notify");
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, "message=" . urlencode($message));
+        $headers = array(
+            'Content-type: application/x-www-form-urlencoded',
+            'Authorization: Bearer ' . $token,
+        );
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $res = curl_exec($ch);
+        curl_close($ch);
+        return $res;
+    }
     return false;
 }
 

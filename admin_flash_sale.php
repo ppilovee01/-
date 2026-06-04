@@ -788,7 +788,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
     }
 
     function loadEditCampaign(id) {
-        fetch(`admin_flash_sale.php?get_edit=${id}&ajax=1`)
+        fetch(window.location.pathname + `?get_edit=${id}&ajax=1`)
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -849,7 +849,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         }
         formData.append('ajax', '1');
         
-        fetch('admin_flash_sale.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -892,7 +892,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         formData.append('update_settings', '1');
         formData.append('ajax', '1');
         
-        fetch('admin_flash_sale.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -921,7 +921,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
     }
 
     function fetchCampaigns() {
-        fetch('admin_flash_sale.php?ajax_fetch=1')
+        fetch(window.location.pathname + '?ajax_fetch=1')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -946,7 +946,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_flash_sale.php?cancel_campaign=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?cancel_campaign=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -984,7 +984,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_flash_sale.php?del=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?del=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

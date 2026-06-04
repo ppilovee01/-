@@ -93,6 +93,12 @@ $total_pages = ceil($total_rows / $limit);
 // ดึงประวัติกิจกรรมแอดมินตามหน้าและเงื่อนไขกรอง
 $sql = "SELECT l.*, u.role FROM admin_logs l LEFT JOIN users u ON l.admin_id = u.id WHERE $where_sql ORDER BY l.id DESC LIMIT $limit OFFSET $offset";
 $result = mysqli_query($conn, $sql);
+$rows = [];
+if ($result && mysqli_num_rows($result) > 0) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $rows[] = $row;
+    }
+}
 
 // ดึงประเภทกิจกรรมที่เป็นไปได้ทั้งหมดมาทำตัวเลือกกรอง (Dropdown)
 $type_query = mysqli_query($conn, "SELECT DISTINCT action_type FROM admin_logs ORDER BY action_type ASC");
@@ -241,6 +247,25 @@ function render_log_details($details_json_or_text, $row_id) {
         .admin-avatar { width: 28px; height: 28px; background: #E3F2FD; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7FB5FF; font-size: 0.85rem; font-weight: bold; }
         
         .filter-card { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); background: white; }
+        
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -324,7 +349,7 @@ function render_log_details($details_json_or_text, $row_id) {
                 $ajax_fetch = isset($_GET['ajax_fetch']);
                 if ($ajax_fetch) ob_start(); 
                 ?>
-                <div class="table-responsive">
+                <div class="table-responsive d-none d-md-block">
                     <table class="table align-middle table-hover">
                         <thead class="bg-light">
                             <tr class="text-secondary small">
@@ -337,8 +362,8 @@ function render_log_details($details_json_or_text, $row_id) {
                         </thead>
                         <tbody>
                             <?php 
-                            if ($total_rows > 0):
-                                while ($row = mysqli_fetch_assoc($result)):
+                            if (count($rows) > 0):
+                                foreach ($rows as $row):
                                     // กำหนด Class ของประเภทกิจกรรม
                                     $act = $row['action_type'];
                                     $badge_class = 'bg-other';
@@ -391,7 +416,7 @@ function render_log_details($details_json_or_text, $row_id) {
                                 </td>
                             </tr>
                             <?php 
-                                endwhile; 
+                                endforeach; 
                             else: 
                             ?>
                                 <tr>
@@ -404,6 +429,58 @@ function render_log_details($details_json_or_text, $row_id) {
                             <?php endif; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- รายการการ์ดสำหรับหน้าจอมือถือ (Mobile View) -->
+                <div class="d-md-none">
+                    <?php if (count($rows) > 0): ?>
+                        <?php foreach ($rows as $row): 
+                            $act = $row['action_type'];
+                            $badge_class = 'bg-other';
+                            if (strpos($act, 'เพิ่ม') !== false || strpos($act, 'สร้าง') !== false) {
+                                $badge_class = 'bg-create';
+                            } elseif (strpos($act, 'แก้ไข') !== false || strpos($act, 'อัปเดต') !== false || strpos($act, 'ตั้งค่า') !== false) {
+                                $badge_class = 'bg-update';
+                            } elseif (strpos($act, 'ลบ') !== false || strpos($act, 'ล้าง') !== false || strpos($act, 'ยกเลิก') !== false || strpos($act, 'บังคับปิด') !== false) {
+                                $badge_class = 'bg-delete';
+                            }
+                            $avatar_letter = !empty($row['admin_name']) ? mb_strtoupper(mb_substr($row['admin_name'], 0, 1, 'UTF-8'), 'UTF-8') : 'S';
+                        ?>
+                            <div class="card-modern-mobile p-3 mb-3 shadow-sm">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="admin-avatar" style="width:26px; height:26px; font-size:0.75rem;"><?= $avatar_letter ?></div>
+                                        <div>
+                                            <span class="fw-bold text-dark small" style="font-size: 0.85rem;"><?= htmlspecialchars($row['admin_name'] ?: 'ระบบ') ?></span>
+                                            <?php if (($row['role'] ?? '') === 'admin'): ?>
+                                                <span class="badge bg-primary text-white" style="font-size: 0.6rem; padding: 1px 4px; border-radius: 3px;">แอดมิน</span>
+                                            <?php elseif (($row['role'] ?? '') === 'user'): ?>
+                                                <span class="badge bg-info text-white" style="font-size: 0.6rem; padding: 1px 4px; border-radius: 3px;">ลูกค้า</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary text-white" style="font-size: 0.6rem; padding: 1px 4px; border-radius: 3px;">ระบบ</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <code class="text-muted" style="font-size: 0.72rem;"><?= htmlspecialchars($row['ip_address'] ?: '-') ?></code>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="badge-log <?= $badge_class ?>" style="font-size: 0.72rem; padding: 3px 8px;"><?= htmlspecialchars($row['action_type']) ?></span>
+                                    <span class="text-muted font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-clock me-1"></i><?= date('d/m/Y H:i:s', strtotime($row['created_at'])) ?>
+                                    </span>
+                                </div>
+                                <div class="log-details font-monospace p-2 bg-light rounded-3" style="font-size: 0.78rem;">
+                                    <?= render_log_details($row['details'], 'mob_' . $row['id']) ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="text-center py-5 text-muted bg-white rounded-4 shadow-sm border" style="border-color: #f1f5f9;">
+                            <i class="bi bi-clipboard-x display-4 opacity-25"></i>
+                            <h5 class="mt-3">ไม่พบรายการประวัติการทำงานแอดมิน</h5>
+                            <p class="small mb-0 text-secondary">ลองเปลี่ยนตัวเลือกหรือคำค้นหาของคุณ</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- การแบ่งหน้า (Pagination) -->
@@ -506,7 +583,7 @@ function submitFilterForm(event) {
         }
     }
     const queryString = params.toString();
-    const url = 'admin_logs.php' + (queryString ? '?' + queryString : '');
+    const url = window.location.pathname + (queryString ? '?' + queryString : '');
     
     // Push history
     history.pushState(null, '', url);
@@ -565,7 +642,7 @@ function bindPaginationClicks() {
             e.preventDefault();
             const href = this.getAttribute('href');
             if (href && href !== '#') {
-                const url = href.startsWith('?') ? 'admin_logs.php' + href : href;
+                const url = href.startsWith('?') ? window.location.pathname + href : href;
                 history.pushState(null, '', url);
                 fetchLogs(url);
             }
@@ -627,7 +704,7 @@ function submitClearLogsForm(event) {
                 }
             });
             
-            fetch('admin_logs.php', {
+            fetch(window.location.pathname, {
                 method: 'POST',
                 body: formData
             })
@@ -649,7 +726,7 @@ function submitClearLogsForm(event) {
                         showConfirmButton: false
                     });
                     
-                    fetchLogs('admin_logs.php');
+                    fetchLogs(window.location.pathname);
                 } else {
                     Swal.fire({
                         icon: 'error',

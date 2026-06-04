@@ -222,6 +222,39 @@ if (isset($_POST['update'])) {
         body { font-family: 'Kanit'; background: #f8f9fa; }
         .coupon-row { transition: all 0.3s ease; }
         .coupon-row.fade-out { opacity: 0; transform: translateX(30px); }
+            
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 12px !important;
+                font-weight: 500;
+                padding: 6px 12px;
+                font-size: 0.78rem;
+            }
+            .card-modern-mobile .btn-light {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+            }
+            .card-modern-mobile .btn-light:hover {
+                background: #f1f5f9 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -315,7 +348,7 @@ if (isset($_POST['update'])) {
                 <div class="col-md-8">
                     <div class="card border-0 shadow-sm rounded-4 p-4">
                         <div class="table-responsive">
-                            <table class="table align-middle" style="min-width: 600px;">
+                            <table class="table align-middle">
                                 <thead class="text-muted small">
                                     <tr>
                                         <th>โค้ด</th>
@@ -336,7 +369,8 @@ if (isset($_POST['update'])) {
                                         $is_expired = $row['is_expired'];
                                         $not_started = $row['not_started'];
                                     ?>
-                                    <tr id="coupon-row-<?= $row['id'] ?>" class="coupon-row">
+                                    <!-- Desktop Row -->
+                                    <tr id="coupon-row-<?= $row['id'] ?>" class="coupon-row d-none d-md-table-row">
                                         <td>
                                             <div class="fw-bold text-primary coupon-code-cell"><?= htmlspecialchars($row['code']) ?></div>
                                         </td>
@@ -349,7 +383,7 @@ if (isset($_POST['update'])) {
                                                 </span>
                                             <?php endif; ?>
                                         </td>
-                                         <td class="small text-muted coupon-condition-cell" style="line-height: 1.4;">
+                                        <td class="small text-muted coupon-condition-cell" style="line-height: 1.4;">
                                              <div><?= $row['min_spend'] > 0 ? 'ขั้นต่ำ: ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?></div>
                                              <?php if ($row['discount_type'] == 'percent' && floatval($row['max_discount']) > 0): ?>
                                                  <div class="text-danger fw-semibold" style="font-size: 0.78rem;">ลดสูงสุด: ฿<?= number_format($row['max_discount']) ?></div>
@@ -375,6 +409,55 @@ if (isset($_POST['update'])) {
                                         <td class="text-end">
                                             <button onclick='loadEditCoupon(<?= json_encode($row) ?>)' class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1 edit-coupon-btn"><i class="bi bi-pencil-fill"></i></button>
                                             <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['code'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Mobile Row -->
+                                    <tr id="coupon-mob-row-<?= $row['id'] ?>" class="coupon-row d-md-none">
+                                        <td colspan="6" class="p-0 border-0">
+                                            <div class="card-modern-mobile p-3 mb-3 text-start">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <div class="fw-bold text-primary coupon-code-cell"><?= htmlspecialchars($row['code']) ?></div>
+                                                    <div class="coupon-status-cell">
+                                                        <?php if($is_expired): ?>
+                                                            <span class="badge bg-secondary">หมดอายุ</span>
+                                                        <?php elseif($not_started): ?>
+                                                            <span class="badge bg-warning text-dark">ยังไม่เริ่ม</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-success">ใช้งานได้</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <span class="coupon-discount-cell">
+                                                        <?php if ($row['discount_type'] == 'free_shipping'): ?>
+                                                            <span class="badge bg-success text-white">ส่งฟรี 🚚</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-blue text-white" style="background:#AEE2FF">
+                                                                <?= $row['discount_type']=='fixed' ? '-฿'.number_format($row['discount_value']) : '-['.number_format($row['discount_value']).'%' ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                </div>
+                                                <div class="mb-2 small text-muted coupon-condition-cell" style="line-height: 1.4;">
+                                                     <div><?= $row['min_spend'] > 0 ? 'ขั้นต่ำ: ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?></div>
+                                                     <?php if ($row['discount_type'] == 'percent' && floatval($row['max_discount']) > 0): ?>
+                                                         <div class="text-danger fw-semibold" style="font-size: 0.78rem;">ลดสูงสุด: ฿<?= number_format($row['max_discount']) ?></div>
+                                                     <?php endif; ?>
+                                                     <div class="x-small" style="font-size: 0.75rem; color: #94a3b8;">
+                                                         สิทธิ์รวม: <?= $row['usage_limit'] > 0 ? number_format($row['usage_limit']).' ครั้ง' : 'ไม่จำกัด' ?><br>
+                                                         สิทธิ์ต่อคน: <?= $row['user_limit'] > 0 ? number_format($row['user_limit']).' ครั้ง' : 'ไม่จำกัด' ?>
+                                                     </div>
+                                                </div>
+                                                <div class="mb-3 small text-muted coupon-date-cell" style="line-height: 1.4;">
+                                                    <div>เริ่ม: <?= $row['start_date'] ? date('d/m/Y H:i', strtotime($row['start_date'])) : 'ทันที' ?></div>
+                                                    <div class="text-danger">หมด: <?= date('d/m/Y H:i', strtotime($row['expiry_date'])) ?></div>
+                                                </div>
+                                                <div class="d-flex justify-content-end gap-2 border-top pt-2">
+                                                    <button onclick='loadEditCoupon(<?= json_encode($row) ?>)' class="btn btn-light btn-sm text-primary rounded-3 border px-3 edit-coupon-btn"><i class="bi bi-pencil-fill"></i> แก้ไข</button>
+                                                    <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['code'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-3 border px-3"><i class="bi bi-trash-fill"></i> ลบ</button>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
@@ -499,7 +582,7 @@ if (isset($_POST['update'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
 
-        fetch('admin_coupons.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -615,7 +698,7 @@ if (isset($_POST['update'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_coupons.php?del=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?del=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

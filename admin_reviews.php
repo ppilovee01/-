@@ -71,7 +71,40 @@ if (isset($_GET['delete'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style> body { font-family: 'Kanit'; background: #f8f9fa; } </style>
+    <style> body { font-family: 'Kanit'; background: #f8f9fa; }         
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 12px !important;
+                font-weight: 500;
+                padding: 6px 12px;
+                font-size: 0.78rem;
+            }
+            .card-modern-mobile .btn-light {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+            }
+            .card-modern-mobile .btn-light:hover {
+                background: #f1f5f9 !important;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -93,7 +126,7 @@ if (isset($_GET['delete'])) {
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
                 <div class="table-responsive">
-                    <table class="table align-middle table-hover" style="min-width: 600px;">
+                    <table class="table align-middle table-hover">
                         <thead class="bg-light text-secondary small">
                             <tr>
                                 <th>สินค้า</th>
@@ -117,7 +150,8 @@ if (isset($_GET['delete'])) {
                             if(mysqli_num_rows($res) > 0):
                                 while($row = mysqli_fetch_assoc($res)): 
                             ?>
-                            <tr id="review-row-<?= $row['id'] ?>">
+                            <!-- Desktop Row -->
+                            <tr id="review-row-<?= $row['id'] ?>" class="d-none d-md-table-row">
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <img src="<?= $row['product_image'] ?>" class="rounded me-2" style="width:35px; height:35px; object-fit:cover;">
@@ -144,6 +178,40 @@ if (isset($_GET['delete'])) {
                                     <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-sm btn-outline-danger rounded-circle">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                </td>
+                            </tr>
+
+                            <!-- Mobile Row -->
+                            <tr id="review-mob-row-<?= $row['id'] ?>" class="d-md-none">
+                                <td colspan="6" class="p-0 border-0">
+                                    <div class="card-modern-mobile p-3 mb-3 text-start">
+                                        <div class="d-flex align-items-center gap-3 mb-2">
+                                            <img src="<?= $row['product_image'] ?>" class="rounded" style="width: 40px; height: 40px; object-fit: cover;">
+                                            <div class="flex-grow-1 min-w-0">
+                                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;"><?= htmlspecialchars($row['product_name'] ?? '') ?></div>
+                                                <div class="small text-muted">ผู้รีวิว: <?= htmlspecialchars($row['fullname'] ?? '') ?></div>
+                                            </div>
+                                            <div>
+                                                <span class="text-warning small">
+                                                    <?php for($i=1;$i<=5;$i++) echo $i<=$row['rating'] ? '★' : '☆'; ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="mb-2 text-secondary small">
+                                            <div><?= htmlspecialchars($row['comment']) ?></div>
+                                            <?php if (!empty($row['review_image']) && file_exists($row['review_image'])): ?>
+                                                <div class="mt-2">
+                                                    <img src="<?= htmlspecialchars($row['review_image']) ?>" class="rounded border shadow-sm" style="width:50px; height:50px; object-fit:cover; cursor:pointer;" onclick="showReviewImage('<?= htmlspecialchars($row['review_image']) ?>', '<?= htmlspecialchars($row['fullname']) ?>')" title="คลิกเพื่อดูรูปภาพขนาดใหญ่">
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                                            <span class="small text-muted" style="font-size: 0.75rem;"><i class="bi bi-clock me-1"></i><?= date('d/m/Y H:i', strtotime($row['created_at'])) ?></span>
+                                            <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-sm btn-outline-danger rounded-3 px-3 py-1">
+                                                <i class="bi bi-trash"></i> ลบรีวิว
+                                            </button>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endwhile; else: ?>
@@ -182,7 +250,7 @@ if (isset($_GET['delete'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch('admin_reviews.php?delete=' + id + '&csrf_token=' + token + '&ajax=1')
+                fetch(window.location.pathname + '?delete=' + id + '&csrf_token=' + token + '&ajax=1')
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

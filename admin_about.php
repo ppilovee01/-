@@ -185,7 +185,7 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
         formData.append('save_about', '1');
         formData.append('ajax', '1');
         
-        fetch('admin_about.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })

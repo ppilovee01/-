@@ -199,7 +199,7 @@ if (isset($_GET['delete'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
 
-        fetch('admin_banners.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -268,7 +268,7 @@ if (isset($_GET['delete'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_banners.php?delete=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?delete=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

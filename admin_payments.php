@@ -201,6 +201,39 @@ if (isset($_POST['update'])) {
         body { font-family: 'Kanit'; background: #f8f9fa; } 
         .payment-row { transition: all 0.3s ease; }
         .payment-row.fade-out { opacity: 0; transform: translateX(30px); }
+            
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 12px !important;
+                font-weight: 500;
+                padding: 6px 12px;
+                font-size: 0.78rem;
+            }
+            .card-modern-mobile .btn-light {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+            }
+            .card-modern-mobile .btn-light:hover {
+                background: #f1f5f9 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -285,7 +318,7 @@ if (isset($_POST['update'])) {
                 <div class="col-md-8">
                     <div class="card border-0 shadow-sm rounded-4 p-4">
                         <div class="table-responsive">
-                            <table class="table align-middle" style="min-width: 500px;">
+                            <table class="table align-middle">
                                 <thead class="text-muted small">
                                     <tr>
                                         <th>ชื่อช่องทาง</th>
@@ -314,7 +347,8 @@ if (isset($_POST['update'])) {
                                             $status_text = 'ปิดใช้งาน';
                                         }
                                     ?>
-                                    <tr id="payment-row-<?= $row['id'] ?>" class="payment-row">
+                                    <!-- Desktop View -->
+                                    <tr id="payment-row-<?= $row['id'] ?>" class="payment-row d-none d-md-table-row">
                                         <td class="fw-bold payment-name-cell"><?= htmlspecialchars($row['name']) ?></td>
                                         <td class="payment-type-cell"><span class="badge <?= $type_badge ?>"><?= $row['type'] ?></span></td>
                                         <td class="payment-accname-cell"><?= !empty($row['account_name']) ? htmlspecialchars($row['account_name']) : '-' ?></td>
@@ -327,6 +361,35 @@ if (isset($_POST['update'])) {
                                             <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" title="ลบ">
                                                 <i class="bi bi-trash-fill"></i>
                                             </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Mobile View -->
+                                    <tr id="payment-mob-row-<?= $row['id'] ?>" class="payment-row d-md-none">
+                                        <td colspan="6" class="p-0 border-0">
+                                            <div class="card-modern-mobile p-3 mb-3 text-start">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <div class="fw-bold text-dark payment-name-cell"><?= htmlspecialchars($row['name']) ?></div>
+                                                    <div class="payment-status-cell"><span class="badge <?= $status_badge ?>"><?= $status_text ?></span></div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <span class="payment-type-cell"><span class="badge <?= $type_badge ?>"><?= $row['type'] ?></span></span>
+                                                </div>
+                                                <div class="mb-1 small text-muted">
+                                                    <strong>ชื่อบัญชี:</strong> <span class="payment-accname-cell"><?= !empty($row['account_name']) ? htmlspecialchars($row['account_name']) : '-' ?></span>
+                                                </div>
+                                                <div class="mb-3 small text-muted">
+                                                    <strong>เลขบัญชี/เบอร์โทร:</strong> <span class="payment-accnumber-cell"><?= !empty($row['account_number']) ? htmlspecialchars($row['account_number']) : '-' ?></span>
+                                                </div>
+                                                <div class="d-flex justify-content-end gap-2 border-top pt-2">
+                                                    <button onclick='loadEditPayment(<?= json_encode($row) ?>)' class="btn btn-light btn-sm text-primary rounded-3 border px-3 edit-payment-btn" title="แก้ไข">
+                                                        <i class="bi bi-pencil-fill"></i> แก้ไข
+                                                    </button>
+                                                    <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-3 border px-3" title="ลบ">
+                                                        <i class="bi bi-trash-fill"></i> ลบ
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
@@ -453,7 +516,7 @@ if (isset($_POST['update'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
 
-        fetch('admin_payments.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -548,7 +611,7 @@ if (isset($_POST['update'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_payments.php?del=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?del=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

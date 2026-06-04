@@ -121,6 +121,39 @@ if (isset($_POST['edit_cat'])) {
         .btn-gradient:hover { color: white; opacity: 0.9; }
         .category-row { transition: all 0.3s ease; }
         .category-row.fade-out { opacity: 0; transform: translateX(30px); }
+            
+        /* สไตล์การ์ดมือถือพรีเมียม */
+        @media (max-width: 767.98px) {
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 30px rgba(127, 181, 255, 0.05) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important; /* Pastel Blue left accent */
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-3px) scale(1.01);
+                box-shadow: 0 15px 35px rgba(127, 181, 255, 0.12) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 12px !important;
+                font-weight: 500;
+                padding: 6px 12px;
+                font-size: 0.78rem;
+            }
+            .card-modern-mobile .btn-light {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+            }
+            .card-modern-mobile .btn-light:hover {
+                background: #f1f5f9 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -172,12 +205,29 @@ if (isset($_POST['edit_cat'])) {
                                     $res = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) as prod_count FROM categories c ORDER BY c.id DESC");
                                     if(mysqli_num_rows($res) > 0): while($row = mysqli_fetch_assoc($res)): 
                                     ?>
-                                    <tr id="cat-row-<?= $row['id'] ?>" class="category-row">
+                                    <!-- Desktop View -->
+                                    <tr id="cat-row-<?= $row['id'] ?>" class="category-row d-none d-md-table-row">
                                         <td class="ps-4 fw-bold cat-name-td"><?= htmlspecialchars($row['name']) ?></td>
                                         <td><span class="badge bg-light text-dark border"><?= $row['prod_count'] ?> ชิ้น</span></td>
                                         <td class="text-end pe-4">
                                             <button onclick="editCat(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>')" class="btn btn-light text-primary btn-sm rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill"></i></button>
-                                            <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
+                                            <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Mobile View -->
+                                    <tr id="cat-mob-row-<?= $row['id'] ?>" class="category-row d-md-none">
+                                        <td colspan="3" class="p-0 border-0">
+                                            <div class="card-modern-mobile p-3 mb-3 text-start">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <div class="fw-bold text-dark cat-name-td" style="font-size: 0.95rem;"><?= htmlspecialchars($row['name']) ?></div>
+                                                    <div><span class="badge bg-light text-dark border"><?= $row['prod_count'] ?> ชิ้น</span></div>
+                                                </div>
+                                                <div class="d-flex justify-content-end gap-2 border-top pt-2">
+                                                    <button onclick="editCat(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>')" class="btn btn-light text-primary btn-sm rounded-3 border px-3" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill me-1"></i> แก้ไข</button>
+                                                    <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-3 border px-3"><i class="bi bi-trash-fill me-1"></i> ลบ</button>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                     <?php endwhile; else: ?>
@@ -248,7 +298,7 @@ if (isset($_POST['edit_cat'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
         
-        fetch('admin_categories.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -316,7 +366,7 @@ if (isset($_POST['edit_cat'])) {
         formData.append('ajax', '1');
         formData.append('csrf_token', currentCsrfToken);
         
-        fetch('admin_categories.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -372,7 +422,7 @@ if (isset($_POST['edit_cat'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(`admin_categories.php?delete=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?delete=${id}&csrf_token=${token}&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

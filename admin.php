@@ -1056,7 +1056,7 @@ if($res) {
             cancelButtonText: 'ยกเลิก' 
         }).then((result)=>{ 
             if(result.isConfirmed) {
-                fetch(`admin.php?delete=${id}&csrf_token=<?= get_csrf_token() ?>&ajax=1`)
+                fetch(window.location.pathname + `?delete=${id}&csrf_token=<?= get_csrf_token() ?>&ajax=1`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

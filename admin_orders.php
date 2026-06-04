@@ -749,7 +749,7 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 function initMaxOrderId() {
-    fetch('admin_orders.php?check_new_orders=1')
+    fetch(window.location.pathname + '?check_new_orders=1')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -760,7 +760,7 @@ function initMaxOrderId() {
 }
 
 function checkForNewOrders() {
-    fetch('admin_orders.php?check_new_orders=1')
+    fetch(window.location.pathname + '?check_new_orders=1')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -1006,7 +1006,7 @@ function submitStatusAjax(selectEl, orderId) {
     formData.append('ajax', '1');
     formData.append('csrf_token', '<?= get_csrf_token() ?>');
     
-    fetch('admin_orders.php', {
+    fetch(window.location.pathname, {
         method: 'POST',
         body: formData
     })
@@ -1072,7 +1072,7 @@ function submitNoteAjax(event, orderId) {
     formData.append('save_note', '1');
     formData.append('ajax', '1');
     
-    fetch('admin_orders.php', {
+    fetch(window.location.pathname, {
         method: 'POST',
         body: formData
     })
@@ -1130,7 +1130,7 @@ function submitTrackingAjax(event, orderId) {
     formData.append('save_tracking', '1');
     formData.append('ajax', '1');
     
-    fetch('admin_orders.php', {
+    fetch(window.location.pathname, {
         method: 'POST',
         body: formData
     })
@@ -1223,7 +1223,7 @@ function fetchOrdersFiltered(silent = false) {
     const wrapper = document.getElementById('orders-list-wrapper');
     if (wrapper && !silent) wrapper.style.opacity = '0.5';
     
-    fetch(`admin_orders.php?search=${encodeURIComponent(search)}&status_filter=${encodeURIComponent(status_filter)}&ajax_fetch=1`)
+    fetch(window.location.pathname + `?search=${encodeURIComponent(search)}&status_filter=${encodeURIComponent(status_filter)}&ajax_fetch=1`)
     .then(res => res.json())
     .then(data => {
         if (wrapper) {

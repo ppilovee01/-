@@ -43,6 +43,18 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     }
     $line_notify_token = mysqli_real_escape_string($conn, $line_notify_token_raw);
 
+    $line_channel_access_token_raw = trim($_POST['line_channel_access_token'] ?? '');
+    if ($line_channel_access_token_raw === getMaskedValue('LINE_CHANNEL_ACCESS_TOKEN', $shop['line_channel_access_token'] ?? '')) {
+        $line_channel_access_token_raw = getSecretValue('LINE_CHANNEL_ACCESS_TOKEN', $shop['line_channel_access_token'] ?? '');
+    }
+    $line_channel_access_token = mysqli_real_escape_string($conn, $line_channel_access_token_raw);
+
+    $line_user_id_raw = trim($_POST['line_user_id'] ?? '');
+    if ($line_user_id_raw === getMaskedValue('LINE_USER_ID', $shop['line_user_id'] ?? '')) {
+        $line_user_id_raw = getSecretValue('LINE_USER_ID', $shop['line_user_id'] ?? '');
+    }
+    $line_user_id = mysqli_real_escape_string($conn, $line_user_id_raw);
+
     $discord_webhook_url_raw = trim($_POST['discord_webhook_url'] ?? '');
     if ($discord_webhook_url_raw === getMaskedValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '')) {
         $discord_webhook_url_raw = getSecretValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '');
@@ -112,6 +124,8 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             points_earn_rate='$points_earn_rate',
             points_spend_rate='$points_spend_rate',
             line_notify_token='$line_notify_token',
+            line_channel_access_token='$line_channel_access_token',
+            line_user_id='$line_user_id',
             discord_webhook_url='$discord_webhook_url',
             telegram_bot_token='$telegram_bot_token',
             telegram_chat_id='$telegram_chat_id',
@@ -132,6 +146,8 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     updateEnv('GEMINI_API_KEY', $gemini_api_key_raw, $env_path);
     updateEnv('CLAUDE_API_KEY', $claude_api_key_raw, $env_path);
     updateEnv('LINE_NOTIFY_TOKEN', $line_notify_token_raw, $env_path);
+    updateEnv('LINE_CHANNEL_ACCESS_TOKEN', $line_channel_access_token_raw, $env_path);
+    updateEnv('LINE_USER_ID', $line_user_id_raw, $env_path);
     updateEnv('DISCORD_WEBHOOK_URL', $discord_webhook_url_raw, $env_path);
     updateEnv('TELEGRAM_BOT_TOKEN', $telegram_bot_token_raw, $env_path);
     updateEnv('TELEGRAM_CHAT_ID', $telegram_chat_id_raw, $env_path);
@@ -195,6 +211,12 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     }
     if (($shop['line_notify_token'] ?? '') !== $line_notify_token) {
         $changes[] = ['field' => 'LINE Notify Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
+    }
+    if (($shop['line_channel_access_token'] ?? '') !== $line_channel_access_token) {
+        $changes[] = ['field' => 'LINE Channel Access Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
+    }
+    if (($shop['line_user_id'] ?? '') !== $line_user_id) {
+        $changes[] = ['field' => 'LINE User ID', 'old' => '******', 'new' => '(เปลี่ยน User ID)'];
     }
     if (($shop['discord_webhook_url'] ?? '') !== $discord_webhook_url) {
         $changes[] = ['field' => 'Discord Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
@@ -503,12 +525,49 @@ if ($coupons_query) {
                         <div class="col-12 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 LINE Notify Token
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚠️ บริการนี้ยกเลิกโดย LINE แล้ว</span>
                                 <?php if (hasEnvValue('LINE_NOTIFY_TOKEN')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="text" name="line_notify_token" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '')) ?>" placeholder="ใส่ Line Notify Token ของร้านค้า">
-                            <div class="form-text">รับแจ้งเตือนเมื่อมีออเดอร์ใหม่ผ่าน LINE - ขอ Token ได้ที่ <a href="https://notify-bot.line.me/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">LINE Notify Portal</a></div>
+                            <div class="input-group">
+                                <input type="password" name="line_notify_token" id="lineNotifyInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '')) ?>" placeholder="ใส่ Line Notify Token ของร้านค้า">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('lineNotifyInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-danger">⚠️ LINE ได้ประกาศยกเลิกการให้บริการ LINE Notify อย่างเป็นทางการแล้ว (เมื่อ 31 มี.ค. 2568) แนะนำให้ปรับไปใช้ LINE Messaging API ด้านล่าง หรือการแจ้งเตือนช่องทางอื่น ๆ ทดแทน</div>
+                        </div>
+
+                        <!-- LINE Messaging API -->
+                        <div class="col-12 col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                LINE Channel Access Token (Messaging API)
+                                <?php if (hasEnvValue('LINE_CHANNEL_ACCESS_TOKEN')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <div class="input-group">
+                                <input type="password" name="line_channel_access_token" id="lineChannelTokenInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_CHANNEL_ACCESS_TOKEN', $shop['line_channel_access_token'] ?? '')) ?>" placeholder="ใส่ Channel Access Token ของ LINE Bot ที่นี่">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('lineChannelTokenInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                LINE User ID / Group ID (Messaging API)
+                                <?php if (hasEnvValue('LINE_USER_ID')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <div class="input-group">
+                                <input type="password" name="line_user_id" id="lineUserIdInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_USER_ID', $shop['line_user_id'] ?? '')) ?>" placeholder="U123456789abcdef... หรือ Group ID">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('lineUserIdInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">ระบุ LINE User ID ของแอดมิน หรือ Group ID ที่บอทเข้าร่วม เพื่อส่งข้อความแจ้งเตือนออเดอร์ใหม่</div>
                         </div>
 
                         <!-- Discord Webhook -->
@@ -519,7 +578,12 @@ if ($coupons_query) {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="password" name="discord_webhook_url" id="discordWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '')) ?>" placeholder="https://discord.com/api/webhooks/...">
+                            <div class="input-group">
+                                <input type="password" name="discord_webhook_url" id="discordWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '')) ?>" placeholder="https://discord.com/api/webhooks/...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('discordWebhookInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                             <div class="form-text">รับแจ้งเตือนออเดอร์ใหม่เข้าแชนแนล Discord (สร้าง Webhook ได้ในส่วน Integration ของห้องแชทใน Discord)</div>
                         </div>
 
@@ -531,7 +595,12 @@ if ($coupons_query) {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="password" name="telegram_bot_token" id="telegramBotTokenInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('TELEGRAM_BOT_TOKEN', $shop['telegram_bot_token'] ?? '')) ?>" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                            <div class="input-group">
+                                <input type="password" name="telegram_bot_token" id="telegramBotTokenInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('TELEGRAM_BOT_TOKEN', $shop['telegram_bot_token'] ?? '')) ?>" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('telegramBotTokenInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-12 col-md-6 mb-3">
                             <label class="form-label small fw-bold text-muted">
@@ -540,7 +609,12 @@ if ($coupons_query) {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="text" name="telegram_chat_id" class="form-control" value="<?= htmlspecialchars(getMaskedValue('TELEGRAM_CHAT_ID', $shop['telegram_chat_id'] ?? '')) ?>" placeholder="เช่น -100123456789 หรือ 123456789">
+                            <div class="input-group">
+                                <input type="password" name="telegram_chat_id" id="telegramChatIdInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('TELEGRAM_CHAT_ID', $shop['telegram_chat_id'] ?? '')) ?>" placeholder="เช่น -100123456789 หรือ 123456789">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('telegramChatIdInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                             <div class="form-text">บอทเทเลแกรมและ Chat ID ของห้อง/กลุ่มที่จะรับแจ้งเตือน (ติดต่อ @BotFather เพื่อสร้างบอท)</div>
                         </div>
 
@@ -552,7 +626,12 @@ if ($coupons_query) {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="password" name="slack_webhook_url" id="slackWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('SLACK_WEBHOOK_URL', $shop['slack_webhook_url'] ?? '')) ?>" placeholder="https://hooks.slack.com/services/...">
+                            <div class="input-group">
+                                <input type="password" name="slack_webhook_url" id="slackWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('SLACK_WEBHOOK_URL', $shop['slack_webhook_url'] ?? '')) ?>" placeholder="https://hooks.slack.com/services/...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('slackWebhookInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                             <div class="form-text">รับแจ้งเตือนผ่านช่องทาง Slack (สร้าง Incoming Webhook ได้จากแอป Slack)</div>
                         </div>
 
@@ -564,7 +643,12 @@ if ($coupons_query) {
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="text" name="custom_webhook_url" class="form-control" value="<?= htmlspecialchars(getMaskedValue('CUSTOM_WEBHOOK_URL', $shop['custom_webhook_url'] ?? '')) ?>" placeholder="https://yourdomain.com/webhook-receiver">
+                            <div class="input-group">
+                                <input type="password" name="custom_webhook_url" id="customWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('CUSTOM_WEBHOOK_URL', $shop['custom_webhook_url'] ?? '')) ?>" placeholder="https://yourdomain.com/webhook-receiver">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('customWebhookInput', this)" style="border-color: #dee2e6;">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                             <div class="form-text">ส่งข้อมูลออเดอร์ใหม่ในรูปแบบ JSON POST ไปยัง API ปลายทางภายนอกที่คุณกำหนดโดยตรง</div>
                         </div>
 
@@ -814,7 +898,7 @@ if ($coupons_query) {
         formData.append('save_settings', '1');
         formData.append('ajax', '1');
         
-        fetch('admin_settings.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
@@ -867,7 +951,7 @@ if ($coupons_query) {
         formData.append('test_smtp', '1');
         formData.append('ajax', '1');
         
-        fetch('admin_settings.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             body: formData
         })
