@@ -32,7 +32,21 @@ if (isset($_POST['add'])) {
         $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, max_discount, usage_limit, user_limit, start_date, expiry_date) 
                 VALUES ('$code', '$type', '$val', '$min', '$max_discount', '$usage_limit', '$user_limit', $start_date_val, '$exp')";
         mysqli_query($conn, $sql);
-        log_admin_action($conn, 'สร้างคูปอง', "สร้างคูปองส่วนลดโค้ด $code: ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันเริ่มใช้งาน = " . ($start_date ?? 'ทันที') . ", วันหมดอายุ = $exp");
+        
+        log_admin_action($conn, 'สร้างคูปอง', [
+            'title' => "สร้างคูปองส่วนลดโค้ด '$code'",
+            'changes' => [
+                ['field' => 'รหัสคูปอง (Code)', 'old' => '-', 'new' => $code],
+                ['field' => 'ประเภทส่วนลด', 'old' => '-', 'new' => $type === 'percent' ? 'ลดเป็นเปอร์เซ็นต์ (%)' : ($type === 'free_shipping' ? 'ส่งฟรี' : 'ลดเป็นบาท (฿)')],
+                ['field' => 'มูลค่าส่วนลด', 'old' => '-', 'new' => $type === 'free_shipping' ? 'ส่งฟรี 🚚' : ($type === 'percent' ? "$val %" : "฿$val")],
+                ['field' => 'ยอดซื้อขั้นต่ำ', 'old' => '-', 'new' => $min > 0 ? "฿" . number_format($min, 2) : 'ไม่มีขั้นต่ำ'],
+                ['field' => 'ส่วนลดสูงสุด', 'old' => '-', 'new' => $max_discount > 0 ? "฿" . number_format($max_discount, 2) : 'ไม่จำกัด'],
+                ['field' => 'จำนวนสิทธิ์รวม', 'old' => '-', 'new' => $usage_limit > 0 ? number_format($usage_limit) . ' ครั้ง' : 'ไม่จำกัด'],
+                ['field' => 'สิทธิ์การใช้ต่อคน', 'old' => '-', 'new' => $user_limit > 0 ? number_format($user_limit) . ' ครั้ง' : 'ไม่จำกัด'],
+                ['field' => 'วันเริ่มใช้งาน', 'old' => '-', 'new' => $start_date ?: 'ใช้งานได้ทันที'],
+                ['field' => 'วันหมดอายุ', 'old' => '-', 'new' => $exp]
+            ]
+        ]);
         header("Location: admin_coupons.php"); exit();
     }
 }
@@ -47,7 +61,19 @@ if (isset($_GET['del'])) {
     $c_info = mysqli_fetch_assoc($c_q);
     $c_code = $c_info ? $c_info['code'] : "ไม่ทราบ ID";
     mysqli_query($conn, "DELETE FROM coupons WHERE id=$id");
-    log_admin_action($conn, 'ลบคูปอง', "ลบคูปองส่วนลดโค้ด $c_code (ID #$id)");
+    
+    log_admin_action($conn, 'ลบคูปอง', [
+        'title' => "ลบคูปองออกจากระบบ (โค้ด: $c_code)",
+        'sections' => [
+            [
+                'title' => 'ข้อมูลคูปองที่ถูกลบ',
+                'items' => [
+                    "รหัสคูปอง: #$id",
+                    "โค้ดส่วนลด: $c_code"
+                ]
+            ]
+        ]
+    ]);
     header("Location: admin_coupons.php"); exit();
 }
 
@@ -72,10 +98,57 @@ if (isset($_POST['update'])) {
     $start_date = !empty($_POST['start_date']) ? date('Y-m-d H:i:s', strtotime($_POST['start_date'])) : null;
     $exp = !empty($_POST['expiry_date']) ? date('Y-m-d H:i:s', strtotime($_POST['expiry_date'])) : '';
 
+    // ดึงข้อมูลเดิมมาตรวจสอบส่วนต่าง
+    $old_c_q = mysqli_query($conn, "SELECT * FROM coupons WHERE id=$id");
+    $old_c = mysqli_fetch_assoc($old_c_q);
+    
     $start_date_val = $start_date ? "'$start_date'" : "NULL";
     $sql = "UPDATE coupons SET code='$code', discount_type='$type', discount_value='$val', min_spend='$min', max_discount='$max_discount', usage_limit='$usage_limit', user_limit='$user_limit', start_date=$start_date_val, expiry_date='$exp' WHERE id=$id";
     mysqli_query($conn, $sql);
-    log_admin_action($conn, 'แก้ไขคูปอง', "แก้ไขคูปองส่วนลด ID #$id: โค้ด = $code, ประเภท = $type, มูลค่า = $val, ยอดซื้อขั้นต่ำ = $min, วันเริ่มใช้งาน = " . ($start_date ?? 'ทันที') . ", วันหมดอายุ = $exp");
+    
+    $changes = [];
+    if ($old_c) {
+        if ($old_c['code'] !== $code) {
+            $changes[] = ['field' => 'รหัสโค้ด (Code)', 'old' => $old_c['code'], 'new' => $code];
+        }
+        if ($old_c['discount_type'] !== $type) {
+            $old_type_lbl = $old_c['discount_type'] === 'percent' ? 'ลดเปอร์เซ็นต์ (%)' : ($old_c['discount_type'] === 'free_shipping' ? 'ส่งฟรี' : 'ลดบาท (฿)');
+            $new_type_lbl = $type === 'percent' ? 'ลดเปอร์เซ็นต์ (%)' : ($type === 'free_shipping' ? 'ส่งฟรี' : 'ลดบาท (฿)');
+            $changes[] = ['field' => 'ประเภทส่วนลด', 'old' => $old_type_lbl, 'new' => $new_type_lbl];
+        }
+        if (floatval($old_c['discount_value']) !== $val) {
+            $changes[] = ['field' => 'มูลค่าส่วนลด', 'old' => $old_c['discount_value'], 'new' => $val];
+        }
+        if (floatval($old_c['min_spend']) !== $min) {
+            $changes[] = ['field' => 'ยอดซื้อขั้นต่ำ', 'old' => '฿' . number_format($old_c['min_spend'], 2), 'new' => '฿' . number_format($min, 2)];
+        }
+        if (floatval($old_c['max_discount'] ?? 0) !== $max_discount) {
+            $changes[] = ['field' => 'ส่วนลดสูงสุด', 'old' => '฿' . number_format($old_c['max_discount'] ?? 0, 2), 'new' => '฿' . number_format($max_discount, 2)];
+        }
+        if (intval($old_c['usage_limit'] ?? 0) !== $usage_limit) {
+            $changes[] = ['field' => 'จำกัดสิทธิ์รวม', 'old' => number_format($old_c['usage_limit'] ?? 0), 'new' => number_format($usage_limit)];
+        }
+        if (intval($old_c['user_limit'] ?? 0) !== $user_limit) {
+            $changes[] = ['field' => 'จำกัดสิทธิ์ต่อคน', 'old' => number_format($old_c['user_limit'] ?? 0), 'new' => number_format($user_limit)];
+        }
+        
+        $old_start = $old_c['start_date'] ? date('Y-m-d H:i:s', strtotime($old_c['start_date'])) : '';
+        $new_start = $start_date ? date('Y-m-d H:i:s', strtotime($start_date)) : '';
+        if ($old_start !== $new_start) {
+            $changes[] = ['field' => 'วันเริ่มใช้งาน', 'old' => $old_start ?: 'ใช้งานทันที', 'new' => $new_start ?: 'ใช้งานทันที'];
+        }
+        
+        $old_exp = $old_c['expiry_date'] ? date('Y-m-d H:i:s', strtotime($old_c['expiry_date'])) : '';
+        $new_exp = $exp ? date('Y-m-d H:i:s', strtotime($exp)) : '';
+        if ($old_exp !== $new_exp) {
+            $changes[] = ['field' => 'วันหมดอายุ', 'old' => $old_exp, 'new' => $new_exp];
+        }
+    }
+    
+    log_admin_action($conn, 'แก้ไขคูปอง', [
+        'title' => "แก้ไขข้อมูลคูปอง ID #$id (โค้ด: $code)",
+        'changes' => $changes
+    ]);
     header("Location: admin_coupons.php"); exit();
 }
 ?>

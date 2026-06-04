@@ -12,27 +12,40 @@ if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
     
     // ดึงข้อมูลรีวิวเพื่อบันทึกประวัติก่อนลบ
-    $r_q = mysqli_query($conn, "SELECT r.comment, u.fullname, p.name as product_name FROM product_reviews r JOIN users u ON r.user_id = u.id JOIN products p ON r.product_id = p.id WHERE r.id = '$id'");
+    $r_q = mysqli_query($conn, "SELECT r.*, u.fullname, p.name as product_name FROM product_reviews r JOIN users u ON r.user_id = u.id JOIN products p ON r.product_id = p.id WHERE r.id = '$id'");
     $r_info = mysqli_fetch_assoc($r_q);
     $r_comment = $r_info['comment'] ?? 'ไม่ระบุความคิดเห็น';
     $u_name = $r_info['fullname'] ?? 'ไม่ระบุผู้ใช้';
     $p_name = $r_info['product_name'] ?? 'ไม่ระบุสินค้า';
+    $r_rating = $r_info['rating'] ?? 0;
     
     // ดึงข้อมูลรูปภาพเพื่อลบไฟล์จากโฟลเดอร์ uploads/
-    $q_img = mysqli_query($conn, "SELECT image FROM product_reviews WHERE id = '$id'");
-    if ($q_img && mysqli_num_rows($q_img) > 0) {
-        $row_img = mysqli_fetch_assoc($q_img);
-        if (!empty($row_img['image'])) {
-            $file_path = $row_img['image'];
-            // ตรวจสอบว่ามีไฟล์อยู่จริงแล้วทำการลบ
-            if (file_exists($file_path)) {
-                @unlink($file_path);
-            }
+    if (!empty($r_info['image'])) {
+        $file_path = $r_info['image'];
+        // ตรวจสอบว่ามีไฟล์อยู่จริงแล้วทำการลบ
+        if (file_exists($file_path)) {
+            @unlink($file_path);
         }
     }
     
     mysqli_query($conn, "DELETE FROM product_reviews WHERE id = '$id'");
-    log_admin_action($conn, 'ลบรีวิวสินค้า', "ลบรีวิวสินค้า '$p_name' ของลูกค้า '$u_name' (รีวิว: '$r_comment')");
+    
+    log_admin_action($conn, 'ลบรีวิวสินค้า', [
+        'title' => "ลบรีวิวสินค้า '$p_name' ของลูกค้า '$u_name'",
+        'sections' => [
+            [
+                'title' => 'รายละเอียดรีวิวที่ถูกลบ',
+                'items' => [
+                    "รหัสรีวิว: #$id",
+                    "สินค้า: $p_name (รหัสสินค้า #" . ($r_info['product_id'] ?? '-') . ")",
+                    "ลูกค้า: $u_name (รหัสผู้ใช้ #" . ($r_info['user_id'] ?? '-') . ")",
+                    "คะแนน: " . str_repeat('★', $r_rating) . str_repeat('☆', 5 - $r_rating) . " ($r_rating/5)",
+                    "ความคิดเห็น: $r_comment",
+                    "มีรูปถ่ายประกอบ: " . (!empty($r_info['image']) ? "มี (ลบไฟล์รูปภาพออกจากเซิร์ฟเวอร์เรียบร้อย)" : "ไม่มี")
+                ]
+            ]
+        ]
+    ]);
     header("Location: admin_reviews.php"); exit();
 }
 ?>

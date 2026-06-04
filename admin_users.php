@@ -29,7 +29,15 @@ if (isset($_POST['add_user'])) {
     } else {
         $sql = "INSERT INTO users (username, password, fullname, email, role, created_at) VALUES ('$user', '$pass', '$name', '$email', '$role', NOW())";
         if(mysqli_query($conn, $sql)) {
-            log_admin_action($conn, 'เพิ่มสมาชิก', "เพิ่มสมาชิกใหม่: Username = $user, ชื่อ = $name, อีเมล = $email, สิทธิ์ = $role");
+            log_admin_action($conn, 'เพิ่มสมาชิก', [
+                'title' => "เพิ่มสมาชิกใหม่: $name (User: $user)",
+                'changes' => [
+                    ['field' => 'ชื่อผู้ใช้งาน (Username)', 'old' => '-', 'new' => $user],
+                    ['field' => 'ชื่อ-นามสกุล', 'old' => '-', 'new' => $name],
+                    ['field' => 'อีเมล (Email)', 'old' => '-', 'new' => $email],
+                    ['field' => 'ระดับสิทธิ์ (Role)', 'old' => '-', 'new' => $role === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'ลูกค้าทั่วไป (User)']
+                ]
+            ]);
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'เพิ่มสมาชิกใหม่เรียบร้อย', 'icon'=>'success'];
         } else {
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
@@ -46,10 +54,10 @@ if (isset($_POST['edit_user'])) {
     $role = $_POST['role'];
     $points = intval($_POST['points']);
     
-    // ดึงคะแนนเดิมมาเปรียบเทียบ
-    $old_p_q = mysqli_query($conn, "SELECT points FROM users WHERE id='$id'");
-    $old_p_row = mysqli_fetch_assoc($old_p_q);
-    $old_points = $old_p_row ? intval($old_p_row['points']) : 0;
+    // ดึงข้อมูลเดิมมาเปรียบเทียบส่วนต่าง
+    $old_user_q = mysqli_query($conn, "SELECT * FROM users WHERE id='$id'");
+    $old_user = mysqli_fetch_assoc($old_user_q);
+    $old_points = $old_user ? intval($old_user['points']) : 0;
     
     if (!empty($_POST['password'])) {
         $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -59,7 +67,29 @@ if (isset($_POST['edit_user'])) {
     }
 
     if(mysqli_query($conn, $sql)) {
-        log_admin_action($conn, 'แก้ไขสมาชิก', "แก้ไขข้อมูลสมาชิก ID #$id: ชื่อ = $name, อีเมล = $email, สิทธิ์ = $role, แต้มสะสม = $points" . (!empty($_POST['password']) ? " (เปลี่ยนรหัสผ่าน)" : ""));
+        $changes = [];
+        if ($old_user) {
+            if ($old_user['fullname'] !== $name) {
+                $changes[] = ['field' => 'ชื่อ-นามสกุล', 'old' => $old_user['fullname'], 'new' => $name];
+            }
+            if ($old_user['email'] !== $email) {
+                $changes[] = ['field' => 'อีเมล', 'old' => $old_user['email'], 'new' => $email];
+            }
+            if ($old_user['role'] !== $role) {
+                $changes[] = ['field' => 'ระดับสิทธิ์ (Role)', 'old' => $old_user['role'] === 'admin' ? 'Admin' : 'User', 'new' => $role === 'admin' ? 'Admin' : 'User'];
+            }
+            if (intval($old_user['points']) !== $points) {
+                $changes[] = ['field' => 'คะแนนสะสม (Points)', 'old' => number_format($old_user['points']) . ' แต้ม', 'new' => number_format($points) . ' แต้ม'];
+            }
+            if (!empty($_POST['password'])) {
+                $changes[] = ['field' => 'รหัสผ่าน', 'old' => '******', 'new' => '(เปลี่ยนรหัสผ่านใหม่)'];
+            }
+        }
+        
+        log_admin_action($conn, 'แก้ไขสมาชิก', [
+            'title' => "แก้ไขข้อมูลสมาชิก ID #$id (Username: " . ($old_user['username'] ?? '') . ")",
+            'changes' => $changes
+        ]);
         
         // บันทึกธุรกรรมประวัติแต้มสะสมหากแต้มมีการเปลี่ยนแปลง
         if ($points != $old_points) {
@@ -91,7 +121,19 @@ if (isset($_GET['delete'])) {
         
         $sql = "DELETE FROM users WHERE id = $id";
         if(mysqli_query($conn, $sql)) {
-            log_admin_action($conn, 'ลบสมาชิก', "ลบสมาชิก ID #$id (Username: $username, ชื่อ: $fullname)");
+            log_admin_action($conn, 'ลบสมาชิก', [
+                'title' => "ลบสมาชิกออกจากระบบ (ID #$id)",
+                'sections' => [
+                    [
+                        'title' => 'ข้อมูลสมาชิกที่ถูกลบ',
+                        'items' => [
+                            "รหัสสมาชิก: #$id",
+                            "ชื่อผู้ใช้งาน (Username): $username",
+                            "ชื่อ-นามสกุล: $fullname"
+                        ]
+                    ]
+                ]
+            ]);
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ลบสมาชิกเรียบร้อยแล้ว', 'icon'=>'success'];
         } else {
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ลบไม่ได้ (อาจมีออเดอร์ค้างอยู่)', 'icon'=>'error'];

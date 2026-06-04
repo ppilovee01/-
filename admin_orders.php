@@ -104,7 +104,32 @@ if (isset($_POST['update_status'])) {
         }
     }
     mysqli_query($conn, "UPDATE orders SET status = '$status' WHERE id = '$oid'");
-    log_admin_action($conn, 'อัปเดตสถานะออเดอร์', "เปลี่ยนสถานะออเดอร์ #$oid เป็น $status");
+    
+    if (!function_exists('get_status_label')) {
+        function get_status_label($st) {
+            return match($st) {
+                'pending' => 'รอตรวจสอบชำระเงิน',
+                'shipping' => 'กำลังจัดส่งสินค้า',
+                'completed' => 'คำสั่งซื้อสำเร็จ',
+                'cancelled' => 'คำสั่งซื้อถูกยกเลิก',
+                default => $st
+            };
+        }
+    }
+    
+    $ord_info_q = mysqli_query($conn, "SELECT o.final_price, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = '$oid'");
+    $ord_info = mysqli_fetch_assoc($ord_info_q);
+    $ord_desc = "";
+    if ($ord_info) {
+        $ord_desc = " (ลูกค้า: " . ($ord_info['fullname'] ?? 'ไม่ระบุ') . ", ยอดสุทธิ: ฿" . number_format($ord_info['final_price'], 2) . ")";
+    }
+    
+    log_admin_action($conn, 'อัปเดตสถานะออเดอร์', [
+        'title' => "อัปเดตสถานะคำสั่งซื้อ #$oid" . $ord_desc,
+        'changes' => [
+            ['field' => 'สถานะคำสั่งซื้อ', 'old' => get_status_label($old_status), 'new' => get_status_label($status)]
+        ]
+    ]);
     
     // Insert user notification
     $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
@@ -143,8 +168,8 @@ if (isset($_POST['save_tracking'])) {
     $track = mysqli_real_escape_string($conn, $_POST['tracking_no']);
     $carrier = mysqli_real_escape_string($conn, $_POST['shipping_carrier'] ?? 'other');
     
-    // ตรวจสอบสถานะเดิมก่อนเปลี่ยนสถานะเป็น shipping
-    $order_q = mysqli_query($conn, "SELECT status, user_id, points_earned FROM orders WHERE id='$oid'");
+    // ตรวจสอบสถานะเดิมและเลขพัสดุเดิมก่อนเปลี่ยน
+    $order_q = mysqli_query($conn, "SELECT status, user_id, points_earned, tracking_no, shipping_carrier FROM orders WHERE id='$oid'");
     $old_order = mysqli_fetch_assoc($order_q);
     if ($old_order && $old_order['status'] == 'completed') {
         $points_earned = intval($old_order['points_earned']);
@@ -156,7 +181,49 @@ if (isset($_POST['save_tracking'])) {
     }
     
     mysqli_query($conn, "UPDATE orders SET tracking_no = '$track', shipping_carrier = '$carrier', status = 'shipping' WHERE id = '$oid'");
-    log_admin_action($conn, 'บันทึกเลขพัสดุ', "บันทึกเลขพัสดุ $track ขนส่ง $carrier สำหรับออเดอร์ #$oid");
+    
+    $carrier_lbl_old = match($old_order['shipping_carrier'] ?? '') {
+        'thailandpost' => 'ไปรษณีย์ไทย',
+        'kerry', 'kex' => 'KEX Express',
+        'flash' => 'Flash Express',
+        'jnt' => 'J&T Express',
+        default => 'อื่นๆ / ไม่ระบุ'
+    };
+    $carrier_lbl_new = match($carrier) {
+        'thailandpost' => 'ไปรษณีย์ไทย',
+        'kex', 'kerry' => 'KEX Express',
+        'flash' => 'Flash Express',
+        'jnt' => 'J&T Express',
+        default => 'อื่นๆ'
+    };
+    
+    $ord_info_q = mysqli_query($conn, "SELECT o.final_price, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = '$oid'");
+    $ord_info = mysqli_fetch_assoc($ord_info_q);
+    $ord_desc = "";
+    if ($ord_info) {
+        $ord_desc = " (ลูกค้า: " . ($ord_info['fullname'] ?? 'ไม่ระบุ') . ")";
+    }
+    
+    if (!function_exists('get_status_label')) {
+        function get_status_label($st) {
+            return match($st) {
+                'pending' => 'รอตรวจสอบชำระเงิน',
+                'shipping' => 'กำลังจัดส่งสินค้า',
+                'completed' => 'คำสั่งซื้อสำเร็จ',
+                'cancelled' => 'คำสั่งซื้อถูกยกเลิก',
+                default => $st
+            };
+        }
+    }
+    
+    log_admin_action($conn, 'บันทึกเลขพัสดุ', [
+        'title' => "บันทึกข้อมูลจัดส่งพัสดุสำหรับออเดอร์ #$oid" . $ord_desc,
+        'changes' => [
+            ['field' => 'ผู้ให้บริการขนส่ง', 'old' => $carrier_lbl_old, 'new' => $carrier_lbl_new],
+            ['field' => 'หมายเลขพัสดุ (Tracking No.)', 'old' => $old_order['tracking_no'] ?: 'ยังไม่ได้บันทึก', 'new' => $track],
+            ['field' => 'สถานะคำสั่งซื้อ', 'old' => get_status_label($old_order['status'] ?? 'pending'), 'new' => get_status_label('shipping')]
+        ]
+    ]);
     
     // Insert user notification for tracking number
     $order_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT user_id, id FROM orders WHERE id = '$oid'"));
@@ -195,8 +262,27 @@ if (isset($_POST['save_tracking'])) {
 if (isset($_POST['save_note'])) {
     $oid = intval($_POST['order_id']);
     $note = mysqli_real_escape_string($conn, $_POST['admin_note']);
+    
+    // ดึงหมายเหตุเดิมก่อนเปลี่ยน
+    $old_note_q = mysqli_query($conn, "SELECT admin_note FROM orders WHERE id='$oid'");
+    $old_note_row = mysqli_fetch_assoc($old_note_q);
+    $old_note = $old_note_row ? ($old_note_row['admin_note'] ?? '') : '';
+    
     mysqli_query($conn, "UPDATE orders SET admin_note = '$note' WHERE id = '$oid'");
-    log_admin_action($conn, 'บันทึกหมายเหตุ', "บันทึกหมายเหตุสำหรับออเดอร์ #$oid: $note");
+    
+    $ord_info_q = mysqli_query($conn, "SELECT o.final_price, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = '$oid'");
+    $ord_info = mysqli_fetch_assoc($ord_info_q);
+    $ord_desc = "";
+    if ($ord_info) {
+        $ord_desc = " (ลูกค้า: " . ($ord_info['fullname'] ?? 'ไม่ระบุ') . ")";
+    }
+    
+    log_admin_action($conn, 'บันทึกหมายเหตุ', [
+        'title' => "บันทึกหมายเหตุเพิ่มเติมสำหรับออเดอร์ #$oid" . $ord_desc,
+        'changes' => [
+            ['field' => 'หมายเหตุ (Admin Note)', 'old' => $old_note ?: 'ไม่มีหมายเหตุ', 'new' => $note ?: 'ลบหมายเหตุ']
+        ]
+    ]);
     if (isset($_POST['ajax']) && $_POST['ajax'] == '1') {
         ob_end_clean();
         echo json_encode([

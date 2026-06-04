@@ -23,7 +23,21 @@ if (isset($_POST['add'])) {
     
     $sql = "INSERT INTO payment_methods (name, type, account_number, account_name, status) VALUES ('$name', '$type', '$num', '$acc_name', '$status')";
     if(mysqli_query($conn, $sql)) {
-        log_admin_action($conn, 'เพิ่มช่องทางชำระเงิน', "เพิ่มช่องทางชำระเงิน: $name, ประเภท = $type, เลขที่ = $num, ชื่อบัญชี = $acc_name, สถานะ = $status");
+        log_admin_action($conn, 'เพิ่มช่องทางชำระเงิน', [
+            'title' => "เพิ่มช่องทางชำระเงิน: $name",
+            'sections' => [
+                [
+                    'title' => 'รายละเอียดช่องทางชำระเงินใหม่',
+                    'items' => [
+                        "ชื่อช่องทาง: $name",
+                        "ประเภท: " . ($type === 'bank' ? 'บัญชีธนาคาร' : ($type === 'promptpay' ? 'พร้อมเพย์' : 'เก็บเงินปลายทาง')),
+                        "เลขบัญชี/เบอร์โทร: " . (!empty($num) ? $num : '-'),
+                        "ชื่อบัญชี: " . (!empty($acc_name) ? $acc_name : '-'),
+                        "สถานะ: " . ($status === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน')
+                    ]
+                ]
+            ]
+        ]);
         header("Location: admin_payments.php"); exit();
     }
 }
@@ -34,12 +48,29 @@ if (isset($_GET['del'])) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['del']);
-    $p_q = mysqli_query($conn, "SELECT name, account_number FROM payment_methods WHERE id=$id");
+    $p_q = mysqli_query($conn, "SELECT * FROM payment_methods WHERE id=$id");
     $p_info = mysqli_fetch_assoc($p_q);
     $p_name = $p_info['name'] ?? 'ไม่ระบุ';
     $p_num = $p_info['account_number'] ?? 'ไม่ระบุ';
+    $p_type = $p_info['type'] ?? 'ไม่ระบุ';
+    $p_acc_name = $p_info['account_name'] ?? 'ไม่ระบุ';
+    
     mysqli_query($conn, "DELETE FROM payment_methods WHERE id=$id");
-    log_admin_action($conn, 'ลบช่องทางชำระเงิน', "ลบช่องทางชำระเงิน ID #$id: $p_name (เลขบัญชี/เบอร์ $p_num)");
+    log_admin_action($conn, 'ลบช่องทางชำระเงิน', [
+        'title' => "ลบช่องทางชำระเงิน: $p_name (รหัส #$id)",
+        'sections' => [
+            [
+                'title' => 'รายละเอียดช่องทางที่ลบ',
+                'items' => [
+                    "รหัสช่องทาง: #$id",
+                    "ชื่อช่องทาง: $p_name",
+                    "ประเภท: " . ($p_type === 'bank' ? 'บัญชีธนาคาร' : ($p_type === 'promptpay' ? 'พร้อมเพย์' : 'เก็บเงินปลายทาง')),
+                    "เลขบัญชี/เบอร์โทร: $p_num",
+                    "ชื่อบัญชี: $p_acc_name"
+                ]
+            ]
+        ]
+    ]);
     header("Location: admin_payments.php"); exit();
 }
 
@@ -60,9 +91,50 @@ if (isset($_POST['update'])) {
     $acc_name = mysqli_real_escape_string($conn, $_POST['account_name']);
     $status = mysqli_real_escape_string($conn, $_POST['status']);
 
+    // ดึงข้อมูลเก่าเพื่อคำนวณ diff log
+    $old_q = mysqli_query($conn, "SELECT * FROM payment_methods WHERE id=$id");
+    $old_data = mysqli_fetch_assoc($old_q);
+
     $sql = "UPDATE payment_methods SET name='$name', type='$type', account_number='$num', account_name='$acc_name', status='$status' WHERE id=$id";
     if(mysqli_query($conn, $sql)) {
-        log_admin_action($conn, 'แก้ไขช่องทางชำระเงิน', "แก้ไขช่องทางชำระเงิน ID #$id: $name, ประเภท = $type, เลขที่ = $num, ชื่อบัญชี = $acc_name, สถานะ = $status");
+        // คำนวณส่วนต่างการแก้ไข
+        $diff = [];
+        if ($old_data) {
+            if ($old_data['name'] !== $name) {
+                $diff['ชื่อช่องทาง'] = [$old_data['name'], $name];
+            }
+            if ($old_data['type'] !== $type) {
+                $type_map = ['bank' => 'บัญชีธนาคาร', 'promptpay' => 'พร้อมเพย์', 'cod' => 'เก็บเงินปลายทาง'];
+                $diff['ประเภท'] = [$type_map[$old_data['type']] ?? $old_data['type'], $type_map[$type] ?? $type];
+            }
+            if ($old_data['account_number'] !== $num) {
+                $diff['เลขบัญชี/เบอร์โทร'] = [$old_data['account_number'] ?: '-', $num ?: '-'];
+            }
+            if ($old_data['account_name'] !== $acc_name) {
+                $diff['ชื่อบัญชี'] = [$old_data['account_name'] ?: '-', $acc_name ?: '-'];
+            }
+            if ($old_data['status'] !== $status) {
+                $status_map = ['active' => 'เปิดใช้งาน', 'inactive' => 'ปิดใช้งาน'];
+                $diff['สถานะ'] = [$status_map[$old_data['status']] ?? $old_data['status'], $status_map[$status] ?? $status];
+            }
+        }
+
+        log_admin_action($conn, 'แก้ไขช่องทางชำระเงิน', [
+            'title' => "แก้ไขช่องทางชำระเงิน: $name (รหัส #$id)",
+            'diff' => $diff,
+            'sections' => [
+                [
+                    'title' => 'รายละเอียดหลังแก้ไข',
+                    'items' => [
+                        "ชื่อช่องทาง: $name",
+                        "ประเภท: " . ($type === 'bank' ? 'บัญชีธนาคาร' : ($type === 'promptpay' ? 'พร้อมเพย์' : 'เก็บเงินปลายทาง')),
+                        "เลขบัญชี/เบอร์โทร: " . (!empty($num) ? $num : '-'),
+                        "ชื่อบัญชี: " . (!empty($acc_name) ? $acc_name : '-'),
+                        "สถานะ: " . ($status === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน')
+                    ]
+                ]
+            ]
+        ]);
         header("Location: admin_payments.php"); exit();
     }
 }

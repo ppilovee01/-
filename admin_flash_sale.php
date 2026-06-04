@@ -32,13 +32,24 @@ if (isset($_POST['update_settings'])) {
     $auto_flash_discount = intval($_POST['auto_flash_discount']);
     $auto_flash_duration = intval($_POST['auto_flash_duration']);
     
+    // ดึงค่าตั้งค่าเดิมมาตรวจสอบส่วนต่าง
+    $settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration FROM shop_settings WHERE id = 1");
+    $shop_s = mysqli_fetch_assoc($settings_res);
+    
     $upd_s = mysqli_query($conn, "UPDATE shop_settings SET 
         auto_flash_sale = '$auto_flash_sale', 
         auto_flash_discount = '$auto_flash_discount', 
         auto_flash_duration = '$auto_flash_duration' 
         WHERE id = 1");
     if ($upd_s) {
-        log_admin_action($conn, 'ตั้งค่า Flash Sale อัตโนมัติ', "อัปเดตการตั้งค่าระบบออโต้: เปิด = $auto_flash_sale, ส่วนลด = $auto_flash_discount%, รอบละ = $auto_flash_duration ชม.");
+        log_admin_action($conn, 'ตั้งค่า Flash Sale อัตโนมัติ', [
+            'title' => 'อัปเดตการตั้งค่าระบบ Flash Sale อัตโนมัติ',
+            'changes' => [
+                ['field' => 'เปิดใช้งานระบบอัตโนมัติ', 'old' => ($shop_s['auto_flash_sale'] ?? 0) ? 'เปิด' : 'ปิด', 'new' => $auto_flash_sale ? 'เปิด' : 'ปิด'],
+                ['field' => 'ส่วนลดอัตโนมัติ (%)', 'old' => ($shop_s['auto_flash_discount'] ?? 20) . '%', 'new' => $auto_flash_discount . '%'],
+                ['field' => 'ระยะเวลารอบ (ชม.)', 'old' => ($shop_s['auto_flash_duration'] ?? 2) . ' ชม.', 'new' => $auto_flash_duration . ' ชม.']
+            ]
+        ]);
         $_SESSION['success_msg'] = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
         // Trigger generation check
         checkAndGenerateAutoFlashSale($conn);
@@ -77,7 +88,17 @@ if (isset($_POST['add'])) {
             if (mysqli_query($conn, $sql)) {
                 $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id = '$product_id'");
                 $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
-                log_admin_action($conn, 'สร้างแคมเปญ Flash Sale', "สร้างแคมเปญสำหรับสินค้า '$p_name' (#$product_id): ราคาพิเศษ = ฿$flash_price, โควตา = $flash_stock ชิ้น, เริ่ม = $start_time, สิ้นสุด = $end_time");
+                
+                log_admin_action($conn, 'สร้างแคมเปญ Flash Sale', [
+                    'title' => "สร้างแคมเปญ Flash Sale สำหรับสินค้า '$p_name'",
+                    'changes' => [
+                        ['field' => 'สินค้า', 'old' => '-', 'new' => "$p_name (รหัส #$product_id)"],
+                        ['field' => 'ราคาพิเศษ', 'old' => '-', 'new' => "฿" . number_format($flash_price, 2)],
+                        ['field' => 'โควตาจัดสรร', 'old' => '-', 'new' => number_format($flash_stock) . " ชิ้น"],
+                        ['field' => 'เวลาเริ่มต้น', 'old' => '-', 'new' => $start_time],
+                        ['field' => 'เวลาสิ้นสุด', 'old' => '-', 'new' => $end_time]
+                    ]
+                ]);
                 $_SESSION['success_msg'] = "สร้างแคมเปญ Flash Sale สำเร็จ!";
                 header("Location: admin_flash_sale.php");
                 exit();
@@ -99,7 +120,18 @@ if (isset($_GET['del'])) {
     $pid = $fs_info['product_id'] ?? 0;
     
     if (mysqli_query($conn, "DELETE FROM flash_sales WHERE id = $id")) {
-        log_admin_action($conn, 'ลบแคมเปญ Flash Sale', "ลบแคมเปญ Flash Sale รหัส #$id ของสินค้า '$p_name' (รหัสสินค้า #$pid)");
+        log_admin_action($conn, 'ลบแคมเปญ Flash Sale', [
+            'title' => "ลบแคมเปญ Flash Sale ของสินค้า '$p_name' (รหัสแคมเปญ #$id)",
+            'sections' => [
+                [
+                    'title' => 'รายละเอียดแคมเปญที่ถูกลบ',
+                    'items' => [
+                        "รหัสแคมเปญ: #$id",
+                        "สินค้า: $p_name (รหัส #$pid)"
+                    ]
+                ]
+            ]
+        ]);
         $_SESSION['success_msg'] = "ลบแคมเปญเรียบร้อยแล้ว";
     } else {
         $_SESSION['error_msg'] = "ลบแคมเปญไม่สำเร็จ";
@@ -120,7 +152,19 @@ if (isset($_GET['cancel_campaign'])) {
     
     // Set end_time to current time
     if (mysqli_query($conn, "UPDATE flash_sales SET end_time = NOW() WHERE id = $id")) {
-        log_admin_action($conn, 'บังคับปิดแคมเปญ Flash Sale', "จบแคมเปญ Flash Sale ทันที รหัส #$id สำหรับสินค้า '$p_name' (รหัสสินค้า #$pid)");
+        log_admin_action($conn, 'บังคับปิดแคมเปญ Flash Sale', [
+            'title' => "บังคับปิดแคมเปญ Flash Sale ทันที (รหัสแคมเปญ #$id)",
+            'sections' => [
+                [
+                    'title' => 'รายละเอียดการดำเนินการ',
+                    'items' => [
+                        "รหัสแคมเปญ: #$id",
+                        "สินค้า: $p_name (รหัส #$pid)",
+                        "ผลลัพธ์: แคมเปญถูกบังคับสิ้นสุดทันทีโดยผู้ดูแลระบบ"
+                    ]
+                ]
+            ]
+        ]);
         $_SESSION['success_msg'] = "สิ้นสุดแคมเปญดังกล่าวทันทีเรียบร้อยแล้ว";
     } else {
         $_SESSION['error_msg'] = "ไม่สามารถปิดแคมเปญได้";
@@ -149,6 +193,10 @@ if (isset($_POST['update'])) {
     if (strtotime($start_time) >= strtotime($end_time)) {
         $error_msg = "เวลาเริ่มต้นต้องมาก่อนเวลาสิ้นสุด";
     } else {
+        // ดึงข้อมูลเก่าเพื่อนำมาเปรียบเทียบในประวัติการแก้ไข (Diff Log)
+        $old_q = mysqli_query($conn, "SELECT fs.*, p.name as product_name FROM flash_sales fs LEFT JOIN products p ON fs.product_id = p.id WHERE fs.id = $id");
+        $old_data = mysqli_fetch_assoc($old_q);
+
         // Check overlap excluding current campaign
         $overlap = mysqli_query($conn, "SELECT id FROM flash_sales 
             WHERE product_id = '$product_id' 
@@ -171,7 +219,44 @@ if (isset($_POST['update'])) {
             if (mysqli_query($conn, $sql)) {
                 $p_q = mysqli_query($conn, "SELECT name FROM products WHERE id = '$product_id'");
                 $p_name = mysqli_fetch_assoc($p_q)['name'] ?? 'ไม่พบชื่อสินค้า';
-                log_admin_action($conn, 'แก้ไขแคมเปญ Flash Sale', "แก้ไขแคมเปญ Flash Sale รหัส #$id ของสินค้า '$p_name' (รหัสสินค้า #$product_id): ราคาพิเศษ = ฿$flash_price, โควตา = $flash_stock ชิ้น, เริ่ม = $start_time, สิ้นสุด = $end_time");
+                
+                // คำนวณส่วนต่างความเปลี่ยนแปลง (Diffs)
+                $diff = [];
+                if ($old_data) {
+                    if (intval($old_data['product_id']) !== $product_id) {
+                        $diff['สินค้าในแคมเปญ'] = [$old_data['product_name'] . " (รหัส #" . $old_data['product_id'] . ")", $p_name . " (รหัส #" . $product_id . ")"];
+                    }
+                    if (floatval($old_data['flash_price']) !== $flash_price) {
+                        $diff['ราคาพิเศษ (Flash Price)'] = ["฿" . number_format($old_data['flash_price'], 2), "฿" . number_format($flash_price, 2)];
+                    }
+                    if (intval($old_data['flash_stock']) !== $flash_stock) {
+                        $diff['โควตาสินค้า (Flash Stock)'] = [intval($old_data['flash_stock']) . " ชิ้น", $flash_stock . " ชิ้น"];
+                    }
+                    if ($old_data['start_time'] !== $start_time) {
+                        $diff['เวลาเริ่มต้น'] = [$old_data['start_time'], $start_time];
+                    }
+                    if ($old_data['end_time'] !== $end_time) {
+                        $diff['เวลาสิ้นสุด'] = [$old_data['end_time'], $end_time];
+                    }
+                }
+
+                log_admin_action($conn, 'แก้ไขแคมเปญ Flash Sale', [
+                    'title' => "แก้ไขแคมเปญ Flash Sale (รหัสแคมเปญ #$id)",
+                    'diff' => $diff,
+                    'sections' => [
+                        [
+                            'title' => 'รายละเอียดแคมเปญหลังแก้ไข',
+                            'items' => [
+                                "รหัสแคมเปญ: #$id",
+                                "สินค้า: $p_name (รหัสสินค้า #$product_id)",
+                                "ราคาพิเศษ: ฿" . number_format($flash_price, 2),
+                                "โควตา: $flash_stock ชิ้น",
+                                "ระยะเวลาแคมเปญ: $start_time ถึง $end_time"
+                            ]
+                        ]
+                    ]
+                ]);
+
                 $_SESSION['success_msg'] = "อัปเดตแคมเปญเรียบร้อย!";
                 header("Location: admin_flash_sale.php");
                 exit();

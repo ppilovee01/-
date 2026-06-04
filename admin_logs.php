@@ -89,6 +89,109 @@ if ($type_query) {
         }
     }
 }
+
+// ฟังก์ชันเรนเดอร์รายละเอียดกิจกรรมแบบโครงสร้างข้อมูล (JSON) หรือข้อความทั่วไป
+function render_log_details($details_json_or_text, $row_id) {
+    $data = json_decode($details_json_or_text, true);
+    if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+        $html = '';
+        if (isset($data['title'])) {
+            $html .= '<div class="fw-semibold text-dark mb-0">' . htmlspecialchars($data['title']) . '</div>';
+        }
+        
+        $has_changes = !empty($data['changes']);
+        $has_sections = !empty($data['sections']);
+        
+        $summary_parts = [];
+        if ($has_changes) {
+            $changed_fields = [];
+            foreach ($data['changes'] as $change) {
+                if (!empty($change['field'])) {
+                    $changed_fields[] = $change['field'];
+                }
+            }
+            if (count($changed_fields) > 0) {
+                $summary_parts[] = 'แก้ไข: ' . implode(', ', $changed_fields);
+            }
+        }
+        if ($has_sections) {
+            $section_titles = [];
+            foreach ($data['sections'] as $sec) {
+                if (!empty($sec['title'])) {
+                    $st = $sec['title'];
+                    // ยุบชื่อหัวข้อให้สั้นลงเพื่อความกะทัดรัด
+                    if ($st === 'ความเปลี่ยนแปลงของล็อตย่อย') {
+                        $st = 'ล็อตสินค้า';
+                    } elseif ($st === 'คลังสินค้าเริ่มต้นที่บันทึก') {
+                        $st = 'คลังเริ่มต้น';
+                    } elseif ($st === 'ข้อมูลคูปองที่ถูกลบ' || $st === 'ข้อมูลสมาชิกที่ถูกลบ' || $st === 'รายละเอียดการดำเนินการ' || $st === 'รายละเอียดล็อตที่ลบ') {
+                        $st = 'ลบข้อมูล';
+                    }
+                    $section_titles[] = $st;
+                }
+            }
+            if (count($section_titles) > 0) {
+                $summary_parts[] = implode(', ', $section_titles);
+            }
+        }
+        
+        if (count($summary_parts) > 0) {
+            $html .= '<div class="text-secondary small my-1" style="font-size: 0.76rem; font-weight: normal;"><i class="bi bi-info-circle me-1"></i>' . htmlspecialchars(implode(' | ', $summary_parts)) . '</div>';
+        }
+        
+        if ($has_changes || $has_sections) {
+            $html .= '<div class="mt-1">';
+            $html .= '<button class="btn btn-xs btn-outline-secondary py-0 px-2 rounded font-monospace text-decoration-none shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLog' . $row_id . '" aria-expanded="false" style="font-size: 0.72rem; border-color: #cbd5e1; color: #475569;">';
+            $html .= '<i class="bi bi-chevron-down me-1"></i> ดูรายละเอียดการเปลี่ยนแปลง';
+            $html .= '</button>';
+            $html .= '<div class="collapse mt-2" id="collapseLog' . $row_id . '">';
+            $html .= '<div class="card card-body p-2 border-0 bg-light rounded-3" style="max-width: 100%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">';
+            
+            // แสดงตารางข้อมูลที่มีการเปลี่ยนแปลง
+            if ($has_changes) {
+                $html .= '<div class="table-responsive mb-2">';
+                $html .= '<table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem; background: white; border-color: #e2e8f0;">';
+                $html .= '<thead class="table-light"><tr style="font-size: 0.75rem;"><th style="width: 30%;">หัวข้อ/ฟิลด์</th><th style="width: 35%;">ค่าเดิม</th><th style="width: 35%;">ค่าใหม่</th></tr></thead>';
+                $html .= '<tbody>';
+                foreach ($data['changes'] as $change) {
+                    $field = htmlspecialchars($change['field'] ?? '');
+                    $old = htmlspecialchars($change['old'] ?? '');
+                    $new = htmlspecialchars($change['new'] ?? '');
+                    $html .= '<tr>';
+                    $html .= '<td class="fw-semibold text-secondary" style="font-size: 0.76rem;">' . $field . '</td>';
+                    $html .= '<td class="text-danger bg-danger-subtle px-2 py-1" style="text-decoration: line-through; font-size: 0.76rem;">' . $old . '</td>';
+                    $html .= '<td class="text-success bg-success-subtle px-2 py-1 fw-bold" style="font-size: 0.76rem;">' . $new . '</td>';
+                    $html .= '</tr>';
+                }
+                $html .= '</tbody></table></div>';
+            }
+            
+            // แสดงรายการข้อมูลย่อย (เช่น ล็อตสินค้า, ข้อมูลลบ)
+            if ($has_sections) {
+                foreach ($data['sections'] as $sec) {
+                    $sec_title = htmlspecialchars($sec['title'] ?? '');
+                    $html .= '<div class="mt-1 small">';
+                    $html .= '<div class="fw-semibold text-primary mb-1" style="font-size: 0.78rem;"><i class="bi bi-chevron-right small"></i> ' . $sec_title . '</div>';
+                    if (!empty($sec['items'])) {
+                        $html .= '<ul class="list-unstyled ps-2 mb-0" style="font-size: 0.75rem;">';
+                        foreach ($sec['items'] as $item) {
+                            $html .= '<li class="text-muted mb-1"><i class="bi bi-dot me-1"></i> ' . htmlspecialchars($item) . '</li>';
+                        }
+                        $html .= '</ul>';
+                    }
+                    $html .= '</div>';
+                }
+            }
+            
+            $html .= '</div></div></div>';
+        }
+        
+        return $html;
+    }
+    
+    // แบบเก่า: แสดงข้อความทั่วไป (พร้อมการจัดหน้าเว้นบรรทัด)
+    return '<div class="lh-base" style="white-space: pre-wrap; font-size: 0.85rem;">' . htmlspecialchars($details_json_or_text) . '</div>';
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -115,6 +218,8 @@ if ($type_query) {
         
         /* สไตล์หน้าแสดงผล */
         .log-details { font-size: 0.88rem; color: #475569; word-break: break-word; }
+        .log-details table { margin-bottom: 0; }
+        .btn-xs { padding: 2px 6px; font-size: 0.72rem; line-height: 1.2; border-radius: 4px; }
         .log-time { font-size: 0.82rem; color: #94a3b8; }
         .log-admin { font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 6px; }
         .admin-avatar { width: 28px; height: 28px; background: #E3F2FD; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7FB5FF; font-size: 0.85rem; font-weight: bold; }
@@ -259,7 +364,7 @@ if ($type_query) {
                                     <span class="badge-log <?= $badge_class ?>"><?= htmlspecialchars($row['action_type']) ?></span>
                                 </td>
                                 <td>
-                                    <div class="log-details font-monospace"><?= htmlspecialchars($row['details']) ?></div>
+                                    <div class="log-details font-monospace"><?= render_log_details($row['details'], $row['id']) ?></div>
                                 </td>
                                 <td class="pe-4 text-center">
                                     <code class="text-muted" style="font-size: 0.8rem;"><?= htmlspecialchars($row['ip_address'] ?: '-') ?></code>

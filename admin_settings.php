@@ -102,7 +102,75 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     updateEnv('SMTP_PASS', $smtp_pass_raw, $env_path);
     updateEnv('SMTP_SECURE', trim($_POST['smtp_secure'] ?? 'tls'), $env_path);
     
-    log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', "แก้ไขข้อมูลร้านค้า, ระบบ SMTP, อัตราแต้มสะสม ($points_earn_rate บาท/แต้ม, $points_spend_rate บาท/แต้ม), LINE Notify และตั้งค่าสแกนสลิปด้วย AI ($slip_ai_provider)");
+    $changes = [];
+    if (($shop['shop_name'] ?? '') !== $name) {
+        $changes[] = ['field' => 'ชื่อร้านค้า', 'old' => $shop['shop_name'] ?? '', 'new' => $name];
+    }
+    if (($shop['address'] ?? '') !== $addr) {
+        $changes[] = ['field' => 'ที่อยู่ร้านค้า', 'old' => $shop['address'] ?? '', 'new' => $addr];
+    }
+    if (($shop['phone'] ?? '') !== $phone) {
+        $changes[] = ['field' => 'เบอร์โทรศัพท์', 'old' => $shop['phone'] ?? '', 'new' => $phone];
+    }
+    if (($shop['shop_email'] ?? '') !== $email) {
+        $changes[] = ['field' => 'อีเมลร้านค้า', 'old' => $shop['shop_email'] ?? '', 'new' => $email];
+    }
+    if (($shop['print_remark'] ?? '') !== $remark) {
+        $changes[] = ['field' => 'หมายเหตุท้ายใบเสร็จ', 'old' => $shop['print_remark'] ?? '', 'new' => $remark];
+    }
+    if (($shop['smtp_host'] ?? '') !== $smtp_host) {
+        $changes[] = ['field' => 'SMTP Host', 'old' => $shop['smtp_host'] ?? '', 'new' => $smtp_host];
+    }
+    if (intval($shop['smtp_port'] ?? 0) !== $smtp_port) {
+        $changes[] = ['field' => 'SMTP Port', 'old' => $shop['smtp_port'] ?? '', 'new' => $smtp_port];
+    }
+    if (($shop['smtp_secure'] ?? '') !== $smtp_secure) {
+        $changes[] = ['field' => 'SMTP Secure', 'old' => $shop['smtp_secure'] ?? '', 'new' => $smtp_secure];
+    }
+    if (($shop['smtp_user'] ?? '') !== $smtp_user) {
+        $changes[] = ['field' => 'SMTP Username', 'old' => $shop['smtp_user'] ?? '', 'new' => $smtp_user];
+    }
+    if (($shop['smtp_pass'] ?? '') !== $smtp_pass) {
+        $changes[] = ['field' => 'SMTP Password', 'old' => '******', 'new' => '(เปลี่ยนรหัสผ่าน)'];
+    }
+    if (intval($shop['welcome_promo_enabled'] ?? 0) !== $welcome_promo_enabled) {
+        $changes[] = ['field' => 'เปิดใช้งานโค้ดต้อนรับสมาชิก', 'old' => ($shop['welcome_promo_enabled'] ?? 0) ? 'เปิด' : 'ปิด', 'new' => $welcome_promo_enabled ? 'เปิด' : 'ปิด'];
+    }
+    if (($shop['welcome_promo_coupon'] ?? '') !== $welcome_promo_coupon) {
+        $changes[] = ['field' => 'โค้ดส่วนลดต้อนรับสมาชิก', 'old' => $shop['welcome_promo_coupon'] ?? 'ไม่มี', 'new' => $welcome_promo_coupon ?: 'ไม่มี'];
+    }
+    if (floatval($shop['shipping_fee_fixed'] ?? 0) !== $shipping_fee_fixed) {
+        $changes[] = ['field' => 'ค่าจัดส่งคงที่', 'old' => '฿' . number_format($shop['shipping_fee_fixed'] ?? 0, 2), 'new' => '฿' . number_format($shipping_fee_fixed, 2)];
+    }
+    if (floatval($shop['shipping_free_threshold'] ?? 0) !== $shipping_free_threshold) {
+        $changes[] = ['field' => 'ยอดสั่งซื้อขั้นต่ำส่งฟรี', 'old' => '฿' . number_format($shop['shipping_free_threshold'] ?? 0, 2), 'new' => '฿' . number_format($shipping_free_threshold, 2)];
+    }
+    if (intval($shop['points_earn_rate'] ?? 0) !== $points_earn_rate) {
+        $changes[] = ['field' => 'อัตราการรับแต้ม (บาท/แต้ม)', 'old' => ($shop['points_earn_rate'] ?? 0) . ' บาท/แต้ม', 'new' => $points_earn_rate . ' บาท/แต้ม'];
+    }
+    if (intval($shop['points_spend_rate'] ?? 0) !== $points_spend_rate) {
+        $changes[] = ['field' => 'มูลค่าคะแนนสะสม (บาท/แต้ม)', 'old' => ($shop['points_spend_rate'] ?? 0) . ' บาท/แต้ม', 'new' => $points_spend_rate . ' บาท/แต้ม'];
+    }
+    if (($shop['line_notify_token'] ?? '') !== $line_notify_token) {
+        $changes[] = ['field' => 'LINE Notify Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
+    }
+    if (($shop['slip_ai_provider'] ?? '') !== $slip_ai_provider) {
+        $changes[] = ['field' => 'ผู้ให้บริการ Slip AI', 'old' => $shop['slip_ai_provider'] ?? '', 'new' => $slip_ai_provider];
+    }
+    if (($shop['openai_api_key'] ?? '') !== $openai_api_key) {
+        $changes[] = ['field' => 'OpenAI API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
+    }
+    if (($shop['gemini_api_key'] ?? '') !== $gemini_api_key) {
+        $changes[] = ['field' => 'Gemini API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
+    }
+    if (($shop['claude_api_key'] ?? '') !== $claude_api_key) {
+        $changes[] = ['field' => 'Claude API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
+    }
+
+    log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', [
+        'title' => 'แก้ไขการตั้งค่าระบบและข้อมูลร้านค้า',
+        'changes' => $changes
+    ]);
 
     // 2. อัปเดต Icon (ถ้ามีการอัปโหลดใหม่)
     if (isset($_FILES['shop_icon']) && $_FILES['shop_icon']['error'] == 0) {
@@ -123,10 +191,20 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
         include 'mail_sender.php';
         $res = send_test_email($conn);
         if ($res === true) {
-            log_admin_action($conn, 'ทดสอบ SMTP', "กดทดสอบการเชื่อมต่อระบบ SMTP (ผลลัพธ์: สำเร็จ)");
+            log_admin_action($conn, 'ทดสอบ SMTP', [
+                'title' => "ทดสอบการเชื่อมต่อระบบ SMTP",
+                'changes' => [
+                    ['field' => 'ผลลัพธ์การทดสอบ', 'old' => '-', 'new' => 'สำเร็จ']
+                ]
+            ]);
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ทดสอบการเชื่อมต่อ SMTP สำเร็จแล้ว! มีอีเมลทดสอบส่งไปยังกล่องจดหมายของคุณเรียบร้อย', 'icon'=>'success'];
         } else {
-            log_admin_action($conn, 'ทดสอบ SMTP', "กดทดสอบการเชื่อมต่อระบบ SMTP (ผลลัพธ์: ล้มเหลว - $res)");
+            log_admin_action($conn, 'ทดสอบ SMTP', [
+                'title' => "ทดสอบการเชื่อมต่อระบบ SMTP",
+                'changes' => [
+                    ['field' => 'ผลลัพธ์การทดสอบ', 'old' => '-', 'new' => "ล้มเหลว - $res"]
+                ]
+            ]);
             $_SESSION['swal'] = ['title'=>'เกิดข้อผิดพลาด', 'text'=>'เชื่อมต่อล้มเหลว: ' . $res, 'icon'=>'error'];
         }
     } else {
@@ -281,7 +359,7 @@ if ($coupons_query) {
                         <div class="col-md-4 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 SMTP Server Host
-                                <?php if (getenv('SMTP_HOST') !== false): ?>
+                                <?php if (hasEnvValue('SMTP_HOST')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -290,7 +368,7 @@ if ($coupons_query) {
                         <div class="col-md-2 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 SMTP Port
-                                <?php if (getenv('SMTP_PORT') !== false): ?>
+                                <?php if (hasEnvValue('SMTP_PORT')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -299,7 +377,7 @@ if ($coupons_query) {
                         <div class="col-md-2 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 ประเภทความปลอดภัย
-                                <?php if (getenv('SMTP_SECURE') !== false): ?>
+                                <?php if (hasEnvValue('SMTP_SECURE')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -313,7 +391,7 @@ if ($coupons_query) {
                         <div class="col-md-4 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 SMTP Username (Email)
-                                <?php if (getenv('SMTP_USER') !== false): ?>
+                                <?php if (hasEnvValue('SMTP_USER')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -322,7 +400,7 @@ if ($coupons_query) {
                         <div class="col-md-4 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 SMTP Password (หรือ App Password)
-                                <?php if (getenv('SMTP_PASS') !== false): ?>
+                                <?php if (hasEnvValue('SMTP_PASS')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -341,7 +419,7 @@ if ($coupons_query) {
                         <div class="col-12 col-md-12 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 LINE Notify Token
-                                <?php if (getenv('LINE_NOTIFY_TOKEN') !== false): ?>
+                                <?php if (hasEnvValue('LINE_NOTIFY_TOKEN')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -356,7 +434,7 @@ if ($coupons_query) {
                         <div class="col-12 col-md-4 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 เลือกผู้ให้บริการหลัก (AI Provider)
-                                <?php if (getenv('SLIP_AI_PROVIDER') !== false): ?>
+                                <?php if (hasEnvValue('SLIP_AI_PROVIDER')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -375,7 +453,7 @@ if ($coupons_query) {
                         <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="openai-key-box" style="<?= getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none') === 'openai' ? '' : 'display:none;' ?>">
                             <label class="form-label small fw-bold text-muted">
                                 OpenAI API Key
-                                <?php if (getenv('OPENAI_API_KEY') !== false): ?>
+                                <?php if (hasEnvValue('OPENAI_API_KEY')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -392,7 +470,7 @@ if ($coupons_query) {
                         <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="gemini-key-box" style="<?= getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none') === 'gemini' ? '' : 'display:none;' ?>">
                             <label class="form-label small fw-bold text-muted">
                                 Google Gemini API Key
-                                <?php if (getenv('GEMINI_API_KEY') !== false): ?>
+                                <?php if (hasEnvValue('GEMINI_API_KEY')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
@@ -409,7 +487,7 @@ if ($coupons_query) {
                         <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="claude-key-box" style="<?= getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none') === 'claude' ? '' : 'display:none;' ?>">
                             <label class="form-label small fw-bold text-muted">
                                 Anthropic Claude API Key
-                                <?php if (getenv('CLAUDE_API_KEY') !== false): ?>
+                                <?php if (hasEnvValue('CLAUDE_API_KEY')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>

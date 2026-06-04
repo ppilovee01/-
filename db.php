@@ -60,7 +60,14 @@ loadEnv(__DIR__ . '/.env');
 
 // --- ฟังก์ชันดึงค่าความลับ (อ่านจาก env ก่อน ถ้าไม่มีค่อยดึงจาก DB) ---
 function getSecretValue($envKey, $dbValue) {
-    return getenv($envKey) !== false ? getenv($envKey) : $dbValue;
+    $val = getenv($envKey);
+    return ($val !== false && trim($val) !== '') ? $val : $dbValue;
+}
+
+// --- ฟังก์ชันเช็คว่ามีค่าในไฟล์ env จริงหรือไม่ (ไม่ใช่ค่าว่างหรือเว้นวรรค) ---
+function hasEnvValue($envKey) {
+    $val = getenv($envKey);
+    return $val !== false && trim($val) !== '';
 }
 
 // --- ฟังก์ชันเซนเซอร์ข้อมูลความลับสำหรับแสดงผลบน UI (เช่น AIzaSy••••••••4fG) ---
@@ -305,7 +312,13 @@ function log_admin_action($conn, $action_type, $details, $user_id = null, $fulln
     $admin_id_val = $admin_id !== null ? intval($admin_id) : "NULL";
     $admin_name_esc = mysqli_real_escape_string($conn, $admin_name);
     $action_type_esc = mysqli_real_escape_string($conn, $action_type);
-    $details_esc = mysqli_real_escape_string($conn, $details);
+    
+    if (is_array($details) || is_object($details)) {
+        $details_str = json_encode($details, JSON_UNESCAPED_UNICODE);
+    } else {
+        $details_str = (string)$details;
+    }
+    $details_esc = mysqli_real_escape_string($conn, $details_str);
     $ip_address_esc = mysqli_real_escape_string($conn, $ip_address);
 
     $sql = "INSERT INTO admin_logs (admin_id, admin_name, action_type, details, ip_address) 
