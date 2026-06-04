@@ -4,6 +4,78 @@ error_reporting(0);
 ini_set('display_errors', 0);
 date_default_timezone_set('Asia/Bangkok');
 
+// --- ฟังก์ชันโหลดไฟล์ .env สำหรับเก็บความลับของระบบ ---
+function loadEnv($path) {
+    if (!file_exists($path)) {
+        return;
+    }
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line) || strpos($line, '#') === 0) {
+            continue;
+        }
+        $parts = explode('=', $line, 2);
+        if (count($parts) === 2) {
+            $key = trim($parts[0]);
+            $val = trim($parts[1]);
+            $val = trim($val, '"\'');
+            putenv("{$key}={$val}");
+            $_ENV[$key] = $val;
+            $_SERVER[$key] = $val;
+        }
+    }
+}
+
+// --- ฟังก์ชันอัปเดตค่าในไฟล์ .env สำหรับการตั้งค่าจากหน้าเว็บหลังบ้าน ---
+function updateEnv($key, $value, $path) {
+    if (!file_exists($path)) {
+        if (file_exists(dirname($path) . '/.env.example')) {
+            copy(dirname($path) . '/.env.example', $path);
+        } else {
+            file_put_contents($path, "");
+        }
+    }
+    
+    $content = file_get_contents($path);
+    $pattern = "/^" . preg_quote($key, '/') . "=(.*)$/m";
+    $escapedValue = trim($value);
+    
+    if (preg_match('/\s/', $escapedValue) || empty($escapedValue)) {
+        $escapedValue = '"' . str_replace('"', '\\"', $escapedValue) . '"';
+    }
+    
+    if (preg_match($pattern, $content)) {
+        $content = preg_replace($pattern, "{$key}={$escapedValue}", $content);
+    } else {
+        if (!empty($content) && substr($content, -1) !== "\n") {
+            $content .= "\n";
+        }
+        $content .= "{$key}={$escapedValue}\n";
+    }
+    
+    return file_put_contents($path, $content) !== false;
+}
+loadEnv(__DIR__ . '/.env');
+
+// --- ฟังก์ชันดึงค่าความลับ (อ่านจาก env ก่อน ถ้าไม่มีค่อยดึงจาก DB) ---
+function getSecretValue($envKey, $dbValue) {
+    return getenv($envKey) !== false ? getenv($envKey) : $dbValue;
+}
+
+// --- ฟังก์ชันเซนเซอร์ข้อมูลความลับสำหรับแสดงผลบน UI (เช่น AIzaSy••••••••4fG) ---
+function getMaskedValue($envKey, $dbValue) {
+    $val = trim(getSecretValue($envKey, $dbValue) ?? '');
+    if (empty($val)) {
+        return '';
+    }
+    $len = strlen($val);
+    if ($len <= 10) {
+        return substr($val, 0, 2) . '••••' . substr($val, -2);
+    }
+    return substr($val, 0, 6) . '••••••••' . substr($val, -4);
+}
+
 // --- มาตรการป้องกันการแฮกเกอร์และความปลอดภัย HTTP Headers & Sessions ---
 ini_set('session.cookie_httponly', 1); // ป้องกันไม่ให้ JavaScript อ่านคุกกี้เซสชันได้ (ป้องกัน Session Hijacking จาก XSS)
 ini_set('session.use_only_cookies', 1); // บังคับให้ใช้คุกกี้ในการเก็บเซสชันเท่านั้น
@@ -38,10 +110,10 @@ function verify_csrf_token($token) {
     return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "fitness_db"; 
+$servername = getenv('DB_HOST') ?: "localhost";
+$username = getenv('DB_USER') ?: "root";
+$password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : "";
+$dbname = getenv('DB_NAME') ?: "fitness_db"; 
 
 // สร้างการเชื่อมต่อ (รองรับ PHP 8.1+ ที่ throw exception)
 try {
@@ -192,11 +264,16 @@ checkAndGenerateAutoFlashSale($conn);
 
 // --- Helper to send Line Notify alerts ---
 function sendLineNotify($conn, $message) {
-    $q = mysqli_query($conn, "SELECT line_notify_token FROM shop_settings WHERE id = 1");
-    if ($q && mysqli_num_rows($q) > 0) {
-        $row = mysqli_fetch_assoc($q);
-        $token = $row['line_notify_token'];
-        if (!empty($token)) {
+    $token = getenv('LINE_NOTIFY_TOKEN') ?: '';
+    if (empty($token)) {
+        $q = mysqli_query($conn, "SELECT line_notify_token FROM shop_settings WHERE id = 1");
+        if ($q && mysqli_num_rows($q) > 0) {
+            $row = mysqli_fetch_assoc($q);
+            $token = $row['line_notify_token'] ?? '';
+        }
+    }
+    
+    if (!empty($token)) {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "https://notify-api.line.me/api/notify");
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
@@ -213,7 +290,6 @@ function sendLineNotify($conn, $message) {
             curl_close($ch);
             return $res;
         }
-    }
     return false;
 }
 

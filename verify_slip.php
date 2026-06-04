@@ -21,10 +21,10 @@ if (!isset($_SESSION['user_id']) && (!isset($_SESSION['role']) || $_SESSION['rol
 $settings_q = mysqli_query($conn, "SELECT slip_ai_provider, openai_api_key, gemini_api_key, claude_api_key FROM shop_settings WHERE id=1");
 $settings = mysqli_fetch_assoc($settings_q);
 
-$provider = trim($settings['slip_ai_provider'] ?? 'none');
-$openai_key = trim($settings['openai_api_key'] ?? '');
-$gemini_key = trim($settings['gemini_api_key'] ?? '');
-$claude_key = trim($settings['claude_api_key'] ?? '');
+$provider   = getenv('SLIP_AI_PROVIDER') !== false ? trim(getenv('SLIP_AI_PROVIDER')) : trim($settings['slip_ai_provider'] ?? 'none');
+$openai_key = getenv('OPENAI_API_KEY') !== false ? trim(getenv('OPENAI_API_KEY')) : trim($settings['openai_api_key'] ?? '');
+$gemini_key = getenv('GEMINI_API_KEY') !== false ? trim(getenv('GEMINI_API_KEY')) : trim($settings['gemini_api_key'] ?? '');
+$claude_key = getenv('CLAUDE_API_KEY') !== false ? trim(getenv('CLAUDE_API_KEY')) : trim($settings['claude_api_key'] ?? '');
 
 if (empty($provider) || $provider === 'none') {
     ob_end_clean();

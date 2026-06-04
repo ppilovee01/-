@@ -1,0 +1,11 @@
+# Ignore sensitive credential files
+.env
+
+# Ignore temp files or upload files if desired
+uploads/*
+!uploads/.htaccess
+temp_verify/
+
+# System files
+.DS_Store
+Thumbs.db

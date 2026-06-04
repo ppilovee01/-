@@ -12,6 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // --- การบันทึกข้อมูลตั้งค่าร้านค้า ---
 if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
+    $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
+    
     $name = mysqli_real_escape_string($conn, $_POST['shop_name']);
     $addr = mysqli_real_escape_string($conn, $_POST['address']);
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
@@ -19,23 +21,47 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $remark = mysqli_real_escape_string($conn, $_POST['print_remark']);
     $smtp_host = mysqli_real_escape_string($conn, $_POST['smtp_host']);
     $smtp_port = intval($_POST['smtp_port']);
-    $smtp_user = mysqli_real_escape_string($conn, $_POST['smtp_user']);
-    $smtp_pass = str_replace(' ', '', $_POST['smtp_pass']);
-    $smtp_pass = mysqli_real_escape_string($conn, $smtp_pass);
     $smtp_secure = mysqli_real_escape_string($conn, $_POST['smtp_secure']);
+    $smtp_user = mysqli_real_escape_string($conn, $_POST['smtp_user']);
+    
+    $smtp_pass_raw = str_replace(' ', '', $_POST['smtp_pass'] ?? '');
+    if ($smtp_pass_raw === getMaskedValue('SMTP_PASS', $shop['smtp_pass'] ?? '')) {
+        $smtp_pass_raw = getSecretValue('SMTP_PASS', $shop['smtp_pass'] ?? '');
+    }
+    $smtp_pass = mysqli_real_escape_string($conn, $smtp_pass_raw);
+    
     $welcome_promo_enabled = isset($_POST['welcome_promo_enabled']) ? intval($_POST['welcome_promo_enabled']) : 1;
     $welcome_promo_coupon = mysqli_real_escape_string($conn, $_POST['welcome_promo_coupon'] ?? '');
     $shipping_fee_fixed = floatval($_POST['shipping_fee_fixed'] ?? 40.00);
     $shipping_free_threshold = floatval($_POST['shipping_free_threshold'] ?? 350.00);
     $points_earn_rate = intval($_POST['points_earn_rate'] ?? 100);
     $points_spend_rate = intval($_POST['points_spend_rate'] ?? 1);
-    $line_notify_token = mysqli_real_escape_string($conn, $_POST['line_notify_token'] ?? '');
     
-    // ตั้งค่า AI สแกนสลิปแบบยืดหยุ่นหลายค่าย
+    $line_notify_token_raw = trim($_POST['line_notify_token'] ?? '');
+    if ($line_notify_token_raw === getMaskedValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '')) {
+        $line_notify_token_raw = getSecretValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '');
+    }
+    $line_notify_token = mysqli_real_escape_string($conn, $line_notify_token_raw);
+    
     $slip_ai_provider = mysqli_real_escape_string($conn, $_POST['slip_ai_provider'] ?? 'none');
-    $openai_api_key = mysqli_real_escape_string($conn, trim($_POST['openai_api_key'] ?? ''));
-    $gemini_api_key = mysqli_real_escape_string($conn, trim($_POST['gemini_api_key'] ?? ''));
-    $claude_api_key = mysqli_real_escape_string($conn, trim($_POST['claude_api_key'] ?? ''));
+    
+    $openai_api_key_raw = trim($_POST['openai_api_key'] ?? '');
+    if ($openai_api_key_raw === getMaskedValue('OPENAI_API_KEY', $shop['openai_api_key'] ?? '')) {
+        $openai_api_key_raw = getSecretValue('OPENAI_API_KEY', $shop['openai_api_key'] ?? '');
+    }
+    $openai_api_key = mysqli_real_escape_string($conn, $openai_api_key_raw);
+    
+    $gemini_api_key_raw = trim($_POST['gemini_api_key'] ?? '');
+    if ($gemini_api_key_raw === getMaskedValue('GEMINI_API_KEY', $shop['gemini_api_key'] ?? '')) {
+        $gemini_api_key_raw = getSecretValue('GEMINI_API_KEY', $shop['gemini_api_key'] ?? '');
+    }
+    $gemini_api_key = mysqli_real_escape_string($conn, $gemini_api_key_raw);
+    
+    $claude_api_key_raw = trim($_POST['claude_api_key'] ?? '');
+    if ($claude_api_key_raw === getMaskedValue('CLAUDE_API_KEY', $shop['claude_api_key'] ?? '')) {
+        $claude_api_key_raw = getSecretValue('CLAUDE_API_KEY', $shop['claude_api_key'] ?? '');
+    }
+    $claude_api_key = mysqli_real_escape_string($conn, $claude_api_key_raw);
     
     // 1. อัปเดตข้อมูลข้อความ
     $sql = "UPDATE shop_settings SET 
@@ -62,6 +88,20 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             claude_api_key='$claude_api_key'
             WHERE id=1";
     mysqli_query($conn, $sql);
+    
+    // บันทึกข้อมูลความลับลงไฟล์ .env คู่ขนาน (ถ้าเขียนไฟล์ได้)
+    $env_path = __DIR__ . '/.env';
+    updateEnv('SLIP_AI_PROVIDER', $slip_ai_provider, $env_path);
+    updateEnv('OPENAI_API_KEY', $openai_api_key_raw, $env_path);
+    updateEnv('GEMINI_API_KEY', $gemini_api_key_raw, $env_path);
+    updateEnv('CLAUDE_API_KEY', $claude_api_key_raw, $env_path);
+    updateEnv('LINE_NOTIFY_TOKEN', $line_notify_token_raw, $env_path);
+    updateEnv('SMTP_HOST', trim($_POST['smtp_host'] ?? ''), $env_path);
+    updateEnv('SMTP_PORT', trim($_POST['smtp_port'] ?? '587'), $env_path);
+    updateEnv('SMTP_USER', trim($_POST['smtp_user'] ?? ''), $env_path);
+    updateEnv('SMTP_PASS', $smtp_pass_raw, $env_path);
+    updateEnv('SMTP_SECURE', trim($_POST['smtp_secure'] ?? 'tls'), $env_path);
+    
     log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', "แก้ไขข้อมูลร้านค้า, ระบบ SMTP, อัตราแต้มสะสม ($points_earn_rate บาท/แต้ม, $points_spend_rate บาท/แต้ม), LINE Notify และตั้งค่าสแกนสลิปด้วย AI ($slip_ai_provider)");
 
     // 2. อัปเดต Icon (ถ้ามีการอัปโหลดใหม่)
@@ -239,29 +279,55 @@ if ($coupons_query) {
                     <h5 class="fw-bold text-primary mb-3"><i class="bi bi-envelope-at-fill me-1"></i> ตั้งค่าอีเมลส่งแจ้งเตือน (SMTP Settings)</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-md-4 mb-3">
-                            <label class="form-label small fw-bold text-muted">SMTP Server Host</label>
-                            <input type="text" name="smtp_host" class="form-control" value="<?= htmlspecialchars($shop['smtp_host'] ?? '') ?>" placeholder="เช่น smtp.gmail.com">
+                            <label class="form-label small fw-bold text-muted">
+                                SMTP Server Host
+                                <?php if (getenv('SMTP_HOST') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="text" name="smtp_host" class="form-control" value="<?= htmlspecialchars(getSecretValue('SMTP_HOST', $shop['smtp_host'] ?? '')) ?>" placeholder="เช่น smtp.gmail.com">
                         </div>
                         <div class="col-md-2 mb-3">
-                            <label class="form-label small fw-bold text-muted">SMTP Port</label>
-                            <input type="number" name="smtp_port" class="form-control" value="<?= htmlspecialchars($shop['smtp_port'] ?? '587') ?>" placeholder="เช่น 587">
+                            <label class="form-label small fw-bold text-muted">
+                                SMTP Port
+                                <?php if (getenv('SMTP_PORT') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="number" name="smtp_port" class="form-control" value="<?= htmlspecialchars(getSecretValue('SMTP_PORT', $shop['smtp_port'] ?? '587')) ?>" placeholder="เช่น 587">
                         </div>
                         <div class="col-md-2 mb-3">
-                            <label class="form-label small fw-bold text-muted">ประเภทความปลอดภัย</label>
+                            <label class="form-label small fw-bold text-muted">
+                                ประเภทความปลอดภัย
+                                <?php if (getenv('SMTP_SECURE') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <?php $active_secure = getSecretValue('SMTP_SECURE', $shop['smtp_secure'] ?? 'tls'); ?>
                             <select name="smtp_secure" class="form-select">
-                                <option value="tls" <?= ($shop['smtp_secure'] ?? '') == 'tls' ? 'selected' : '' ?>>TLS (แนะนำ)</option>
-                                <option value="ssl" <?= ($shop['smtp_secure'] ?? '') == 'ssl' ? 'selected' : '' ?>>SSL</option>
-                                <option value="none" <?= ($shop['smtp_secure'] ?? '') == 'none' ? 'selected' : '' ?>>ไม่มี (None)</option>
+                                <option value="tls" <?= $active_secure == 'tls' ? 'selected' : '' ?>>TLS (แนะนำ)</option>
+                                <option value="ssl" <?= $active_secure == 'ssl' ? 'selected' : '' ?>>SSL</option>
+                                <option value="none" <?= $active_secure == 'none' ? 'selected' : '' ?>>ไม่มี (None)</option>
                             </select>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label small fw-bold text-muted">SMTP Username (Email)</label>
-                            <input type="email" name="smtp_user" class="form-control" value="<?= htmlspecialchars($shop['smtp_user'] ?? '') ?>" placeholder="เช่น shop@gmail.com">
+                            <label class="form-label small fw-bold text-muted">
+                                SMTP Username (Email)
+                                <?php if (getenv('SMTP_USER') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="email" name="smtp_user" class="form-control" value="<?= htmlspecialchars(getSecretValue('SMTP_USER', $shop['smtp_user'] ?? '')) ?>" placeholder="เช่น shop@gmail.com">
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label small fw-bold text-muted">SMTP Password (หรือ App Password)</label>
+                            <label class="form-label small fw-bold text-muted">
+                                SMTP Password (หรือ App Password)
+                                <?php if (getenv('SMTP_PASS') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
                             <div class="input-group">
-                                <input type="password" name="smtp_pass" id="smtpPassInput" class="form-control" value="<?= htmlspecialchars($shop['smtp_pass'] ?? '') ?>" placeholder="รหัสผ่านอีเมลจัดส่ง">
+                                <input type="password" name="smtp_pass" id="smtpPassInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('SMTP_PASS', $shop['smtp_pass'] ?? '')) ?>" placeholder="รหัสผ่านอีเมลจัดส่ง">
                                 <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('smtpPassInput', this)" style="border-color: #dee2e6;">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -273,8 +339,13 @@ if ($coupons_query) {
                     <h5 class="fw-bold text-primary mb-3"><i class="bi bi-bell-fill me-1"></i> ตั้งค่าการแจ้งเตือน Line Notify (Line Notify Settings)</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-12 col-md-12 mb-3">
-                            <label class="form-label small fw-bold text-muted">LINE Notify Token</label>
-                            <input type="text" name="line_notify_token" class="form-control" value="<?= htmlspecialchars($shop['line_notify_token'] ?? '') ?>" placeholder="ใส่ Line Notify Token ของร้านค้า เพื่อรับแจ้งเตือนเมื่อมีออเดอร์ใหม่">
+                            <label class="form-label small fw-bold text-muted">
+                                LINE Notify Token
+                                <?php if (getenv('LINE_NOTIFY_TOKEN') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="text" name="line_notify_token" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '')) ?>" placeholder="ใส่ Line Notify Token ของร้านค้า เพื่อรับแจ้งเตือนเมื่อมีออเดอร์ใหม่">
                             <div class="form-text">สามารถขอ Token ได้ที่ <a href="https://notify-bot.line.me/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">LINE Notify Portal</a> และเชิญบอทเข้ากลุ่มแชทที่ต้องการรับแจ้งเตือน</div>
                         </div>
                     </div>
@@ -283,22 +354,33 @@ if ($coupons_query) {
                     <h5 class="fw-bold text-primary mb-3"><i class="bi bi-robot me-1"></i> ตั้งค่าระบบตรวจสอบสลิปด้วย AI (AI Slip Verification Settings)</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-12 col-md-4 mb-3">
-                            <label class="form-label small fw-bold text-muted">เลือกผู้ให้บริการหลัก (AI Provider)</label>
+                            <label class="form-label small fw-bold text-muted">
+                                เลือกผู้ให้บริการหลัก (AI Provider)
+                                <?php if (getenv('SLIP_AI_PROVIDER') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <?php $active_provider = getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none'); ?>
                             <select name="slip_ai_provider" class="form-select" onchange="toggleAIKeys(this.value)">
-                                <option value="none" <?= ($shop['slip_ai_provider'] ?? 'none') === 'none' ? 'selected' : '' ?>>ปิดใช้งาน (Disabled)</option>
-                                <option value="openai" <?= ($shop['slip_ai_provider'] ?? '') === 'openai' ? 'selected' : '' ?>>OpenAI (GPT-4o-mini)</option>
-                                <option value="gemini" <?= ($shop['slip_ai_provider'] ?? '') === 'gemini' ? 'selected' : '' ?>>Google Gemini (Gemini 2.5 Flash)</option>
-                                <option value="claude" <?= ($shop['slip_ai_provider'] ?? '') === 'claude' ? 'selected' : '' ?>>Anthropic Claude (Claude 3.5 Haiku)</option>
+                                <option value="none" <?= $active_provider === 'none' ? 'selected' : '' ?>>ปิดใช้งาน (Disabled)</option>
+                                <option value="openai" <?= $active_provider === 'openai' ? 'selected' : '' ?>>OpenAI (GPT-4o-mini)</option>
+                                <option value="gemini" <?= $active_provider === 'gemini' ? 'selected' : '' ?>>Google Gemini (Gemini 2.5 Flash)</option>
+                                <option value="claude" <?= $active_provider === 'claude' ? 'selected' : '' ?>>Anthropic Claude (Claude 3.5 Haiku)</option>
                             </select>
                         </div>
                     </div>
                     
                     <div class="row g-3 mb-4" id="ai-keys-container">
                         <!-- OpenAI Key Input -->
-                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="openai-key-box" style="<?= ($shop['slip_ai_provider'] ?? '') === 'openai' ? '' : 'display:none;' ?>">
-                            <label class="form-label small fw-bold text-muted">OpenAI API Key</label>
+                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="openai-key-box" style="<?= getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none') === 'openai' ? '' : 'display:none;' ?>">
+                            <label class="form-label small fw-bold text-muted">
+                                OpenAI API Key
+                                <?php if (getenv('OPENAI_API_KEY') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
                             <div class="input-group">
-                                <input type="password" name="openai_api_key" id="openaiKeyInput" class="form-control" value="<?= htmlspecialchars($shop['openai_api_key'] ?? '') ?>" placeholder="sk-...">
+                                <input type="password" name="openai_api_key" id="openaiKeyInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('OPENAI_API_KEY', $shop['openai_api_key'] ?? '')) ?>" placeholder="sk-...">
                                 <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('openaiKeyInput', this)" style="border-color: #dee2e6;">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -307,10 +389,15 @@ if ($coupons_query) {
                         </div>
                         
                         <!-- Gemini Key Input -->
-                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="gemini-key-box" style="<?= ($shop['slip_ai_provider'] ?? '') === 'gemini' ? '' : 'display:none;' ?>">
-                            <label class="form-label small fw-bold text-muted">Google Gemini API Key</label>
+                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="gemini-key-box" style="<?= getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none') === 'gemini' ? '' : 'display:none;' ?>">
+                            <label class="form-label small fw-bold text-muted">
+                                Google Gemini API Key
+                                <?php if (getenv('GEMINI_API_KEY') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
                             <div class="input-group">
-                                <input type="password" name="gemini_api_key" id="geminiKeyInput" class="form-control" value="<?= htmlspecialchars($shop['gemini_api_key'] ?? '') ?>" placeholder="AIzaSy...">
+                                <input type="password" name="gemini_api_key" id="geminiKeyInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('GEMINI_API_KEY', $shop['gemini_api_key'] ?? '')) ?>" placeholder="AIzaSy...">
                                 <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('geminiKeyInput', this)" style="border-color: #dee2e6;">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -319,10 +406,15 @@ if ($coupons_query) {
                         </div>
                         
                         <!-- Claude Key Input -->
-                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="claude-key-box" style="<?= ($shop['slip_ai_provider'] ?? '') === 'claude' ? '' : 'display:none;' ?>">
-                            <label class="form-label small fw-bold text-muted">Anthropic Claude API Key</label>
+                        <div class="col-12 col-md-12 mb-3 ai-key-input-box" id="claude-key-box" style="<?= getSecretValue('SLIP_AI_PROVIDER', $shop['slip_ai_provider'] ?? 'none') === 'claude' ? '' : 'display:none;' ?>">
+                            <label class="form-label small fw-bold text-muted">
+                                Anthropic Claude API Key
+                                <?php if (getenv('CLAUDE_API_KEY') !== false): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
                             <div class="input-group">
-                                <input type="password" name="claude_api_key" id="claudeKeyInput" class="form-control" value="<?= htmlspecialchars($shop['claude_api_key'] ?? '') ?>" placeholder="sk-ant-...">
+                                <input type="password" name="claude_api_key" id="claudeKeyInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('CLAUDE_API_KEY', $shop['claude_api_key'] ?? '')) ?>" placeholder="sk-ant-...">
                                 <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('claudeKeyInput', this)" style="border-color: #dee2e6;">
                                     <i class="bi bi-eye"></i>
                                 </button>

@@ -10,7 +10,9 @@ require 'PHPMailer/SMTP.php';
 function send_order_email($conn, $order_id) {
     // 1. ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
     $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
-    if (!$shop || empty($shop['smtp_user']) || empty($shop['smtp_pass'])) {
+    $smtp_user = getenv('SMTP_USER') ?: ($shop['smtp_user'] ?? '');
+    $smtp_pass = getenv('SMTP_PASS') ?: ($shop['smtp_pass'] ?? '');
+    if (empty($smtp_user) || empty($smtp_pass)) {
         // ถ้ายังไม่ได้ตั้งค่า SMTP ให้ข้ามการส่งเมลโดยไม่เอ๋อ
         return false;
     }
@@ -36,12 +38,12 @@ function send_order_email($conn, $order_id) {
         $mail->CharSet = 'UTF-8';
         $mail->isSMTP();
         $mail->Timeout    = 5; // Timeout 5 วินาทีเพื่อป้องกันระบบค้างหากโฮสต์ผิดพลาด
-        $mail->Host       = $shop['smtp_host'];
+        $mail->Host       = getenv('SMTP_HOST') ?: ($shop['smtp_host'] ?? '');
         $mail->SMTPAuth   = true;
-        $mail->Username   = $shop['smtp_user'];
-        $mail->Password   = str_replace(' ', '', $shop['smtp_pass']);
+        $mail->Username   = $smtp_user;
+        $mail->Password   = str_replace(' ', '', $smtp_pass);
         
-        $secure = strtolower($shop['smtp_secure']);
+        $secure = strtolower(getenv('SMTP_SECURE') ?: ($shop['smtp_secure'] ?? 'tls'));
         if ($secure === 'tls') {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($secure === 'ssl') {
@@ -51,10 +53,10 @@ function send_order_email($conn, $order_id) {
             $mail->SMTPSecure = '';
         }
         
-        $mail->Port       = intval($shop['smtp_port']);
+        $mail->Port       = getenv('SMTP_PORT') !== false ? intval(getenv('SMTP_PORT')) : intval($shop['smtp_port'] ?? 587);
 
         // Recipients
-        $mail->setFrom($shop['smtp_user'], $shop['shop_name']);
+        $mail->setFrom($smtp_user, $shop['shop_name'] ?? 'Shop');
         $mail->addAddress($order['email'], $order['fullname']);
 
         // ตั้งหัวข้ออีเมลตามสถานะออเดอร์
@@ -191,7 +193,9 @@ function send_order_email($conn, $order_id) {
 function send_test_email($conn) {
     // ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
     $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
-    if (!$shop || empty($shop['smtp_user']) || empty($shop['smtp_pass'])) {
+    $smtp_user = getenv('SMTP_USER') ?: ($shop['smtp_user'] ?? '');
+    $smtp_pass = getenv('SMTP_PASS') ?: ($shop['smtp_pass'] ?? '');
+    if (empty($smtp_user) || empty($smtp_pass)) {
         return "กรุณากรอกข้อมูล SMTP และรหัสผ่านก่อนทดสอบ";
     }
 
@@ -202,12 +206,12 @@ function send_test_email($conn) {
         $mail->CharSet = 'UTF-8';
         $mail->isSMTP();
         $mail->Timeout    = 5; // Timeout 5 วินาทีเพื่อป้องกันระบบค้างหากโฮสต์ผิดพลาด
-        $mail->Host       = $shop['smtp_host'];
+        $mail->Host       = getenv('SMTP_HOST') ?: ($shop['smtp_host'] ?? '');
         $mail->SMTPAuth   = true;
-        $mail->Username   = $shop['smtp_user'];
-        $mail->Password   = str_replace(' ', '', $shop['smtp_pass']);
+        $mail->Username   = $smtp_user;
+        $mail->Password   = str_replace(' ', '', $smtp_pass);
         
-        $secure = strtolower($shop['smtp_secure']);
+        $secure = strtolower(getenv('SMTP_SECURE') ?: ($shop['smtp_secure'] ?? 'tls'));
         if ($secure === 'tls') {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($secure === 'ssl') {
@@ -217,11 +221,11 @@ function send_test_email($conn) {
             $mail->SMTPSecure = '';
         }
         
-        $mail->Port       = intval($shop['smtp_port']);
+        $mail->Port       = getenv('SMTP_PORT') !== false ? intval(getenv('SMTP_PORT')) : intval($shop['smtp_port'] ?? 587);
 
         // Recipients
-        $mail->setFrom($shop['smtp_user'], $shop['shop_name']);
-        $mail->addAddress($shop['smtp_user'], "Admin Connection Test");
+        $mail->setFrom($smtp_user, $shop['shop_name'] ?? 'Shop');
+        $mail->addAddress($smtp_user, "Admin Connection Test");
 
         // Content
         $mail->isHTML(true);
@@ -244,7 +248,9 @@ function send_test_email($conn) {
 function send_password_reset_email($conn, $email, $otp) {
     // 1. ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
     $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
-    if (!$shop || empty($shop['smtp_user']) || empty($shop['smtp_pass'])) {
+    $smtp_user = getenv('SMTP_USER') ?: ($shop['smtp_user'] ?? '');
+    $smtp_pass = getenv('SMTP_PASS') ?: ($shop['smtp_pass'] ?? '');
+    if (empty($smtp_user) || empty($smtp_pass)) {
         return false;
     }
 
@@ -261,12 +267,12 @@ function send_password_reset_email($conn, $email, $otp) {
         $mail->CharSet = 'UTF-8';
         $mail->isSMTP();
         $mail->Timeout    = 5;
-        $mail->Host       = $shop['smtp_host'];
+        $mail->Host       = getenv('SMTP_HOST') ?: ($shop['smtp_host'] ?? '');
         $mail->SMTPAuth   = true;
-        $mail->Username   = $shop['smtp_user'];
-        $mail->Password   = str_replace(' ', '', $shop['smtp_pass']);
+        $mail->Username   = $smtp_user;
+        $mail->Password   = str_replace(' ', '', $smtp_pass);
         
-        $secure = strtolower($shop['smtp_secure']);
+        $secure = strtolower(getenv('SMTP_SECURE') ?: ($shop['smtp_secure'] ?? 'tls'));
         if ($secure === 'tls') {
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         } elseif ($secure === 'ssl') {
@@ -276,10 +282,10 @@ function send_password_reset_email($conn, $email, $otp) {
             $mail->SMTPSecure = '';
         }
         
-        $mail->Port       = intval($shop['smtp_port']);
+        $mail->Port       = getenv('SMTP_PORT') !== false ? intval(getenv('SMTP_PORT')) : intval($shop['smtp_port'] ?? 587);
 
         // Recipients
-        $mail->setFrom($shop['smtp_user'], $shop['shop_name']);
+        $mail->setFrom($smtp_user, $shop['shop_name'] ?? 'Shop');
         $mail->addAddress($email, $fullname);
 
         // Content
