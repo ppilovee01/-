@@ -10,6 +10,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
 }
@@ -25,8 +30,18 @@ if (isset($_POST['clear_logs'])) {
     if ($admin_user && password_verify($password, $admin_user['password'])) {
         mysqli_query($conn, "TRUNCATE TABLE admin_logs");
         log_admin_action($conn, 'ล้างประวัติการทำงาน', "ทำการล้างข้อมูลประวัติการทำงานแอดมินทั้งหมดในระบบ");
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'message' => 'ล้างประวัติการทำงานทั้งหมดเรียบร้อยแล้ว']);
+            exit();
+        }
         $_SESSION['swal'] = ['title' => 'สำเร็จ', 'text' => 'ล้างประวัติการทำงานทั้งหมดเรียบร้อยแล้ว', 'icon' => 'success'];
     } else {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'รหัสผ่านไม่ถูกต้อง ไม่สามารถล้างประวัติได้!']);
+            exit();
+        }
         $_SESSION['swal'] = ['title' => 'ผิดพลาด', 'text' => 'รหัสผ่านไม่ถูกต้อง ไม่สามารถล้างประวัติได้!', 'icon' => 'error'];
     }
     header("Location: admin_logs.php");
@@ -258,7 +273,7 @@ function render_log_details($details_json_or_text, $row_id) {
 
             <!-- ค้นหาและตัวกรอง -->
             <div class="card filter-card p-4 mb-4">
-                <form method="GET" action="admin_logs.php" class="row g-3">
+                <form id="filter-form" method="GET" action="admin_logs.php" class="row g-3" onsubmit="submitFilterForm(event)">
                     <div class="col-md-3">
                         <label class="form-label text-muted small fw-bold">ค้นหาคำค้น</label>
                         <div class="input-group">
@@ -304,7 +319,11 @@ function render_log_details($details_json_or_text, $row_id) {
             </div>
 
             <!-- แสดงรายการบันทึก -->
-            <div class="card table-card p-3">
+            <div class="card table-card p-3" id="logs-table-wrapper">
+                <?php 
+                $ajax_fetch = isset($_GET['ajax_fetch']);
+                if ($ajax_fetch) ob_start(); 
+                ?>
                 <div class="table-responsive">
                     <table class="table align-middle table-hover">
                         <thead class="bg-light">
@@ -417,6 +436,14 @@ function render_log_details($details_json_or_text, $row_id) {
                                         </ul>
                     </nav>
                 <?php endif; ?>
+                <?php
+                if ($ajax_fetch) {
+                    $html = ob_get_clean();
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'success', 'html' => $html]);
+                    exit();
+                }
+                ?>
             </div>
         </div>
     </div>
@@ -430,7 +457,7 @@ function render_log_details($details_json_or_text, $row_id) {
                 <h5 class="modal-title fw-bold text-danger"><i class="bi bi-shield-lock-fill"></i> ยืนยันตัวตน</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="admin_logs.php">
+            <form id="clear-logs-form" method="POST" action="admin_logs.php" onsubmit="submitClearLogsForm(event)">
                 <?= get_csrf_input() ?>
                 <div class="modal-body py-3">
                     <p class="small text-muted mb-3">กรุณากรอกรหัสผ่านบัญชีแอดมินของคุณเพื่อยืนยันการล้างประวัติการทำงานทั้งหมดถาวร</p>
@@ -462,5 +489,189 @@ function render_log_details($details_json_or_text, $row_id) {
     });
 </script>
 <?php unset($_SESSION['swal']); endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    bindPaginationClicks();
+});
+
+function submitFilterForm(event) {
+    if (event) event.preventDefault();
+    const form = document.getElementById('filter-form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        if (value.trim() !== '') {
+            params.append(key, value);
+        }
+    }
+    const queryString = params.toString();
+    const url = 'admin_logs.php' + (queryString ? '?' + queryString : '');
+    
+    // Push history
+    history.pushState(null, '', url);
+    
+    // Fetch logs
+    fetchLogs(url);
+}
+
+function fetchLogs(url) {
+    const wrapper = document.getElementById('logs-table-wrapper');
+    if (wrapper) {
+        wrapper.style.opacity = '0.5';
+    }
+    
+    const ajaxUrl = new URL(url, window.location.origin + window.location.pathname);
+    ajaxUrl.searchParams.set('ajax_fetch', '1');
+    
+    fetch(ajaxUrl.toString())
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                wrapper.innerHTML = data.html;
+                bindPaginationClicks();
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: data.message || 'ไม่สามารถโหลดข้อมูลได้',
+                    confirmButtonColor: '#7FB5FF'
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
+                confirmButtonColor: '#7FB5FF'
+            });
+        })
+        .finally(() => {
+            if (wrapper) {
+                wrapper.style.opacity = '1';
+            }
+        });
+}
+
+function bindPaginationClicks() {
+    const wrapper = document.getElementById('logs-table-wrapper');
+    if (!wrapper) return;
+    
+    const links = wrapper.querySelectorAll('.pagination .page-link');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.getAttribute('href');
+            if (href && href !== '#') {
+                const url = href.startsWith('?') ? 'admin_logs.php' + href : href;
+                history.pushState(null, '', url);
+                fetchLogs(url);
+            }
+        });
+    });
+}
+
+window.addEventListener('popstate', function() {
+    fetchLogs(window.location.href);
+    syncFilterFormFromURL();
+});
+
+function syncFilterFormFromURL() {
+    const form = document.getElementById('filter-form');
+    if (!form) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    
+    const searchInput = form.querySelector('input[name="search"]');
+    if (searchInput) searchInput.value = params.get('search') || '';
+    
+    const roleSelect = form.querySelector('select[name="role_filter"]');
+    if (roleSelect) roleSelect.value = params.get('role_filter') || '';
+    
+    const actionSelect = form.querySelector('select[name="action_filter"]');
+    if (actionSelect) actionSelect.value = params.get('action_filter') || '';
+    
+    const dateStart = form.querySelector('input[name="date_start"]');
+    if (dateStart) dateStart.value = params.get('date_start') || '';
+    
+    const dateEnd = form.querySelector('input[name="date_end"]');
+    if (dateEnd) dateEnd.value = params.get('date_end') || '';
+}
+
+function submitClearLogsForm(event) {
+    event.preventDefault();
+    const form = event.target;
+    
+    Swal.fire({
+        title: 'ยืนยันการล้างประวัติ?',
+        text: "การดำเนินการนี้ไม่สามารถย้อนกลับได้ ประวัติกิจกรรมแอดมินทั้งหมดจะถูกลบถาวร!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'ใช่, ล้างข้อมูลทั้งหมด',
+        cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const formData = new FormData(form);
+            formData.append('ajax', '1');
+            formData.append('clear_logs', '1');
+            
+            Swal.fire({
+                title: 'กำลังดำเนินการ...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            fetch('admin_logs.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                Swal.close();
+                if (data.status === 'success') {
+                    const modalEl = document.getElementById('clearLogsModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modalInstance.hide();
+                    form.reset();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ล้างข้อมูลสำเร็จ',
+                        text: data.message,
+                        confirmButtonColor: '#7FB5FF',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    fetchLogs('admin_logs.php');
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'ผิดพลาด',
+                        text: data.message || 'รหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาดในการตรวจสอบ',
+                        confirmButtonColor: '#7FB5FF'
+                    });
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้',
+                    confirmButtonColor: '#7FB5FF'
+                });
+            });
+        }
+    });
+}
+</script>
 </body>
 </html>

@@ -17,76 +17,187 @@ $current_page = basename($_SERVER['PHP_SELF']);
     .nav-link.text-danger:hover { background-color: #fee2e2; color: #dc3545; }
     .nav-link.text-danger:hover i { color: #dc3545; }
 
-    /* ======== Mobile Premium Floating Menu Overrides ======== */
+    /* ======== Mobile Premium Off-Canvas Sidenav Drawer ======== */
     @media (max-width: 767px) {
-        /* ปรับสไตล์ปุ่ม toggle หน้าเพจแอดมินเดิมให้กลายเป็น Header Bar ติดขอบบนสุด */
+        /* แถบ Header บาร์สีขาวคลีนด้านบนสุด */
         button[data-bs-target="#sidebarMenu"] {
-            position: sticky !important;
+            position: fixed !important;
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 1050;
             background: rgba(255, 255, 255, 0.85) !important;
-            backdrop-filter: blur(15px) !important;
-            -webkit-backdrop-filter: blur(15px) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
             border: none !important;
-            border-bottom: 1px solid rgba(0,0,0,0.05) !important;
-            padding: 16px 20px !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+            padding: 12px 20px !important;
             font-size: 0 !important; /* ซ่อนตัวอักษรเดิม */
             display: flex !important;
             align-items: center;
             justify-content: space-between;
             border-radius: 0 !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
-            text-align: left;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.02) !important;
             width: 100% !important;
+            height: 60px;
         }
-        
-        /* ใส่ชื่อร้าน/แบรนด์แอดมินจำลองฝั่งซ้ายของแถบ */
+
         button[data-bs-target="#sidebarMenu"]::before {
             content: 'Por Mae Bet Taled \00a0 Admin';
             font-weight: 800;
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             color: #1e293b;
             font-family: 'Kanit', sans-serif;
             letter-spacing: -0.5px;
         }
 
-        /* ปรับไอคอนแฮมเบอร์เกอร์ฝั่งขวา */
         button[data-bs-target="#sidebarMenu"] i {
-            font-size: 1.5rem !important;
-            color: #7FB5FF !important;
+            font-size: 1.4rem !important;
+            color: #475569 !important;
             margin: 0 !important;
             order: 2;
+            width: 38px;
+            height: 38px;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 50%;
+            transition: all 0.2s ease;
         }
 
-        /* ปรับเมนูที่ดร็อปลงมาให้ลอยทับเนื้อหา (Overlay) แทนการดันเนื้อหาลงด้านล่าง */
+        /* แปลง #sidebarMenu ให้เป็นลิ้นชักสไลด์จากซ้าย (Off-Canvas Side Drawer) */
         #sidebarMenu {
-            position: absolute;
-            top: 60px;
-            left: 0;
-            right: 0;
-            z-index: 1040;
-            background: white;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            border-bottom: 3px solid #7FB5FF;
-            max-height: calc(100vh - 60px);
-            overflow-y: auto;
+            display: block !important; /* ปิดการซ่อนซ้อนของ Bootstrap collapse */
+            position: fixed !important;
+            top: 0 !important;
+            left: -280px !important;
+            width: 280px !important;
+            height: 100vh !important;
+            z-index: 2000 !important;
+            background: #0f172a !important; /* พื้นหลังสีเข้มพรีเมียม (Dark Sidenav) */
+            box-shadow: 15px 0 40px rgba(0,0,0,0.15) !important;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            overflow-y: auto !important;
+        }
+        
+        #sidebarMenu.show {
+            transform: translateX(280px) !important;
         }
 
         .sidebar {
-            padding: 20px !important;
+            padding: 25px 20px !important;
             border: none !important;
-            min-height: auto !important;
+            background: transparent !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 100% !important;
         }
 
-        /* ซ่อนโลโก้ในลิสต์เมนูบนมือถือเนื่องจากไปแสดงที่แถบด้านบนแล้ว */
+        /* แสดงโลโก้ในลิ้นชักเมนูให้หรูหรา */
         .sidebar .mb-5 {
-            display: none !important;
+            display: block !important;
+            margin-bottom: 30px !important;
+            padding-bottom: 20px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
         }
         
-        /* ปรับปุ่มเมนูให้กดง่ายขึ้นในจอสัมผัส */
+        .brand-logo {
+            color: #ffffff !important;
+            font-size: 1.25rem !important;
+        }
+        
+        .admin-badge {
+            background: rgba(127, 181, 255, 0.2) !important;
+            color: #7FB5FF !important;
+            border: 1px solid rgba(127, 181, 255, 0.3) !important;
+        }
+
+        /* ดีไซน์ลิงก์เมนูสไตล์มินิมอลลิสต์แบบ Stripe/Tailwind */
         .nav-link {
-            padding: 14px 20px;
-            font-size: 1.05rem;
+            padding: 12px 16px !important;
+            font-size: 0.92rem !important;
+            border-radius: 12px !important;
+            margin-bottom: 6px !important;
+            color: #94a3b8 !important;
+            background: transparent !important;
+            border: none !important;
+            transition: all 0.2s ease !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: flex-start !important;
+        }
+        
+        .nav-link i {
+            margin-right: 12px !important;
+            width: 24px !important;
+            height: 24px !important;
+            background: transparent !important;
+            color: #64748b !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1.15rem !important;
+            transition: all 0.2s !important;
+        }
+
+        /* เอฟเฟกต์โฮเวอร์เมนู */
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+            color: #ffffff !important;
+            transform: translateX(4px) !important;
+        }
+        .nav-link:hover i {
+            color: #7FB5FF !important;
+        }
+
+        /* เมนู Active โดดเด่นพรีเมียมเรืองแสง */
+        .nav-link.active {
+            background: #7FB5FF !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 20px rgba(127, 181, 255, 0.25) !important;
+            transform: scale(1.02) !important;
+        }
+        .nav-link.active i {
+            color: #ffffff !important;
+        }
+
+        /* ปุ่มออกจากระบบสีแดงซอฟต์ */
+        .nav-link.text-danger {
+            color: #f43f5e !important;
+        }
+        .nav-link.text-danger i {
+            color: #f43f5e !important;
+        }
+        .nav-link.text-danger:hover {
+            background: rgba(244, 63, 94, 0.1) !important;
+            color: #ff859b !important;
+        }
+
+        /* แผ่นพื้นหลังเบลอสีดำโปร่งแสง (Backdrop Overlay) */
+        .admin-sidebar-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 1999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .admin-sidebar-backdrop.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* ดันเนื้อหาหลักลงมาใต้ Header */
+        body {
+            padding-top: 60px !important;
         }
     }
 </style>
@@ -167,5 +278,159 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 }, 1);
             }
         });
+
+        // --- ระบบควบคุม Backdrop สำหรับลิ้นชักเมนูสไลด์บนมือถือ ---
+        const sidebar = document.getElementById('sidebarMenu');
+        if (sidebar) {
+            // สร้าง Backdrop หากยังไม่มีในระบบ
+            let backdrop = document.querySelector('.admin-sidebar-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'admin-sidebar-backdrop';
+                document.body.appendChild(backdrop);
+            }
+
+            // ฟังก์ชันซิงค์สถานะ Backdrop
+            function checkSidebarState() {
+                if (sidebar.classList.contains('show')) {
+                    backdrop.classList.add('show');
+                } else {
+                    backdrop.classList.remove('show');
+                }
+            }
+
+            // ดักจับการเปลี่ยนแปลงคลาส (MutationObserver) เพื่อตรวจการเปิด/ปิดลิ้นชักเมนู
+            const observer = new MutationObserver(checkSidebarState);
+            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+
+            // คลิกพื้นที่ว่างสีดำ (Backdrop) เพื่อปิดเมนูสไลด์
+            backdrop.addEventListener('click', function(e) {
+                if (window.innerWidth < 768) {
+                    e.preventDefault();
+                    sidebar.classList.remove('show');
+                }
+            });
+
+            const toggleBtn = document.querySelector('button[data-bs-target="#sidebarMenu"]');
+            if (toggleBtn) {
+                // ดักจับการกดปุ่มเมนูแฮมเบอร์เกอร์บนมือถือเพื่อ toggle คลาสตรงๆ โดยไม่ผ่าน Bootstrap Collapse
+                toggleBtn.addEventListener('click', function(e) {
+                    if (window.innerWidth < 768) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        sidebar.classList.toggle('show');
+                    }
+                });
+            }
+
+            // --- Swipe-to-Reveal Sidebar Menu for Mobile Devices ---
+            let startX = 0;
+            let startY = 0;
+            let currentX = 0;
+            let currentY = 0;
+            let isSwiping = false;
+            let swipeType = ''; // 'open' หรือ 'close'
+            const swipeWidth = 280; // ความกว้างของ Sidebar
+
+            document.addEventListener('touchstart', function(e) {
+                if (window.innerWidth >= 768) return;
+
+                const touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+                currentX = startX;
+                currentY = startY;
+
+                const isOpen = sidebar.classList.contains('show');
+
+                if (!isOpen) {
+                    // ปัดจากขอบซ้ายเพื่อเปิด
+                    if (startX < 35) {
+                        isSwiping = true;
+                        swipeType = 'open';
+                        sidebar.style.transition = 'none';
+                        backdrop.style.transition = 'none';
+                        backdrop.style.visibility = 'visible';
+                    }
+                } else {
+                    // ปัดซ้ายบนตัวเมนูหรือ Backdrop เพื่อปิด
+                    if (e.target.closest('#sidebarMenu') || e.target.classList.contains('admin-sidebar-backdrop')) {
+                        isSwiping = true;
+                        swipeType = 'close';
+                        sidebar.style.transition = 'none';
+                        backdrop.style.transition = 'none';
+                    }
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', function(e) {
+                if (!isSwiping) return;
+
+                const touch = e.touches[0];
+                currentX = touch.clientX;
+                currentY = touch.clientY;
+
+                const dx = currentX - startX;
+                const dy = currentY - startY;
+
+                // ถ้าขยับแนวตั้งเยอะกว่าแนวนอนให้ยกเลิกสไลด์เมนู
+                if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+                    isSwiping = false;
+                    sidebar.style.transition = '';
+                    backdrop.style.transition = '';
+                    sidebar.style.transform = '';
+                    backdrop.style.opacity = '';
+                    backdrop.style.visibility = '';
+                    return;
+                }
+
+                if (swipeType === 'open') {
+                    if (dx < 0) return;
+                    // ป้องกันการเลื่อนหน้าเพจขณะสไลด์
+                    if (e.cancelable) e.preventDefault();
+                    const translateX = Math.min(swipeWidth, dx);
+                    sidebar.style.transform = `translateX(${translateX}px)`;
+                    
+                    const progress = translateX / swipeWidth;
+                    backdrop.style.opacity = progress;
+                } else if (swipeType === 'close') {
+                    if (dx > 0) return;
+                    // ป้องกันการเลื่อนหน้าเพจขณะสไลด์
+                    if (e.cancelable) e.preventDefault();
+                    const translateX = Math.min(swipeWidth, Math.max(0, swipeWidth + dx));
+                    sidebar.style.transform = `translateX(${translateX}px)`;
+
+                    const progress = translateX / swipeWidth;
+                    backdrop.style.opacity = progress;
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', function(e) {
+                if (!isSwiping) return;
+                isSwiping = false;
+
+                // คืนค่า transition ปกติเพื่อให้แอนิเมชันลื่นไหล
+                sidebar.style.transition = '';
+                backdrop.style.transition = '';
+
+                const dx = currentX - startX;
+                const isOpen = sidebar.classList.contains('show');
+
+                if (swipeType === 'open') {
+                    if (dx > 80) {
+                        sidebar.classList.add('show');
+                    }
+                    // ล้างสไตล์อินไลน์ทันทีเพื่อให้สไตล์จากคลาส CSS ทำงานต่อเนื่องโดยไม่มีอาการสะดุด
+                    sidebar.style.transform = '';
+                    backdrop.style.opacity = '';
+                } else if (swipeType === 'close') {
+                    if (dx < -80) {
+                        sidebar.classList.remove('show');
+                    }
+                    sidebar.style.transform = '';
+                    backdrop.style.opacity = '';
+                }
+            });
+        }
     });
 </script>

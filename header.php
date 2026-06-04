@@ -332,6 +332,230 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             font-weight: 700 !important;
             color: #64748B !important; /* var(--text-secondary) fallback */
         }
+
+        /* ==========================================================================
+           Mobile Redesigned Header & Bottom Navigation Bar (Premium Glassmorphic)
+           ========================================================================== */
+        
+        /* Mobile Top Navigation Bar Styling */
+        .mobile-top-bar {
+            height: 60px;
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 1030;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+        }
+        .mobile-brand {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+        .mobile-top-icon-btn {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            font-size: 1.05rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            padding: 0;
+            outline: none;
+        }
+        .mobile-top-icon-btn:hover, .mobile-top-icon-btn:focus {
+            background: var(--blue-main);
+            color: #1e293b;
+        }
+        
+        /* Mobile Expandable Search Bar Overlay */
+        .mobile-search-overlay {
+            position: fixed;
+            top: -70px;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            z-index: 1025;
+            transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .mobile-search-overlay.show {
+            top: 60px;
+        }
+        .mobile-search-form {
+            width: 100%;
+        }
+        .mobile-search-form .input-group {
+            background: #f1f5f9;
+            border-radius: 50px;
+            padding: 2px 5px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .mobile-search-form input {
+            background: transparent;
+            font-size: 0.9rem;
+            height: 38px;
+        }
+        .mobile-search-form input:focus {
+            box-shadow: none;
+            background: transparent;
+        }
+
+        /* Mobile Bottom Navigation Bar Styling */
+        .mobile-bottom-nav {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            height: 66px;
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+            z-index: 1020;
+            padding: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 0.72rem;
+            font-weight: 500;
+            height: 100%;
+            flex: 1;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .mobile-nav-item i {
+            font-size: 1.3rem;
+            margin-bottom: 2px;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+        
+        /* Active & Hover States */
+        .mobile-nav-item.active, .mobile-nav-item:hover, .mobile-nav-item:focus {
+            color: var(--blue-hover);
+        }
+        .mobile-nav-item.active i {
+            transform: scale(1.18) translateY(-2px);
+            color: var(--blue-hover);
+        }
+        
+        .mobile-nav-icon-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mobile-nav-icon-wrapper .badge-count {
+            font-size: 0.6rem !important;
+            top: -4px !important;
+            right: -8px !important;
+            min-width: 16px !important;
+            height: 16px !important;
+            border: 2px solid white !important;
+            padding: 0 3px !important;
+            border-radius: 10px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: absolute !important;
+            background-color: #ef4444 !important;
+            color: white !important;
+            font-weight: 800 !important;
+        }
+        body.dark-theme .mobile-nav-icon-wrapper .badge-count {
+            border-color: #1e293b !important;
+        }
+        
+        /* Dropup custom adjustments */
+        .mobile-bottom-nav .dropup .dropdown-menu {
+            position: absolute !important;
+            bottom: 75px !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            width: 260px !important;
+            border-radius: 16px;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.12) !important;
+            border: 1px solid rgba(0,0,0,0.05);
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            padding: 8px;
+        }
+        /* Hide carets in all circular dropdown buttons with hide-arrow class */
+        .hide-arrow::after,
+        .hide-arrow::before,
+        .dropdown-toggle.hide-arrow::after,
+        .dropdown-toggle.hide-arrow::before,
+        .mobile-bottom-nav .dropdown-toggle::after,
+        .mobile-bottom-nav .dropup .dropdown-toggle::after,
+        .mobile-bottom-nav .dropup .dropdown-toggle::before {
+            display: none !important;
+        }
+
+        /* Dark Theme Support for Mobile Navigation */
+        body.dark-theme .mobile-top-bar,
+        body.dark-theme .mobile-bottom-nav,
+        body.dark-theme .mobile-search-overlay {
+            background: rgba(15, 23, 42, 0.85) !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3) !important;
+        }
+        body.dark-theme .mobile-brand span,
+        body.dark-theme .mobile-nav-item {
+            color: #94a3b8 !important;
+        }
+        body.dark-theme .mobile-nav-item.active,
+        body.dark-theme .mobile-nav-item:hover {
+            color: var(--blue-main) !important;
+        }
+        body.dark-theme .mobile-top-icon-btn {
+            background: #1e293b;
+            color: #94a3b8;
+        }
+        body.dark-theme .mobile-top-icon-btn:hover {
+            background: var(--blue-hover);
+            color: white;
+        }
+        body.dark-theme .mobile-search-form .input-group {
+            background: #1e293b;
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+        body.dark-theme .mobile-search-form input {
+            color: #f8fafc;
+        }
+        body.dark-theme .mobile-bottom-nav .dropup .dropdown-menu {
+            background: rgba(15, 23, 42, 0.98);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        /* Layout modifications for mobile */
+        @media (max-width: 991px) {
+            body {
+                padding-bottom: 95px !important; /* Make room for bottom nav */
+            }
+            .wishlist-btn-fixed, .floating-cart-btn {
+                display: none !important; /* Hide old desktop floating buttons on mobile */
+            }
+        }
     </style>
     
     <?php if(isset($extra_css)) echo $extra_css; ?>
@@ -471,55 +695,54 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 });
             });
 
-            // --- Live Auto-suggest Search ---
-            const searchInput = document.getElementById('globalSearchInput');
-            const suggestBox = document.getElementById('search-suggest');
-            let debounceTimeout;
+            // --- Live Auto-suggest Search (Integrated Desktop & Mobile) ---
+            function initSearchSuggestions(inputId, suggestId) {
+                const input = document.getElementById(inputId);
+                const box = document.getElementById(suggestId);
+                let debounceTimeout;
+                
+                if (input && box) {
+                    input.addEventListener('input', () => {
+                        clearTimeout(debounceTimeout);
+                        const query = input.value.trim();
 
-            if (searchInput && suggestBox) {
-                searchInput.addEventListener('input', () => {
-                    clearTimeout(debounceTimeout);
-                    const query = searchInput.value.trim();
+                        if (query.length < 2) {
+                            box.innerHTML = '';
+                            box.classList.add('hidden');
+                            return;
+                        }
 
-                    if (query.length < 2) {
-                        suggestBox.innerHTML = '';
-                        suggestBox.classList.add('hidden');
-                        return;
-                    }
+                        debounceTimeout = setTimeout(() => {
+                            fetch(`ajax.php?action=search_suggest&q=${encodeURIComponent(query)}`)
+                            .then(r => r.json())
+                            .then(res => {
+                                if (res.status === 'success') {
+                                    renderSuggestions(res.data, box);
+                                }
+                            })
+                            .catch(err => console.error(err));
+                        }, 200);
+                    });
 
-                    // รอหน่วงเวลา 200ms เพื่อไม่ให้ถล่มเซิร์ฟเวอร์ด้วยคิวรี่จำนวนมาก
-                    debounceTimeout = setTimeout(() => {
-                        fetch(`ajax.php?action=search_suggest&q=${encodeURIComponent(query)}`)
-                        .then(r => r.json())
-                        .then(res => {
-                            if (res.status === 'success') {
-                                renderSuggestions(res.data);
-                            }
-                        })
-                        .catch(err => console.error(err));
-                    }, 200);
-                });
+                    input.addEventListener('focus', () => {
+                        const query = input.value.trim();
+                        if (query.length >= 2 && box.children.length > 0) {
+                            box.classList.remove('hidden');
+                        }
+                    });
 
-                // แสดงกล่องข้อแนะนำอีกครั้งเมื่อรับโฟกัส
-                searchInput.addEventListener('focus', () => {
-                    const query = searchInput.value.trim();
-                    if (query.length >= 2 && suggestBox.children.length > 0) {
-                        suggestBox.classList.remove('hidden');
-                    }
-                });
-
-                // ซ่อนเมื่ออยู่นอกโฟกัส (หน่วงเวลา 150ms เพื่อให้คลิกที่รายการสินค้าทำงานสำเร็จก่อน)
-                searchInput.addEventListener('blur', () => {
-                    setTimeout(() => {
-                        suggestBox.classList.add('hidden');
-                    }, 150);
-                });
+                    input.addEventListener('blur', () => {
+                        setTimeout(() => {
+                            box.classList.add('hidden');
+                        }, 150);
+                    });
+                }
             }
 
-            function renderSuggestions(data) {
+            function renderSuggestions(data, box) {
                 if (data.length === 0) {
-                    suggestBox.innerHTML = '<div class="suggest-no-result text-muted">ไม่พบข้อมูลสินค้า</div>';
-                    suggestBox.classList.remove('hidden');
+                    box.innerHTML = '<div class="suggest-no-result text-muted text-center p-2">ไม่พบข้อมูลสินค้า</div>';
+                    box.classList.remove('hidden');
                     return;
                 }
 
@@ -536,9 +759,41 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     `;
                 });
 
-                suggestBox.innerHTML = html;
-                suggestBox.classList.remove('hidden');
+                box.innerHTML = html;
+                box.classList.remove('hidden');
             }
+
+            initSearchSuggestions('globalSearchInput', 'search-suggest');
+            initSearchSuggestions('mobileSearchInput', 'mobile-search-suggest');
+
+            // Mobile Search Overlay Actions
+            const mobileSearchToggle = document.getElementById('mobileSearchToggle');
+            const mobileNavSearchBtn = document.getElementById('mobileNavSearchBtn');
+            const mobileSearchOverlay = document.getElementById('mobileSearchOverlay');
+            const mobileSearchClose = document.getElementById('mobileSearchClose');
+            const mobileSearchInput = document.getElementById('mobileSearchInput');
+
+            function openMobileSearch() {
+                if (mobileSearchOverlay) {
+                    mobileSearchOverlay.classList.add('show');
+                    if (mobileSearchInput) {
+                        setTimeout(() => mobileSearchInput.focus(), 150);
+                    }
+                }
+            }
+
+            function closeMobileSearch() {
+                if (mobileSearchOverlay) {
+                    mobileSearchOverlay.classList.remove('show');
+                }
+            }
+
+            if (mobileSearchToggle) mobileSearchToggle.addEventListener('click', openMobileSearch);
+            if (mobileNavSearchBtn) mobileNavSearchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openMobileSearch();
+            });
+            if (mobileSearchClose) mobileSearchClose.addEventListener('click', closeMobileSearch);
         });
 
         // หากกด Back/Forward จากเบราว์เซอร์ ให้ซ่อน Preloader และแสดงหน้าเพจปกติ
@@ -569,9 +824,10 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
 
         window.loadNotifications = function() {
             const list = document.getElementById('notification-list');
-            if(!list) return;
+            const mobileList = document.getElementById('mobile-notification-list');
             
-            list.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
+            if (list) list.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
+            if (mobileList) mobileList.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
             
             fetch('ajax.php?action=get_notifications')
             .then(r => r.json())
@@ -580,12 +836,14 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     updateNotificationBadge(res.unread_count);
                     
                     if (res.notifications.length === 0) {
-                        list.innerHTML = `
+                        const noNotificationsHtml = `
                             <div class="text-center py-4 text-muted">
                                 <i class="bi bi-bell-slash fs-2 mb-2 d-block opacity-25"></i>
                                 ไม่มีแจ้งเตือนในขณะนี้
                             </div>
                         `;
+                        if (list) list.innerHTML = noNotificationsHtml;
+                        if (mobileList) mobileList.innerHTML = noNotificationsHtml;
                         return;
                     }
                     
@@ -604,7 +862,8 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                             </div>
                         `;
                     });
-                    list.innerHTML = html;
+                    if (list) list.innerHTML = html;
+                    if (mobileList) mobileList.innerHTML = html;
                 }
             })
             .catch(err => console.error(err));
@@ -612,13 +871,17 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
 
         window.updateNotificationBadge = function(count) {
             const badge = document.getElementById('notification-badge');
-            if(!badge) return;
-            if (count > 0) {
+            const mobileBadge = document.getElementById('mobile-notification-badge');
+            
+            if (badge) {
                 badge.innerText = count;
-                badge.classList.remove('hidden');
-            } else {
-                badge.innerText = 0;
-                badge.classList.add('hidden');
+                if (count > 0) badge.classList.remove('hidden');
+                else badge.classList.add('hidden');
+            }
+            if (mobileBadge) {
+                mobileBadge.innerText = count;
+                if (count > 0) mobileBadge.classList.remove('hidden');
+                else mobileBadge.classList.add('hidden');
             }
         };
 
@@ -851,6 +1114,17 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                             floatBtn.classList.add('hidden');
                         }
                     }
+                    
+                    // Sync Mobile Bottom Navigation Cart Badge
+                    const mobileBottomCartBadge = document.getElementById('mobile-bottom-cart-badge');
+                    if (mobileBottomCartBadge) {
+                        mobileBottomCartBadge.innerText = res.cart_count;
+                        if (res.cart_count > 0) {
+                            mobileBottomCartBadge.classList.remove('hidden');
+                        } else {
+                            mobileBottomCartBadge.classList.add('hidden');
+                        }
+                    }
 
                     // Trigger animations if count changed
                     if (prevCount !== newCount && newCount > 0) {
@@ -1050,7 +1324,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     </div>
 </div>
 
-<nav class="navbar navbar-expand-lg sticky-top glass-nav">
+<nav class="navbar navbar-expand-lg sticky-top glass-nav d-none d-lg-block">
     <div class="container">
         
         <a class="navbar-brand d-flex align-items-center" href="index.php">
@@ -1168,6 +1442,125 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     </div>
 </nav>
 
+<!-- Mobile Top Navigation Bar -->
+<div class="mobile-top-bar sticky-top d-flex d-lg-none align-items-center justify-content-between px-3 py-2 bg-white border-bottom shadow-sm">
+    <a class="mobile-brand d-flex align-items-center text-decoration-none" href="index.php">
+        <img src="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>" alt="Logo" style="height: 34px; width: auto; object-fit: contain;">
+        <span class="ms-2 fw-bold text-dark" style="font-size: 1.15rem;">Por Mae <span style="color: var(--blue-hover);">Bet Taled</span></span>
+    </a>
+    
+    <div class="d-flex align-items-center gap-2">
+        <button class="mobile-top-icon-btn border-0" id="mobileSearchToggle" title="ค้นหาสินค้า" type="button">
+            <i class="bi bi-search"></i>
+        </button>
+        
+        <button class="mobile-top-icon-btn border-0" id="mobileDarkModeToggle" title="เปลี่ยนธีมสี" type="button">
+            <i class="bi bi-moon-stars" id="mobileDarkModeIcon"></i>
+        </button>
+
+        <?php if(isset($_SESSION['user_id']) || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin')): ?>
+            <div class="dropdown">
+                <button class="mobile-top-icon-btn hide-arrow position-relative border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="loadNotifications()">
+                    <i class="bi bi-bell"></i>
+                    <span id="mobile-notification-badge" class="badge-count hidden" style="font-size: 0.6rem; top: -1px; right: -1px; min-width: 15px; height: 15px;">0</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn p-0 shadow-lg border-0" style="width: 290px; border-radius: var(--radius-md); overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); z-index: 9999;">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-soft);">
+                        <span class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">การแจ้งเตือน</span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-link p-0 text-decoration-none text-muted small" onclick="markAllNotificationsAsRead()" style="font-size: 0.7rem;">อ่านทั้งหมด</button>
+                            <span class="text-muted" style="font-size: 0.7rem;">|</span>
+                            <button class="btn btn-link p-0 text-decoration-none text-danger small" onclick="clearAllNotifications()" style="font-size: 0.7rem;">ล้างทั้งหมด</button>
+                        </div>
+                    </div>
+                    <div id="mobile-notification-list" style="max-height: 250px; overflow-y: auto;">
+                        <div class="text-center py-3 text-muted">
+                            <i class="bi bi-bell-slash fs-3 mb-2 d-block opacity-25"></i>
+                            ไม่มีแจ้งเตือนในขณะนี้
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Mobile Expandable Search Bar Overlay -->
+<div class="mobile-search-overlay d-lg-none" id="mobileSearchOverlay">
+    <form action="index.php" method="GET" class="mobile-search-form" autocomplete="off">
+        <div class="input-group">
+            <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-0" type="search" name="q" id="mobileSearchInput" placeholder="ค้นหาสินค้าที่ต้องการ..." value="<?= isset($_GET['q']) ? $_GET['q'] : '' ?>">
+            <button class="btn border-0 text-muted" type="button" id="mobileSearchClose"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div id="mobile-search-suggest" class="search-suggest-box hidden" style="top: 55px; width: calc(100% - 30px); left: 15px;"></div>
+    </form>
+</div>
+
+<!-- Mobile Bottom Navigation Bar -->
+<div class="mobile-bottom-nav d-flex d-lg-none justify-content-around align-items-center bg-white border-top shadow-lg">
+    <a href="index.php" class="mobile-nav-item <?= (basename($_SERVER['PHP_SELF']) == 'index.php' || basename($_SERVER['PHP_SELF']) == 'FitGear') ? 'active' : '' ?>">
+        <i class="bi bi-house-door"></i>
+        <span>หน้าแรก</span>
+    </a>
+    
+    <a href="#" class="mobile-nav-item" id="mobileNavSearchBtn">
+        <i class="bi bi-search"></i>
+        <span>ค้นหา</span>
+    </a>
+    
+    <a href="#" class="mobile-nav-item" onclick="event.preventDefault(); window.toggleCartDrawer();">
+        <div class="mobile-nav-icon-wrapper">
+            <i class="bi bi-cart3"></i>
+            <span id="mobile-bottom-cart-badge" class="badge-count <?= $cart_count > 0 ? '' : 'hidden' ?>"><?= $cart_count ?></span>
+        </div>
+        <span>ตะกร้า</span>
+    </a>
+    
+    <a href="wishlist.php" class="mobile-nav-item <?= (basename($_SERVER['PHP_SELF']) == 'wishlist.php' || basename($_SERVER['PHP_SELF']) == 'wishlist') ? 'active' : '' ?>">
+        <div class="mobile-nav-icon-wrapper">
+            <i class="bi bi-heart"></i>
+            <span id="mobile-bottom-wishlist-badge" class="badge-count <?= $wishlist_count > 0 ? '' : 'hidden' ?>"><?= $wishlist_count ?></span>
+        </div>
+        <span>รายการโปรด</span>
+    </a>
+    
+    <?php if(isset($_SESSION['user_id'])): ?>
+        <div class="dropup mobile-nav-item">
+            <a href="#" class="mobile-nav-item hide-arrow text-decoration-none" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding:0; border:none; background:none;">
+                <i class="bi bi-person"></i>
+                <span>บัญชี</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end animate__animated animate__fadeInUp shadow-lg border-0 mb-2" style="border-radius: 16px; z-index: 9999;">
+                <li>
+                    <h6 class="dropdown-header text-truncate fw-bold" style="color: var(--text-main); font-size: 0.85rem; padding: 12px 18px 6px 18px;">
+                        สวัสดี, <?= htmlspecialchars($_SESSION['fullname']) ?>
+                        <div class="text-warning mt-1" style="font-size:0.75rem; font-weight:normal;">
+                            🪙 <?= number_format($user_points_nav) ?> แต้ม
+                        </div>
+                    </h6>
+                </li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li><a class="dropdown-item" href="my_orders.php" style="padding: 10px 18px; font-size: 0.85rem;"><i class="bi bi-box-seam me-2" style="font-size:0.95rem;"></i> รายการสั่งซื้อ</a></li>
+                <li><a class="dropdown-item" href="profile.php" style="padding: 10px 18px; font-size: 0.85rem;"><i class="bi bi-person-gear me-2" style="font-size:0.95rem;"></i> ข้อมูลส่วนตัว</a></li>
+                <li><a class="dropdown-item" href="contact.php" style="padding: 10px 18px; font-size: 0.85rem;"><i class="bi bi-telephone-fill me-2" style="font-size:0.95rem;"></i> ติดต่อสอบถาม</a></li>
+                <li><a class="dropdown-item" href="about.php" style="padding: 10px 18px; font-size: 0.85rem;"><i class="bi bi-info-circle me-2" style="font-size:0.95rem;"></i> เกี่ยวกับเรา</a></li>
+                <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><a class="dropdown-item text-primary" href="admin_dashboard.php" style="padding: 10px 18px; font-size: 0.85rem;"><i class="bi bi-speedometer2 me-2" style="font-size:0.95rem;"></i> จัดการระบบ</a></li>
+                <?php endif; ?>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li><a class="dropdown-item text-danger" href="logout.php" style="padding: 10px 18px; font-size: 0.85rem;"><i class="bi bi-box-arrow-right me-2" style="font-size:0.95rem;"></i> ออกจากระบบ</a></li>
+            </ul>
+        </div>
+    <?php else: ?>
+        <a href="login.php" class="mobile-nav-item">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span>เข้าสู่ระบบ</span>
+        </a>
+    <?php endif; ?>
+</div>
+
 <!-- Cart Drawer Structure -->
 <div id="cartDrawerBackdrop" class="cart-drawer-backdrop" onclick="toggleCartDrawer()"></div>
 <div id="cartDrawer" class="cart-drawer">
@@ -1231,26 +1624,31 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
 document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('darkModeToggle');
     const toggleIcon = document.getElementById('darkModeIcon');
+    const mobileToggleBtn = document.getElementById('mobileDarkModeToggle');
+    const mobileToggleIcon = document.getElementById('mobileDarkModeIcon');
     
+    // Sync dark mode icons on load
     if (document.body.classList.contains('dark-theme')) {
-        if (toggleIcon) {
-            toggleIcon.className = 'bi bi-sun';
-        }
+        if (toggleIcon) toggleIcon.className = 'bi bi-sun';
+        if (mobileToggleIcon) mobileToggleIcon.className = 'bi bi-sun';
     }
     
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', function() {
-            document.body.classList.toggle('dark-theme');
-            let theme = 'light';
-            if (document.body.classList.contains('dark-theme')) {
-                theme = 'dark';
-                if (toggleIcon) toggleIcon.className = 'bi bi-sun';
-            } else {
-                if (toggleIcon) toggleIcon.className = 'bi bi-moon-stars';
-            }
-            localStorage.setItem('theme', theme);
-        });
+    function toggleTheme() {
+        document.body.classList.toggle('dark-theme');
+        let theme = 'light';
+        if (document.body.classList.contains('dark-theme')) {
+            theme = 'dark';
+            if (toggleIcon) toggleIcon.className = 'bi bi-sun';
+            if (mobileToggleIcon) mobileToggleIcon.className = 'bi bi-sun';
+        } else {
+            if (toggleIcon) toggleIcon.className = 'bi bi-moon-stars';
+            if (mobileToggleIcon) mobileToggleIcon.className = 'bi bi-moon-stars';
+        }
+        localStorage.setItem('theme', theme);
     }
+    
+    if (toggleBtn) toggleBtn.addEventListener('click', toggleTheme);
+    if (mobileToggleBtn) mobileToggleBtn.addEventListener('click', toggleTheme);
 });
 </script>
 

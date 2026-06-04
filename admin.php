@@ -256,6 +256,11 @@ if (isset($_POST['save_product'])) {
 // --- Logic: ลบสินค้า ---
 if (isset($_GET['delete'])) { 
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $del_id = intval($_GET['delete']);
@@ -277,7 +282,11 @@ if (isset($_GET['delete'])) {
             ]
         ]
     ]);
-    
+    if (isset($_GET['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'success', 'message' => 'ลบสินค้าเรียบร้อยแล้ว']);
+        exit();
+    }
     header("Location: admin.php"); exit(); 
 }
 
@@ -484,7 +493,7 @@ if($res) {
                             <?php foreach($products_list as $row): 
                                 $hl = ($edit_data && $edit_data['id'] == $row['id']) ? 'table-warning' : ''; 
                             ?>
-                            <tr class="product-row tr-hover <?= $hl ?>" data-name="<?= htmlspecialchars(strtolower($row['name']), ENT_QUOTES, 'UTF-8') ?>" data-category="<?= htmlspecialchars($row['cat_name'] ?: '', ENT_QUOTES, 'UTF-8') ?>">
+                            <tr id="product-row-<?= $row['id'] ?>" class="product-row tr-hover <?= $hl ?>" data-name="<?= htmlspecialchars(strtolower($row['name']), ENT_QUOTES, 'UTF-8') ?>" data-category="<?= htmlspecialchars($row['cat_name'] ?: '', ENT_QUOTES, 'UTF-8') ?>">
                                 <td class="ps-lg-3">
                                     <div class="d-flex align-items-center">
                                         <img src="<?= $row['image'] ?>" class="img-thumb me-3">
@@ -1015,6 +1024,18 @@ if($res) {
     }
 
     // ยืนยันลบสินค้า
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
     function confirmDelete(id) { 
         Swal.fire({ 
             title: 'ยืนยันการลบสินค้า?', 
@@ -1025,7 +1046,43 @@ if($res) {
             confirmButtonText: 'ลบเลย', 
             cancelButtonText: 'ยกเลิก' 
         }).then((result)=>{ 
-            if(result.isConfirmed) window.location.href='?delete='+id+'&csrf_token=<?= get_csrf_token() ?>'; 
+            if(result.isConfirmed) {
+                fetch(`admin.php?delete=${id}&csrf_token=<?= get_csrf_token() ?>&ajax=1`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        const row = document.getElementById('product-row-' + id);
+                        if (row) {
+                            row.style.transition = 'all 0.3s ease';
+                            row.style.opacity = '0';
+                            row.style.transform = 'translateX(30px)';
+                            setTimeout(() => {
+                                row.remove();
+                                const tbody = document.getElementById('product-list-tbody');
+                                if (tbody && tbody.querySelectorAll('.product-row').length === 0) {
+                                    tbody.innerHTML = '<tr id="no-products-row"><td colspan="3" class="text-center text-muted py-5 bg-white rounded-4">ยังไม่มีสินค้าในระบบ</td></tr>';
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'ลบไม่สำเร็จ'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'การเชื่อมต่อล้มเหลว'
+                    });
+                });
+            }
         }) 
     }
 

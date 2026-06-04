@@ -8,6 +8,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
 }
@@ -26,12 +31,18 @@ if (isset($_POST['add'])) {
     
     $check = mysqli_query($conn, "SELECT id FROM coupons WHERE code='$code'");
     if(mysqli_num_rows($check) > 0) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'โค้ดนี้มีอยู่แล้ว!']);
+            exit();
+        }
         echo "<script>alert('โค้ดนี้มีอยู่แล้ว!');</script>";
     } else {
         $start_date_val = $start_date ? "'$start_date'" : "NULL";
         $sql = "INSERT INTO coupons (code, discount_type, discount_value, min_spend, max_discount, usage_limit, user_limit, start_date, expiry_date) 
                 VALUES ('$code', '$type', '$val', '$min', '$max_discount', '$usage_limit', '$user_limit', $start_date_val, '$exp')";
         mysqli_query($conn, $sql);
+        $new_id = mysqli_insert_id($conn);
         
         log_admin_action($conn, 'สร้างคูปอง', [
             'title' => "สร้างคูปองส่วนลดโค้ด '$code'",
@@ -47,6 +58,27 @@ if (isset($_POST['add'])) {
                 ['field' => 'วันหมดอายุ', 'old' => '-', 'new' => $exp]
             ]
         ]);
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'สร้างคูปองส่วนลดเรียบร้อยแล้ว',
+                'coupon' => [
+                    'id' => $new_id,
+                    'code' => $code,
+                    'discount_type' => $type,
+                    'discount_value' => $val,
+                    'min_spend' => $min,
+                    'max_discount' => $max_discount,
+                    'usage_limit' => $usage_limit,
+                    'user_limit' => $user_limit,
+                    'start_date' => $start_date,
+                    'expiry_date' => $exp
+                ],
+                'csrf_token' => get_csrf_token()
+            ]);
+            exit();
+        }
         header("Location: admin_coupons.php"); exit();
     }
 }
@@ -54,6 +86,11 @@ if (isset($_POST['add'])) {
 // --- Logic 2: ลบ (Delete) ---
 if (isset($_GET['del'])) {
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['del']);
@@ -74,15 +111,12 @@ if (isset($_GET['del'])) {
             ]
         ]
     ]);
+    if (isset($_GET['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'success', 'message' => 'ลบคูปองเรียบร้อยแล้ว']);
+        exit();
+    }
     header("Location: admin_coupons.php"); exit();
-}
-
-// --- Logic 3: เตรียมข้อมูลแก้ไข (Edit Fetch) ---
-$edit_data = null;
-if (isset($_GET['edit'])) {
-    $id = intval($_GET['edit']);
-    $res = mysqli_query($conn, "SELECT * FROM coupons WHERE id=$id");
-    $edit_data = mysqli_fetch_assoc($res);
 }
 
 // --- Logic 4: อัปเดต (Update) ---
@@ -149,6 +183,26 @@ if (isset($_POST['update'])) {
         'title' => "แก้ไขข้อมูลคูปอง ID #$id (โค้ด: $code)",
         'changes' => $changes
     ]);
+    if (isset($_POST['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'แก้ไขคูปองส่วนลดเรียบร้อยแล้ว',
+            'coupon' => [
+                'id' => $id,
+                'code' => $code,
+                'discount_type' => $type,
+                'discount_value' => $val,
+                'min_spend' => $min,
+                'max_discount' => $max_discount,
+                'usage_limit' => $usage_limit,
+                'user_limit' => $user_limit,
+                'start_date' => $start_date,
+                'expiry_date' => $exp
+            ]
+        ]);
+        exit();
+    }
     header("Location: admin_coupons.php"); exit();
 }
 ?>
@@ -163,7 +217,12 @@ if (isset($_POST['update'])) {
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
-    <style> body { font-family: 'Kanit'; background: #f8f9fa; } </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { font-family: 'Kanit'; background: #f8f9fa; }
+        .coupon-row { transition: all 0.3s ease; }
+        .coupon-row.fade-out { opacity: 0; transform: translateX(30px); }
+    </style>
 </head>
 <body>
 <div class="container-fluid">
@@ -185,79 +244,70 @@ if (isset($_POST['update'])) {
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 20px;">
-                        <h5 class="fw-bold mb-3">
-                            <?php if($edit_data): ?>
-                                <i class="bi bi-pencil-square text-warning"></i> แก้ไขคูปอง
-                            <?php else: ?>
-                                <i class="bi bi-ticket-perforated text-blue" style="color:#AEE2FF"></i> สร้างคูปองใหม่
-                            <?php endif; ?>
+                        <h5 class="fw-bold mb-3" id="form-title">
+                            <i class="bi bi-ticket-perforated text-blue" style="color:#AEE2FF"></i> สร้างคูปองใหม่
                         </h5>
                         
-                        <form method="POST">
+                        <form id="coupon-form" method="POST" onsubmit="submitCouponForm(event)">
                             <?= get_csrf_input() ?>
-                            <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>">
+                            <input type="hidden" name="id" id="coupon_id" value="">
                             
                             <div class="mb-3">
                                 <label class="small text-muted">รหัสคูปอง (Code)</label>
-                                <input type="text" name="code" class="form-control text-uppercase fw-bold" placeholder="ใส่รหัสคูปอง" value="<?= $edit_data['code'] ?? '' ?>" required>
+                                <input type="text" name="code" id="coupon_code" class="form-control text-uppercase fw-bold" placeholder="ใส่รหัสคูปอง" required>
                             </div>
                             
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="small text-muted">ประเภท</label>
                                     <select name="discount_type" id="discount_type" class="form-select" onchange="toggleDiscountVal()">
-                                        <option value="fixed" <?= ($edit_data['discount_type'] ?? '') == 'fixed' ? 'selected' : '' ?>>ลดเป็นบาท (฿)</option>
-                                        <option value="percent" <?= ($edit_data['discount_type'] ?? '') == 'percent' ? 'selected' : '' ?>>ลดเป็น %</option>
-                                        <option value="free_shipping" <?= ($edit_data['discount_type'] ?? '') == 'free_shipping' ? 'selected' : '' ?>>คูปองส่งฟรี</option>
+                                        <option value="fixed">ลดเป็นบาท (฿)</option>
+                                        <option value="percent">ลดเป็น %</option>
+                                        <option value="free_shipping">คูปองส่งฟรี</option>
                                     </select>
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted">มูลค่าส่วนลด</label>
-                                    <input type="number" name="discount_value" id="discount_value" class="form-control" placeholder="0" value="<?= $edit_data['discount_value'] ?? '' ?>" required>
+                                    <input type="number" name="discount_value" id="discount_value" class="form-control" placeholder="0" required>
                                 </div>
                             </div>
 
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="small text-muted">ยอดซื้อขั้นต่ำ (บาท)</label>
-                                    <input type="number" name="min_spend" class="form-control" placeholder="0 = ไม่มีขั้นต่ำ" value="<?= $edit_data['min_spend'] ?? '0' ?>">
+                                    <input type="number" name="min_spend" id="min_spend" class="form-control" placeholder="0 = ไม่มีขั้นต่ำ" value="0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted">ลดสูงสุด (บาท)</label>
-                                    <input type="number" name="max_discount" class="form-control" placeholder="0 = ไม่จำกัด" value="<?= isset($edit_data['max_discount']) ? floatval($edit_data['max_discount']) : '0' ?>">
+                                    <input type="number" name="max_discount" id="max_discount" class="form-control" placeholder="0 = ไม่จำกัด" value="0">
                                 </div>
                             </div>
 
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="small text-muted">สิทธิ์รวมระบบ (ครั้ง)</label>
-                                    <input type="number" name="usage_limit" class="form-control" placeholder="0 = ไม่จำกัด" value="<?= $edit_data['usage_limit'] ?? '0' ?>">
+                                    <input type="number" name="usage_limit" id="usage_limit" class="form-control" placeholder="0 = ไม่จำกัด" value="0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted">สิทธิ์ต่อคน (ครั้ง)</label>
-                                    <input type="number" name="user_limit" class="form-control" placeholder="0 = ไม่จำกัด" value="<?= $edit_data['user_limit'] ?? '0' ?>">
+                                    <input type="number" name="user_limit" id="user_limit" class="form-control" placeholder="0 = ไม่จำกัด" value="0">
                                 </div>
                             </div>
 
                             <div class="row g-2 mb-4">
                                 <div class="col-6">
                                     <label class="small text-muted">วันเริ่มใช้งาน</label>
-                                    <input type="datetime-local" name="start_date" class="form-control" value="<?= isset($edit_data['start_date']) ? date('Y-m-d\TH:i', strtotime($edit_data['start_date'])) : date('Y-m-d\T00:00') ?>">
+                                    <input type="datetime-local" name="start_date" id="start_date" class="form-control" value="<?= date('Y-m-d\T00:00') ?>">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted">วันหมดอายุ</label>
-                                    <input type="datetime-local" name="expiry_date" class="form-control" value="<?= isset($edit_data['expiry_date']) ? date('Y-m-d\TH:i', strtotime($edit_data['expiry_date'])) : date('Y-m-d\T23:59', strtotime('+1 month')) ?>" required>
+                                    <input type="datetime-local" name="expiry_date" id="expiry_date" class="form-control" value="<?= date('Y-m-d\T23:59', strtotime('+1 month')) ?>" required>
                                 </div>
                             </div>
                             
-                            <?php if($edit_data): ?>
-                                <div class="d-flex gap-2">
-                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 text-white">อัปเดต</button>
-                                    <a href="admin_coupons.php" class="btn btn-secondary rounded-3">ยกเลิก</a>
-                                </div>
-                            <?php else: ?>
-                                <button type="submit" name="add" class="btn btn-dark w-100 rounded-3">สร้างคูปอง</button>
-                            <?php endif; ?>
+                            <div id="form-actions-container">
+                                <button type="submit" name="add" id="submit-btn" class="btn btn-dark w-100 rounded-3">สร้างคูปอง</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -276,7 +326,7 @@ if (isset($_POST['update'])) {
                                         <th class="text-end">จัดการ</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="coupons-tbody">
                                     <?php 
                                     $res = mysqli_query($conn, "SELECT *, 
                                         (expiry_date < NOW()) as is_expired,
@@ -285,13 +335,12 @@ if (isset($_POST['update'])) {
                                     while($row = mysqli_fetch_assoc($res)):
                                         $is_expired = $row['is_expired'];
                                         $not_started = $row['not_started'];
-                                        $is_editing = ($edit_data && $edit_data['id'] == $row['id']) ? 'table-warning' : '';
                                     ?>
-                                    <tr class="<?= $is_editing ?>">
+                                    <tr id="coupon-row-<?= $row['id'] ?>" class="coupon-row">
                                         <td>
-                                            <div class="fw-bold text-primary"><?= $row['code'] ?></div>
+                                            <div class="fw-bold text-primary coupon-code-cell"><?= htmlspecialchars($row['code']) ?></div>
                                         </td>
-                                        <td>
+                                        <td class="coupon-discount-cell">
                                             <?php if ($row['discount_type'] == 'free_shipping'): ?>
                                                 <span class="badge bg-success text-white">ส่งฟรี 🚚</span>
                                             <?php else: ?>
@@ -300,7 +349,7 @@ if (isset($_POST['update'])) {
                                                 </span>
                                             <?php endif; ?>
                                         </td>
-                                         <td class="small text-muted" style="line-height: 1.4;">
+                                         <td class="small text-muted coupon-condition-cell" style="line-height: 1.4;">
                                              <div><?= $row['min_spend'] > 0 ? 'ขั้นต่ำ: ฿'.number_format($row['min_spend']) : 'ไม่มีขั้นต่ำ' ?></div>
                                              <?php if ($row['discount_type'] == 'percent' && floatval($row['max_discount']) > 0): ?>
                                                  <div class="text-danger fw-semibold" style="font-size: 0.78rem;">ลดสูงสุด: ฿<?= number_format($row['max_discount']) ?></div>
@@ -310,11 +359,11 @@ if (isset($_POST['update'])) {
                                                  สิทธิ์ต่อคน: <?= $row['user_limit'] > 0 ? number_format($row['user_limit']).' ครั้ง' : 'ไม่จำกัด' ?>
                                              </div>
                                          </td>
-                                        <td class="small text-muted" style="line-height: 1.4;">
+                                        <td class="small text-muted coupon-date-cell" style="line-height: 1.4;">
                                             <div>เริ่ม: <?= $row['start_date'] ? date('d/m/Y H:i', strtotime($row['start_date'])) : 'ทันที' ?></div>
                                             <div class="text-danger">หมด: <?= date('d/m/Y H:i', strtotime($row['expiry_date'])) ?></div>
                                         </td>
-                                        <td>
+                                        <td class="coupon-status-cell">
                                             <?php if($is_expired): ?>
                                                 <span class="badge bg-secondary">หมดอายุ</span>
                                             <?php elseif($not_started): ?>
@@ -324,8 +373,8 @@ if (isset($_POST['update'])) {
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-end">
-                                            <a href="?edit=<?= $row['id'] ?>" class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1"><i class="bi bi-pencil-fill"></i></a>
-                                            <a href="?del=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm" onclick="return confirm('ลบคูปองนี้?');"><i class="bi bi-trash-fill"></i></a>
+                                            <button onclick='loadEditCoupon(<?= json_encode($row) ?>)' class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1 edit-coupon-btn"><i class="bi bi-pencil-fill"></i></button>
+                                            <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['code'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
@@ -338,30 +387,290 @@ if (isset($_POST['update'])) {
         </div>
     </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function toggleDiscountVal() {
-    const type = document.getElementById('discount_type').value;
-    const valInput = document.getElementById('discount_value');
-    const maxInput = document.getElementsByName('max_discount')[0];
-    if (type === 'free_shipping') {
-        valInput.value = '0';
-        valInput.readOnly = true;
-        if (maxInput) {
-            maxInput.value = '0';
-            maxInput.readOnly = true;
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
         }
-    } else {
-        valInput.readOnly = false;
-        if (maxInput) {
-            maxInput.readOnly = (type === 'fixed');
-            if (type === 'fixed') maxInput.value = '0';
+    });
+
+    let currentCsrfToken = '<?= get_csrf_token() ?>';
+
+    function toggleDiscountVal() {
+        const type = document.getElementById('discount_type').value;
+        const valInput = document.getElementById('discount_value');
+        const maxInput = document.getElementById('max_discount');
+        if (type === 'free_shipping') {
+            valInput.value = '0';
+            valInput.readOnly = true;
+            if (maxInput) {
+                maxInput.value = '0';
+                maxInput.readOnly = true;
+            }
+        } else {
+            valInput.readOnly = false;
+            if (maxInput) {
+                maxInput.readOnly = (type === 'fixed');
+                if (type === 'fixed') maxInput.value = '0';
+            }
         }
     }
-}
-document.addEventListener('DOMContentLoaded', toggleDiscountVal);
+
+    document.addEventListener('DOMContentLoaded', toggleDiscountVal);
+
+    function loadEditCoupon(data) {
+        // Remove warning class from any existing rows
+        document.querySelectorAll('.coupon-row').forEach(row => row.classList.remove('table-warning'));
+        
+        // Add highlight class to selected row
+        const row = document.getElementById('coupon-row-' + data.id);
+        if (row) row.classList.add('table-warning');
+
+        // Populate fields
+        document.getElementById('form-title').innerHTML = '<i class="bi bi-pencil-square text-warning"></i> แก้ไขคูปอง';
+        document.getElementById('coupon_id').value = data.id;
+        document.getElementById('coupon_code').value = data.code;
+        document.getElementById('discount_type').value = data.discount_type;
+        document.getElementById('discount_value').value = data.discount_value;
+        document.getElementById('min_spend').value = data.min_spend;
+        document.getElementById('max_discount').value = data.max_discount || 0;
+        document.getElementById('usage_limit').value = data.usage_limit || 0;
+        document.getElementById('user_limit').value = data.user_limit || 0;
+        
+        if (data.start_date) {
+            document.getElementById('start_date').value = data.start_date.replace(' ', 'T').substring(0, 16);
+        }
+        if (data.expiry_date) {
+            document.getElementById('expiry_date').value = data.expiry_date.replace(' ', 'T').substring(0, 16);
+        }
+
+        toggleDiscountVal();
+
+        // Render Cancel & Update buttons
+        document.getElementById('form-actions-container').innerHTML = `
+            <div class="d-flex gap-2">
+                <button type="submit" name="update" id="submit-btn" class="btn btn-warning w-100 rounded-3 text-white">อัปเดต</button>
+                <button type="button" class="btn btn-secondary rounded-3" onclick="resetCouponForm()">ยกเลิก</button>
+            </div>
+        `;
+    }
+
+    function resetCouponForm() {
+        document.querySelectorAll('.coupon-row').forEach(row => row.classList.remove('table-warning'));
+        
+        document.getElementById('form-title').innerHTML = '<i class="bi bi-ticket-perforated text-blue" style="color:#AEE2FF"></i> สร้างคูปองใหม่';
+        document.getElementById('coupon_id').value = '';
+        document.getElementById('coupon-form').reset();
+        
+        // Default start & expiry
+        const now = new Date();
+        const startStr = now.toISOString().substring(0, 16);
+        const expiry = new Date();
+        expiry.setMonth(expiry.getMonth() + 1);
+        const expiryStr = expiry.toISOString().substring(0, 16);
+        
+        document.getElementById('start_date').value = startStr;
+        document.getElementById('expiry_date').value = expiryStr;
+        
+        toggleDiscountVal();
+
+        document.getElementById('form-actions-container').innerHTML = `
+            <button type="submit" name="add" id="submit-btn" class="btn btn-dark w-100 rounded-3">สร้างคูปอง</button>
+        `;
+    }
+
+    function submitCouponForm(e) {
+        e.preventDefault();
+        const form = document.getElementById('coupon-form');
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+
+        const isEdit = document.getElementById('coupon_id').value !== '';
+        const formData = new FormData(form);
+        formData.append(isEdit ? 'update' : 'add', '1');
+        formData.append('ajax', '1');
+        formData.append('csrf_token', currentCsrfToken);
+
+        fetch('admin_coupons.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            if (data.status === 'success') {
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+
+                if (!isEdit) {
+                    currentCsrfToken = data.csrf_token;
+                    document.querySelectorAll('input[name="csrf_token"]').forEach(el => el.value = currentCsrfToken);
+                }
+
+                // Prepare cell markup updates
+                const discountHtml = data.coupon.discount_type === 'free_shipping' 
+                    ? '<span class="badge bg-success text-white">ส่งฟรี 🚚</span>'
+                    : `<span class="badge bg-blue text-white" style="background:#AEE2FF">${data.coupon.discount_type === 'fixed' ? '-฿' + Number(data.coupon.discount_value).toLocaleString() : '-' + Number(data.coupon.discount_value) + '%'}</span>`;
+                
+                const conditionHtml = `
+                    <div>${data.coupon.min_spend > 0 ? 'ขั้นต่ำ: ฿' + Number(data.coupon.min_spend).toLocaleString() : 'ไม่มีขั้นต่ำ'}</div>
+                    ${data.coupon.discount_type === 'percent' && Number(data.coupon.max_discount) > 0 ? '<div class="text-danger fw-semibold" style="font-size: 0.78rem;">ลดสูงสุด: ฿' + Number(data.coupon.max_discount).toLocaleString() + '</div>' : ''}
+                    <div class="x-small" style="font-size: 0.75rem; color: #94a3b8;">
+                        สิทธิ์รวม: ${data.coupon.usage_limit > 0 ? Number(data.coupon.usage_limit).toLocaleString() + ' ครั้ง' : 'ไม่จำกัด'}<br>
+                        สิทธิ์ต่อคน: ${data.coupon.user_limit > 0 ? Number(data.coupon.user_limit).toLocaleString() + ' ครั้ง' : 'ไม่จำกัด'}
+                    </div>
+                `;
+
+                const startText = data.coupon.start_date ? formatDate(data.coupon.start_date) : 'ทันที';
+                const expiryText = formatDate(data.coupon.expiry_date);
+                const dateHtml = `
+                    <div>เริ่ม: ${startText}</div>
+                    <div class="text-danger">หมด: ${expiryText}</div>
+                `;
+
+                // Calculate status
+                const now = new Date();
+                const exp = new Date(data.coupon.expiry_date);
+                const start = data.coupon.start_date ? new Date(data.coupon.start_date) : null;
+                let statusHtml = '<span class="badge bg-success">ใช้งานได้</span>';
+                if (exp < now) {
+                    statusHtml = '<span class="badge bg-secondary">หมดอายุ</span>';
+                } else if (start && start > now) {
+                    statusHtml = '<span class="badge bg-warning text-dark">ยังไม่เริ่ม</span>';
+                }
+
+                if (isEdit) {
+                    // Update existing row
+                    const row = document.getElementById('coupon-row-' + data.coupon.id);
+                    if (row) {
+                        row.querySelector('.coupon-code-cell').innerText = data.coupon.code;
+                        row.querySelector('.coupon-discount-cell').innerHTML = discountHtml;
+                        row.querySelector('.coupon-condition-cell').innerHTML = conditionHtml;
+                        row.querySelector('.coupon-date-cell').innerHTML = dateHtml;
+                        row.querySelector('.coupon-status-cell').innerHTML = statusHtml;
+                        
+                        const editBtn = row.querySelector('.edit-coupon-btn');
+                        if (editBtn) {
+                            editBtn.setAttribute('onclick', `loadEditCoupon(${JSON.stringify(data.coupon)})`);
+                        }
+                    }
+                    resetCouponForm();
+                } else {
+                    // Add new row at start of list
+                    const tbody = document.getElementById('coupons-tbody');
+                    const tr = document.createElement('tr');
+                    tr.id = 'coupon-row-' + data.coupon.id;
+                    tr.className = 'coupon-row';
+                    tr.innerHTML = `
+                        <td>
+                            <div class="fw-bold text-primary coupon-code-cell">${escapeHtml(data.coupon.code)}</div>
+                        </td>
+                        <td class="coupon-discount-cell">${discountHtml}</td>
+                        <td class="small text-muted coupon-condition-cell" style="line-height: 1.4;">${conditionHtml}</td>
+                        <td class="small text-muted coupon-date-cell" style="line-height: 1.4;">${dateHtml}</td>
+                        <td class="coupon-status-cell">${statusHtml}</td>
+                        <td class="text-end">
+                            <button onclick='loadEditCoupon(${JSON.stringify(data.coupon)})' class="btn btn-light btn-sm text-primary rounded-circle shadow-sm me-1 edit-coupon-btn"><i class="bi bi-pencil-fill"></i></button>
+                            <button onclick="confirmDelete(${data.coupon.id}, '${escapeHtmlString(data.coupon.code)}', '${currentCsrfToken}')" class="btn btn-light btn-sm text-danger rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
+                        </td>
+                    `;
+                    tbody.insertBefore(tr, tbody.firstChild);
+                    resetCouponForm();
+                }
+            } else {
+                Toast.fire({
+                    icon: 'error',
+                    title: data.message || 'เกิดข้อผิดพลาดในการบันทึก'
+                });
+            }
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    function confirmDelete(id, code, token) {
+        Swal.fire({
+            title: 'ลบคูปองหรือไม่?',
+            text: `ยืนยันการลบคูปองโค้ด "${code}" ออกจากระบบถาวร?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'ลบเลย',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`admin_coupons.php?del=${id}&csrf_token=${token}&ajax=1`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        const row = document.getElementById('coupon-row-' + id);
+                        if (row) {
+                            row.classList.add('fade-out');
+                            setTimeout(() => row.remove(), 300);
+                        }
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'ลบไม่สำเร็จ'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'การเชื่อมต่อล้มเหลว'
+                    });
+                });
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function escapeHtmlString(text) {
+        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr.replace(' ', 'T'));
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
 </script>
 </body>
 </html>
-
-

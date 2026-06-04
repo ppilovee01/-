@@ -42,6 +42,36 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
         $line_notify_token_raw = getSecretValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '');
     }
     $line_notify_token = mysqli_real_escape_string($conn, $line_notify_token_raw);
+
+    $discord_webhook_url_raw = trim($_POST['discord_webhook_url'] ?? '');
+    if ($discord_webhook_url_raw === getMaskedValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '')) {
+        $discord_webhook_url_raw = getSecretValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '');
+    }
+    $discord_webhook_url = mysqli_real_escape_string($conn, $discord_webhook_url_raw);
+
+    $telegram_bot_token_raw = trim($_POST['telegram_bot_token'] ?? '');
+    if ($telegram_bot_token_raw === getMaskedValue('TELEGRAM_BOT_TOKEN', $shop['telegram_bot_token'] ?? '')) {
+        $telegram_bot_token_raw = getSecretValue('TELEGRAM_BOT_TOKEN', $shop['telegram_bot_token'] ?? '');
+    }
+    $telegram_bot_token = mysqli_real_escape_string($conn, $telegram_bot_token_raw);
+
+    $telegram_chat_id_raw = trim($_POST['telegram_chat_id'] ?? '');
+    if ($telegram_chat_id_raw === getMaskedValue('TELEGRAM_CHAT_ID', $shop['telegram_chat_id'] ?? '')) {
+        $telegram_chat_id_raw = getSecretValue('TELEGRAM_CHAT_ID', $shop['telegram_chat_id'] ?? '');
+    }
+    $telegram_chat_id = mysqli_real_escape_string($conn, $telegram_chat_id_raw);
+
+    $slack_webhook_url_raw = trim($_POST['slack_webhook_url'] ?? '');
+    if ($slack_webhook_url_raw === getMaskedValue('SLACK_WEBHOOK_URL', $shop['slack_webhook_url'] ?? '')) {
+        $slack_webhook_url_raw = getSecretValue('SLACK_WEBHOOK_URL', $shop['slack_webhook_url'] ?? '');
+    }
+    $slack_webhook_url = mysqli_real_escape_string($conn, $slack_webhook_url_raw);
+
+    $custom_webhook_url_raw = trim($_POST['custom_webhook_url'] ?? '');
+    if ($custom_webhook_url_raw === getMaskedValue('CUSTOM_WEBHOOK_URL', $shop['custom_webhook_url'] ?? '')) {
+        $custom_webhook_url_raw = getSecretValue('CUSTOM_WEBHOOK_URL', $shop['custom_webhook_url'] ?? '');
+    }
+    $custom_webhook_url = mysqli_real_escape_string($conn, $custom_webhook_url_raw);
     
     $slip_ai_provider = mysqli_real_escape_string($conn, $_POST['slip_ai_provider'] ?? 'none');
     
@@ -82,10 +112,16 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             points_earn_rate='$points_earn_rate',
             points_spend_rate='$points_spend_rate',
             line_notify_token='$line_notify_token',
+            discord_webhook_url='$discord_webhook_url',
+            telegram_bot_token='$telegram_bot_token',
+            telegram_chat_id='$telegram_chat_id',
+            slack_webhook_url='$slack_webhook_url',
+            custom_webhook_url='$custom_webhook_url',
             slip_ai_provider='$slip_ai_provider',
             openai_api_key='$openai_api_key',
             gemini_api_key='$gemini_api_key',
-            claude_api_key='$claude_api_key'
+            claude_api_key='$claude_api_key',
+            notification_sound='" . mysqli_real_escape_string($conn, $_POST['notification_sound'] ?? 'chime') . "'
             WHERE id=1";
     mysqli_query($conn, $sql);
     
@@ -96,11 +132,17 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     updateEnv('GEMINI_API_KEY', $gemini_api_key_raw, $env_path);
     updateEnv('CLAUDE_API_KEY', $claude_api_key_raw, $env_path);
     updateEnv('LINE_NOTIFY_TOKEN', $line_notify_token_raw, $env_path);
+    updateEnv('DISCORD_WEBHOOK_URL', $discord_webhook_url_raw, $env_path);
+    updateEnv('TELEGRAM_BOT_TOKEN', $telegram_bot_token_raw, $env_path);
+    updateEnv('TELEGRAM_CHAT_ID', $telegram_chat_id_raw, $env_path);
+    updateEnv('SLACK_WEBHOOK_URL', $slack_webhook_url_raw, $env_path);
+    updateEnv('CUSTOM_WEBHOOK_URL', $custom_webhook_url_raw, $env_path);
     updateEnv('SMTP_HOST', trim($_POST['smtp_host'] ?? ''), $env_path);
     updateEnv('SMTP_PORT', trim($_POST['smtp_port'] ?? '587'), $env_path);
     updateEnv('SMTP_USER', trim($_POST['smtp_user'] ?? ''), $env_path);
     updateEnv('SMTP_PASS', $smtp_pass_raw, $env_path);
     updateEnv('SMTP_SECURE', trim($_POST['smtp_secure'] ?? 'tls'), $env_path);
+    updateEnv('NOTIFICATION_SOUND', trim($_POST['notification_sound'] ?? 'chime'), $env_path);
     
     $changes = [];
     if (($shop['shop_name'] ?? '') !== $name) {
@@ -154,6 +196,21 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     if (($shop['line_notify_token'] ?? '') !== $line_notify_token) {
         $changes[] = ['field' => 'LINE Notify Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
     }
+    if (($shop['discord_webhook_url'] ?? '') !== $discord_webhook_url) {
+        $changes[] = ['field' => 'Discord Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
+    }
+    if (($shop['telegram_bot_token'] ?? '') !== $telegram_bot_token) {
+        $changes[] = ['field' => 'Telegram Bot Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
+    }
+    if (($shop['telegram_chat_id'] ?? '') !== $telegram_chat_id) {
+        $changes[] = ['field' => 'Telegram Chat ID', 'old' => '******', 'new' => '(เปลี่ยน Chat ID)'];
+    }
+    if (($shop['slack_webhook_url'] ?? '') !== $slack_webhook_url) {
+        $changes[] = ['field' => 'Slack Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
+    }
+    if (($shop['custom_webhook_url'] ?? '') !== $custom_webhook_url) {
+        $changes[] = ['field' => 'Custom Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
+    }
     if (($shop['slip_ai_provider'] ?? '') !== $slip_ai_provider) {
         $changes[] = ['field' => 'ผู้ให้บริการ Slip AI', 'old' => $shop['slip_ai_provider'] ?? '', 'new' => $slip_ai_provider];
     }
@@ -165,6 +222,19 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     }
     if (($shop['claude_api_key'] ?? '') !== $claude_api_key) {
         $changes[] = ['field' => 'Claude API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
+    }
+    $sound = mysqli_real_escape_string($conn, $_POST['notification_sound'] ?? 'chime');
+    if (($shop['notification_sound'] ?? 'chime') !== $sound) {
+        $sound_labels = [
+            'chime' => 'กระดิ่งพาสเทล',
+            'glass' => 'เสียงแก้วใส',
+            'beep' => 'เสียงบี๊บแจ้งเตือน',
+            'piano' => 'เสียงคอร์ดเปียโน',
+            'mute' => 'ปิดเสียงแจ้งเตือน'
+        ];
+        $old_lbl = $sound_labels[$shop['notification_sound'] ?? 'chime'] ?? ($shop['notification_sound'] ?? 'chime');
+        $new_lbl = $sound_labels[$sound] ?? $sound;
+        $changes[] = ['field' => 'เสียงแจ้งเตือนออเดอร์ใหม่', 'old' => $old_lbl, 'new' => $new_lbl];
     }
 
     log_admin_action($conn, 'แก้ไขตั้งค่าร้านค้า', [
@@ -187,6 +257,9 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
         }
     }
 
+    $ajax_success_message = 'บันทึกข้อมูลร้านค้าเรียบร้อยแล้ว';
+    $ajax_status = 'success';
+
     if (isset($_POST['test_smtp'])) {
         include 'mail_sender.php';
         $res = send_test_email($conn);
@@ -197,6 +270,7 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
                     ['field' => 'ผลลัพธ์การทดสอบ', 'old' => '-', 'new' => 'สำเร็จ']
                 ]
             ]);
+            $ajax_success_message = 'ทดสอบการเชื่อมต่อ SMTP สำเร็จแล้ว! มีอีเมลทดสอบส่งไปยังกล่องจดหมายของคุณเรียบร้อย';
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ทดสอบการเชื่อมต่อ SMTP สำเร็จแล้ว! มีอีเมลทดสอบส่งไปยังกล่องจดหมายของคุณเรียบร้อย', 'icon'=>'success'];
         } else {
             log_admin_action($conn, 'ทดสอบ SMTP', [
@@ -205,11 +279,20 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
                     ['field' => 'ผลลัพธ์การทดสอบ', 'old' => '-', 'new' => "ล้มเหลว - $res"]
                 ]
             ]);
+            $ajax_success_message = 'เชื่อมต่อล้มเหลว: ' . $res;
+            $ajax_status = 'error';
             $_SESSION['swal'] = ['title'=>'เกิดข้อผิดพลาด', 'text'=>'เชื่อมต่อล้มเหลว: ' . $res, 'icon'=>'error'];
         }
     } else {
         $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'บันทึกข้อมูลร้านค้าเรียบร้อยแล้ว', 'icon'=>'success'];
     }
+
+    if (isset($_POST['ajax']) && $_POST['ajax'] === '1') {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => $ajax_status, 'message' => $ajax_success_message]);
+        exit();
+    }
+
     header("Location: admin_settings.php"); exit();
 }
 
@@ -263,7 +346,7 @@ if ($coupons_query) {
             <h3 class="fw-bold mb-4">⚙️ ตั้งค่าร้านค้า (Shop Settings)</h3>
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
-                <form method="POST" enctype="multipart/form-data">
+                <form id="settings-form" method="POST" enctype="multipart/form-data" onsubmit="submitSettingsForm(event)">
                     <?= get_csrf_input() ?>
                     
                     <div class="d-flex flex-column flex-sm-row align-items-center mb-4 p-3 border rounded bg-light">
@@ -414,17 +497,88 @@ if ($coupons_query) {
                     </div>
 
                     <hr class="my-4">
-                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-bell-fill me-1"></i> ตั้งค่าการแจ้งเตือน Line Notify (Line Notify Settings)</h5>
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-bell-fill me-1"></i> ระบบแจ้งเตือนคำสั่งซื้อใหม่ (Social & Webhook Notifications)</h5>
                     <div class="row g-3 mb-4">
-                        <div class="col-12 col-md-12 mb-3">
+                        <!-- LINE Notify -->
+                        <div class="col-12 mb-3">
                             <label class="form-label small fw-bold text-muted">
                                 LINE Notify Token
                                 <?php if (hasEnvValue('LINE_NOTIFY_TOKEN')): ?>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
                                 <?php endif; ?>
                             </label>
-                            <input type="text" name="line_notify_token" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '')) ?>" placeholder="ใส่ Line Notify Token ของร้านค้า เพื่อรับแจ้งเตือนเมื่อมีออเดอร์ใหม่">
-                            <div class="form-text">สามารถขอ Token ได้ที่ <a href="https://notify-bot.line.me/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">LINE Notify Portal</a> และเชิญบอทเข้ากลุ่มแชทที่ต้องการรับแจ้งเตือน</div>
+                            <input type="text" name="line_notify_token" class="form-control" value="<?= htmlspecialchars(getMaskedValue('LINE_NOTIFY_TOKEN', $shop['line_notify_token'] ?? '')) ?>" placeholder="ใส่ Line Notify Token ของร้านค้า">
+                            <div class="form-text">รับแจ้งเตือนเมื่อมีออเดอร์ใหม่ผ่าน LINE - ขอ Token ได้ที่ <a href="https://notify-bot.line.me/" target="_blank" class="text-decoration-none" style="color: #0ea5e9;">LINE Notify Portal</a></div>
+                        </div>
+
+                        <!-- Discord Webhook -->
+                        <div class="col-12 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                Discord Webhook URL
+                                <?php if (hasEnvValue('DISCORD_WEBHOOK_URL')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="password" name="discord_webhook_url" id="discordWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '')) ?>" placeholder="https://discord.com/api/webhooks/...">
+                            <div class="form-text">รับแจ้งเตือนออเดอร์ใหม่เข้าแชนแนล Discord (สร้าง Webhook ได้ในส่วน Integration ของห้องแชทใน Discord)</div>
+                        </div>
+
+                        <!-- Telegram Integration -->
+                        <div class="col-12 col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                Telegram Bot Token
+                                <?php if (hasEnvValue('TELEGRAM_BOT_TOKEN')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="password" name="telegram_bot_token" id="telegramBotTokenInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('TELEGRAM_BOT_TOKEN', $shop['telegram_bot_token'] ?? '')) ?>" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                Telegram Chat ID
+                                <?php if (hasEnvValue('TELEGRAM_CHAT_ID')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="text" name="telegram_chat_id" class="form-control" value="<?= htmlspecialchars(getMaskedValue('TELEGRAM_CHAT_ID', $shop['telegram_chat_id'] ?? '')) ?>" placeholder="เช่น -100123456789 หรือ 123456789">
+                            <div class="form-text">บอทเทเลแกรมและ Chat ID ของห้อง/กลุ่มที่จะรับแจ้งเตือน (ติดต่อ @BotFather เพื่อสร้างบอท)</div>
+                        </div>
+
+                        <!-- Slack Webhook -->
+                        <div class="col-12 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                Slack Webhook URL
+                                <?php if (hasEnvValue('SLACK_WEBHOOK_URL')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="password" name="slack_webhook_url" id="slackWebhookInput" class="form-control" value="<?= htmlspecialchars(getMaskedValue('SLACK_WEBHOOK_URL', $shop['slack_webhook_url'] ?? '')) ?>" placeholder="https://hooks.slack.com/services/...">
+                            <div class="form-text">รับแจ้งเตือนผ่านช่องทาง Slack (สร้าง Incoming Webhook ได้จากแอป Slack)</div>
+                        </div>
+
+                        <!-- Custom Webhook URL -->
+                        <div class="col-12 mb-3">
+                            <label class="form-label small fw-bold text-muted">
+                                Custom Webhook URL (Generic Webhook API)
+                                <?php if (hasEnvValue('CUSTOM_WEBHOOK_URL')): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2" style="font-size: 0.65rem; margin-left: 5px;">⚙️ โหลดจาก .env</span>
+                                <?php endif; ?>
+                            </label>
+                            <input type="text" name="custom_webhook_url" class="form-control" value="<?= htmlspecialchars(getMaskedValue('CUSTOM_WEBHOOK_URL', $shop['custom_webhook_url'] ?? '')) ?>" placeholder="https://yourdomain.com/webhook-receiver">
+                            <div class="form-text">ส่งข้อมูลออเดอร์ใหม่ในรูปแบบ JSON POST ไปยัง API ปลายทางภายนอกที่คุณกำหนดโดยตรง</div>
+                        </div>
+
+                        <!-- เสียงแจ้งเตือนออเดอร์ใหม่ (Real-Time Sound Settings) -->
+                        <div class="col-12 mb-3">
+                            <label class="form-label small fw-bold text-muted">🔊 เสียงแจ้งเตือนเมื่อมีออเดอร์ใหม่ (Dashboard Real-Time Sound)</label>
+                            <select name="notification_sound" id="notificationSoundSelect" class="form-select" onchange="previewNotificationSound(this.value)">
+                                <option value="chime" <?= ($shop['notification_sound'] ?? 'chime') == 'chime' ? 'selected' : '' ?>>กระดิ่งพาสเทล / Chime (Default)</option>
+                                <option value="glass" <?= ($shop['notification_sound'] ?? 'chime') == 'glass' ? 'selected' : '' ?>>เสียงแก้วใส / Crystal Glass</option>
+                                <option value="beep" <?= ($shop['notification_sound'] ?? 'chime') == 'beep' ? 'selected' : '' ?>>เสียงบี๊บแจ้งเตือน / Digital Beep</option>
+                                <option value="piano" <?= ($shop['notification_sound'] ?? 'chime') == 'piano' ? 'selected' : '' ?>>เสียงคอร์ดเปียโน / Piano Chord</option>
+                                <option value="mute" <?= ($shop['notification_sound'] ?? 'chime') == 'mute' ? 'selected' : '' ?>>🔇 ปิดเสียงแจ้งเตือน / Mute</option>
+                            </select>
+                            <div class="form-text">เมื่อลูกค้าสั่งซื้อเข้ามาใหม่ เสียงที่เลือกจะเล่นบนหน้าจัดการออเดอร์ (เลือกเสียงแล้วทดลองฟังได้ทันที)</div>
                         </div>
                     </div>
 
@@ -503,12 +657,12 @@ if ($coupons_query) {
 
                     <div class="row g-2">
                         <div class="col-md-8">
-                            <button type="submit" name="save_settings" class="btn btn-pastel-blue rounded-pill px-4 w-100 py-2 fw-bold shadow-sm">
+                            <button type="submit" name="save_settings" id="save-settings-btn" class="btn btn-pastel-blue rounded-pill px-4 w-100 py-2 fw-bold shadow-sm">
                                 <i class="bi bi-save me-1"></i> บันทึกข้อมูลทั้งหมด
                             </button>
                         </div>
                         <div class="col-md-4">
-                            <button type="submit" name="test_smtp" class="btn btn-outline-primary rounded-pill px-4 w-100 py-2 fw-bold shadow-sm bg-white" style="border-color: #AEE2FF; color: #444;">
+                            <button type="button" onclick="testSmtpConnection()" id="test-smtp-btn" class="btn btn-outline-primary rounded-pill px-4 w-100 py-2 fw-bold shadow-sm bg-white" style="border-color: #AEE2FF; color: #444;">
                                 <i class="bi bi-send-check me-1"></i> ทดสอบการส่งอีเมล
                             </button>
                         </div>
@@ -537,6 +691,79 @@ if ($coupons_query) {
         output.src = URL.createObjectURL(event.target.files[0]);
     }
 
+    function previewNotificationSound(soundType) {
+        if (soundType === 'mute') return;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const now = ctx.currentTime;
+            
+            if (soundType === 'chime') {
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(659.25, now);
+                gain1.gain.setValueAtTime(0.1, now);
+                gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.5);
+                
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880.00, now + 0.1);
+                gain2.gain.setValueAtTime(0.15, now + 0.1);
+                gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.1);
+                osc2.stop(now + 0.7);
+            } else if (soundType === 'glass') {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1500, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (soundType === 'beep') {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.setValueAtTime(0.1, now + 0.15);
+                gain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (soundType === 'piano') {
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, index) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.05);
+                    gain.gain.setValueAtTime(0.08, now + index * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + index * 0.05);
+                    osc.stop(now + 1.0);
+                });
+            }
+        } catch (e) {
+            console.warn('AudioContext failed:', e);
+        }
+    }
+
     function togglePasswordVisibility(inputId, btn) {
         const input = document.getElementById(inputId);
         const icon = btn.querySelector('i');
@@ -562,6 +789,120 @@ if ($coupons_query) {
         } else if (val === 'claude') {
             document.getElementById('claude-key-box').style.display = 'block';
         }
+    }
+
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    function submitSettingsForm(e) {
+        e.preventDefault();
+        const form = document.getElementById('settings-form');
+        const submitBtn = document.getElementById('save-settings-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+        
+        const formData = new FormData(form);
+        formData.append('save_settings', '1');
+        formData.append('ajax', '1');
+        
+        fetch('admin_settings.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-save me-1"></i> บันทึกข้อมูลทั้งหมด';
+            
+            if (data.status === 'success') {
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: data.message,
+                    confirmButtonColor: '#AEE2FF'
+                });
+            }
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-save me-1"></i> บันทึกข้อมูลทั้งหมด';
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    function testSmtpConnection() {
+        const form = document.getElementById('settings-form');
+        const testBtn = document.getElementById('test-smtp-btn');
+        testBtn.disabled = true;
+        
+        Swal.fire({
+            title: 'กำลังทดสอบเชื่อมต่อ SMTP',
+            text: 'กรุณารอสักครู่ ระบบกำลังทดสอบการส่งอีเมล...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        const formData = new FormData(form);
+        formData.append('save_settings', '1');
+        formData.append('test_smtp', '1');
+        formData.append('ajax', '1');
+        
+        fetch('admin_settings.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            testBtn.disabled = false;
+            Swal.close();
+            
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'เชื่อมต่อสำเร็จ',
+                    text: data.message,
+                    confirmButtonColor: '#AEE2FF'
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เชื่อมต่อล้มเหลว',
+                    text: data.message,
+                    confirmButtonColor: '#AEE2FF'
+                });
+            }
+        })
+        .catch(err => {
+            testBtn.disabled = false;
+            Swal.close();
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'ข้อผิดพลาด',
+                text: 'การเชื่อมต่อกับเซิร์ฟเวอร์ล้มเหลว',
+                confirmButtonColor: '#AEE2FF'
+            });
+        });
     }
 </script>
 </body>

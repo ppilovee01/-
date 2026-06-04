@@ -11,6 +11,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
 }
@@ -50,12 +55,22 @@ if (isset($_POST['update_settings'])) {
                 ['field' => 'ระยะเวลารอบ (ชม.)', 'old' => ($shop_s['auto_flash_duration'] ?? 2) . ' ชม.', 'new' => $auto_flash_duration . ' ชม.']
             ]
         ]);
-        $_SESSION['success_msg'] = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
         // Trigger generation check
         checkAndGenerateAutoFlashSale($conn);
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'message' => 'บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!']);
+            exit();
+        }
+        $_SESSION['success_msg'] = "บันทึกการตั้งค่าระบบอัตโนมัติสำเร็จ!";
         header("Location: admin_flash_sale.php");
         exit();
     } else {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => "บันทึกข้อมูลล้มเหลว: " . mysqli_error($conn)]);
+            exit();
+        }
         $error_msg = "บันทึกข้อมูลล้มเหลว: " . mysqli_error($conn);
     }
 }
@@ -70,6 +85,11 @@ if (isset($_POST['add'])) {
     
     // Check if start_time is before end_time
     if (strtotime($start_time) >= strtotime($end_time)) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'เวลาเริ่มต้นต้องมาก่อนเวลาสิ้นสุด']);
+            exit();
+        }
         $error_msg = "เวลาเริ่มต้นต้องมาก่อนเวลาสิ้นสุด";
     } else {
         // Check for overlapping campaigns on same product
@@ -81,6 +101,11 @@ if (isset($_POST['add'])) {
                 (start_time BETWEEN '$start_time' AND '$end_time')
             )");
         if (mysqli_num_rows($overlap) > 0) {
+            if (isset($_POST['ajax'])) {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'error', 'message' => 'สินค้านี้มีแคมเปญ Flash Sale ในช่วงเวลาดังกล่าวอยู่แล้ว']);
+                exit();
+            }
             $error_msg = "สินค้านี้มีแคมเปญ Flash Sale ในช่วงเวลาดังกล่าวอยู่แล้ว";
         } else {
             $sql = "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
@@ -99,10 +124,20 @@ if (isset($_POST['add'])) {
                         ['field' => 'เวลาสิ้นสุด', 'old' => '-', 'new' => $end_time]
                     ]
                 ]);
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'success', 'message' => 'สร้างแคมเปญ Flash Sale สำเร็จ!']);
+                    exit();
+                }
                 $_SESSION['success_msg'] = "สร้างแคมเปญ Flash Sale สำเร็จ!";
                 header("Location: admin_flash_sale.php");
                 exit();
             } else {
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'error', 'message' => 'ไม่สามารถบันทึกข้อมูลได้: ' . mysqli_error($conn)]);
+                    exit();
+                }
                 $error_msg = "ไม่สามารถบันทึกข้อมูลได้: " . mysqli_error($conn);
             }
         }
@@ -111,6 +146,11 @@ if (isset($_POST['add'])) {
 
 if (isset($_GET['del'])) {
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['del']);
@@ -132,8 +172,18 @@ if (isset($_GET['del'])) {
                 ]
             ]
         ]);
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'message' => 'ลบแคมเปญเรียบร้อยแล้ว']);
+            exit();
+        }
         $_SESSION['success_msg'] = "ลบแคมเปญเรียบร้อยแล้ว";
     } else {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'ลบแคมเปญไม่สำเร็จ']);
+            exit();
+        }
         $_SESSION['error_msg'] = "ลบแคมเปญไม่สำเร็จ";
     }
     header("Location: admin_flash_sale.php");
@@ -142,6 +192,11 @@ if (isset($_GET['del'])) {
 
 if (isset($_GET['cancel_campaign'])) {
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['cancel_campaign']);
@@ -165,8 +220,18 @@ if (isset($_GET['cancel_campaign'])) {
                 ]
             ]
         ]);
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'message' => 'สิ้นสุดแคมเปญดังกล่าวทันทีเรียบร้อยแล้ว']);
+            exit();
+        }
         $_SESSION['success_msg'] = "สิ้นสุดแคมเปญดังกล่าวทันทีเรียบร้อยแล้ว";
     } else {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'ไม่สามารถปิดแคมเปญได้']);
+            exit();
+        }
         $_SESSION['error_msg'] = "ไม่สามารถปิดแคมเปญได้";
     }
     header("Location: admin_flash_sale.php");
@@ -174,6 +239,19 @@ if (isset($_GET['cancel_campaign'])) {
 }
 
 // --- Logic 4: Fetch Edit Data ---
+if (isset($_GET['get_edit'])) {
+    $id = intval($_GET['get_edit']);
+    $res = mysqli_query($conn, "SELECT * FROM flash_sales WHERE id = $id");
+    $data = mysqli_fetch_assoc($res);
+    header('Content-Type: application/json');
+    if ($data) {
+        echo json_encode(['status' => 'success', 'data' => $data]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'ไม่พบข้อมูลแคมเปญ']);
+    }
+    exit();
+}
+
 $edit_data = null;
 if (isset($_GET['edit'])) {
     $id = intval($_GET['edit']);
@@ -191,6 +269,11 @@ if (isset($_POST['update'])) {
     $end_time = mysqli_real_escape_string($conn, $_POST['end_time']);
     
     if (strtotime($start_time) >= strtotime($end_time)) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'เวลาเริ่มต้นต้องมาก่อนเวลาสิ้นสุด']);
+            exit();
+        }
         $error_msg = "เวลาเริ่มต้นต้องมาก่อนเวลาสิ้นสุด";
     } else {
         // ดึงข้อมูลเก่าเพื่อนำมาเปรียบเทียบในประวัติการแก้ไข (Diff Log)
@@ -207,6 +290,11 @@ if (isset($_POST['update'])) {
                 (start_time BETWEEN '$start_time' AND '$end_time')
             )");
         if (mysqli_num_rows($overlap) > 0) {
+            if (isset($_POST['ajax'])) {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'error', 'message' => 'สินค้านี้มีแคมเปญ Flash Sale ในช่วงเวลาดังกล่าวอยู่แล้ว']);
+                exit();
+            }
             $error_msg = "สินค้านี้มีแคมเปญ Flash Sale ในช่วงเวลาดังกล่าวอยู่แล้ว";
         } else {
             $sql = "UPDATE flash_sales SET 
@@ -257,10 +345,20 @@ if (isset($_POST['update'])) {
                     ]
                 ]);
 
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'success', 'message' => 'อัปเดตแคมเปญเรียบร้อย!']);
+                    exit();
+                }
                 $_SESSION['success_msg'] = "อัปเดตแคมเปญเรียบร้อย!";
                 header("Location: admin_flash_sale.php");
                 exit();
             } else {
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'error', 'message' => "อัปเดตแคมเปญล้มเหลว: " . mysqli_error($conn)]);
+                    exit();
+                }
                 $error_msg = "อัปเดตแคมเปญล้มเหลว: " . mysqli_error($conn);
             }
         }
@@ -299,6 +397,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Kanit'; background: #f8f9fa; }
         .text-blue { color: #7FB5FF !important; }
@@ -312,6 +411,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         .badge-expired { background: #f8d7da; color: #842029; }
         .progress-bar-flash { height: 8px; border-radius: 50px; background: linear-gradient(90deg, #AEE2FF, #7FB5FF); }
         .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; }
+        .campaign-row { transition: all 0.3s ease; }
         @media (min-width: 1200px) {
             .sticky-column-wrapper {
                 position: sticky;
@@ -353,8 +453,9 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                 <div class="col-xl-4 mb-4">
                     <div class="sticky-column-wrapper">
                         <!-- Create/Edit Campaign Card -->
+                        <!-- Create/Edit Campaign Card -->
                         <div class="card-modern p-4">
-                            <h5 class="fw-bold mb-4">
+                            <h5 class="fw-bold mb-4" id="form-title">
                                 <?php if ($edit_data): ?>
                                     <i class="bi bi-pencil-square text-warning"></i> แก้ไขแคมเปญ Flash Sale
                                 <?php else: ?>
@@ -362,16 +463,14 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                 <?php endif; ?>
                             </h5>
                             
-                            <form method="POST" action="admin_flash_sale.php">
+                            <form id="campaign-form" method="POST" action="admin_flash_sale.php" onsubmit="submitCampaignForm(event)">
                                 <?= get_csrf_input() ?>
-                                <?php if ($edit_data): ?>
-                                    <input type="hidden" name="id" value="<?= $edit_data['id'] ?>">
-                                <?php endif; ?>
+                                <input type="hidden" name="id" id="campaign-id" value="<?= $edit_data ? $edit_data['id'] : '' ?>">
 
                                 <div class="mb-3">
                                     <label class="form-label fw-semibold small text-muted">เลือกสินค้า</label>
                                     <select class="form-select rounded-3" name="product_id" required>
-                                        <option value="">-- กรุณาเลือกสินค้า --</option>
+                                        <option value="">-- เลือกสินค้า --</option>
                                         <?php foreach ($products_list as $prod): ?>
                                             <option value="<?= $prod['id'] ?>" <?= ($edit_data && $edit_data['product_id'] == $prod['id']) ? 'selected' : '' ?>>
                                                 <?= htmlspecialchars($prod['name']) ?> (ปกติ ฿<?= number_format($prod['price']) ?>)
@@ -404,10 +503,11 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                 </div>
 
                                 <?php if ($edit_data): ?>
-                                    <button type="submit" name="update" class="btn btn-warning w-100 rounded-3 py-2 text-white fw-bold">อัปเดตข้อมูล</button>
-                                    <a href="admin_flash_sale.php" class="btn btn-outline-secondary w-100 rounded-3 py-2 mt-2">ยกเลิกแก้ไข</a>
+                                    <button type="submit" name="update" id="submit-btn" class="btn btn-warning w-100 rounded-3 py-2 text-white fw-bold">อัปเดตข้อมูล</button>
+                                    <button type="button" id="cancel-edit-btn" class="btn btn-outline-secondary w-100 rounded-3 py-2 mt-2" onclick="exitEditMode()">ยกเลิกแก้ไข</button>
                                 <?php else: ?>
-                                    <button type="submit" name="add" class="btn btn-blue w-100 rounded-3 py-2 fw-bold">สร้างแคมเปญ</button>
+                                    <button type="submit" name="add" id="submit-btn" class="btn btn-blue w-100 rounded-3 py-2 fw-bold">สร้างแคมเปญ</button>
+                                    <button type="button" id="cancel-edit-btn" class="btn btn-outline-secondary w-100 rounded-3 py-2 mt-2" style="display: none;" onclick="exitEditMode()">ยกเลิกแก้ไข</button>
                                 <?php endif; ?>
                             </form>
                         </div>
@@ -417,7 +517,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                             <h5 class="fw-bold mb-3"><i class="bi bi-robot text-blue"></i> ระบบรันแคมเปญอัตโนมัติ</h5>
                             <p class="text-muted small mb-3">เมื่อเปิดใช้งาน หากระบบตรวจไม่พบแคมเปญ Flash Sale ที่กำลังรันอยู่ ระบบจะสุ่มเลือกสินค้าขึ้นมาจัดแคมเปญอัตโนมัติทันที</p>
                             
-                            <form method="POST" action="admin_flash_sale.php">
+                            <form id="settings-form" method="POST" action="admin_flash_sale.php" onsubmit="submitSettingsForm(event)">
                                 <?= get_csrf_input() ?>
                                 <div class="form-check form-switch mb-3">
                                     <input class="form-check-input" type="checkbox" name="auto_flash_sale" id="autoFlashCheck" value="1" <?= (isset($shop_s['auto_flash_sale']) && $shop_s['auto_flash_sale'] == 1) ? 'checked' : '' ?> style="cursor: pointer; width: 2.2em; height: 1.1em;">
@@ -479,9 +579,13 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                         <th class="text-center">การจัดการ</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="campaigns-tbody">
+                                    <?php 
+                                    $ajax_fetch = isset($_GET['ajax_fetch']);
+                                    if ($ajax_fetch) ob_start();
+                                    ?>
                                     <?php if (empty($campaigns)): ?>
-                                        <tr>
+                                        <tr id="no-campaigns-placeholder">
                                             <td colspan="6" class="text-center py-4 text-muted">ไม่พบข้อมูลแคมเปญ Flash Sale</td>
                                         </tr>
                                     <?php else: ?>
@@ -512,7 +616,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                             $pct = $camp['flash_stock'] > 0 ? ($camp['flash_sold'] / $camp['flash_stock']) * 100 : 0;
                                             if ($pct > 100) $pct = 100;
                                         ?>
-                                            <tr>
+                                            <tr id="campaign-row-<?= $camp['id'] ?>" class="campaign-row">
                                                 <td>
                                                     <div class="d-flex align-items-center gap-2">
                                                         <img src="<?= htmlspecialchars($camp['product_image']) ?>" class="product-thumbnail">
@@ -544,21 +648,29 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                                 <td class="text-center">
                                                     <div class="d-flex justify-content-center gap-1">
                                                         <?php if ($is_active): ?>
-                                                            <a href="admin_flash_sale.php?cancel_campaign=<?= $camp['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-outline-danger btn-sm rounded-3 px-2" title="จบแคมเปญทันที" onclick="return confirm('คุณต้องการบังคับปิดแคมเปญนี้ทันทีใช่หรือไม่?')">
+                                                            <button onclick="cancelCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-outline-danger btn-sm rounded-3 px-2 cancel-btn" title="จบแคมเปญทันที">
                                                                 <i class="bi bi-stop-fill"></i>
-                                                            </a>
+                                                            </button>
                                                         <?php endif; ?>
-                                                        <a href="admin_flash_sale.php?edit=<?= $camp['id'] ?>" class="btn btn-light btn-sm rounded-3 text-warning border" title="แก้ไข">
+                                                        <button onclick="loadEditCampaign(<?= $camp['id'] ?>)" class="btn btn-light btn-sm rounded-3 text-warning border" title="แก้ไข">
                                                             <i class="bi bi-pencil-fill"></i>
-                                                        </a>
-                                                        <a href="admin_flash_sale.php?del=<?= $camp['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light btn-sm rounded-3 text-danger border" title="ลบ" onclick="return confirm('คุณต้องการลบแคมเปญนี้ใช่หรือไม่?')">
+                                                        </button>
+                                                        <button onclick="deleteCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm rounded-3 text-danger border" title="ลบ">
                                                             <i class="bi bi-trash-fill"></i>
-                                                        </a>
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
+                                    <?php
+                                    if ($ajax_fetch) {
+                                        $html = ob_get_clean();
+                                        header('Content-Type: application/json');
+                                        echo json_encode(['status' => 'success', 'html' => $html]);
+                                        exit();
+                                    }
+                                    ?>
                                 </tbody>
                             </table>
                         </div>
@@ -568,6 +680,261 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         </div>
     </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    function formatDateTimeLocal(dtStr) {
+        if (!dtStr) return '';
+        return dtStr.replace(' ', 'T').substring(0, 16);
+    }
+
+    function loadEditCampaign(id) {
+        fetch(`admin_flash_sale.php?get_edit=${id}&ajax=1`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const camp = data.data;
+                document.getElementById('campaign-id').value = camp.id;
+                document.querySelector('select[name="product_id"]').value = camp.product_id;
+                document.querySelector('input[name="flash_price"]').value = camp.flash_price;
+                document.querySelector('input[name="flash_stock"]').value = camp.flash_stock;
+                document.querySelector('input[name="start_time"]').value = formatDateTimeLocal(camp.start_time);
+                document.querySelector('input[name="end_time"]').value = formatDateTimeLocal(camp.end_time);
+                
+                document.getElementById('form-title').innerHTML = '<i class="bi bi-pencil-square text-warning"></i> แก้ไขแคมเปญ Flash Sale';
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.innerText = 'อัปเดตข้อมูล';
+                submitBtn.name = 'update';
+                submitBtn.className = 'btn btn-warning w-100 rounded-3 py-2 text-white fw-bold';
+                document.getElementById('cancel-edit-btn').style.display = 'block';
+                
+                // Scroll to form smoothly on mobile
+                document.getElementById('form-title').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                Swal.fire('ข้อผิดพลาด', data.message, 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Toast.fire({ icon: 'error', title: 'ดึงข้อมูลแคมเปญล้มเหลว' });
+        });
+    }
+
+    function exitEditMode() {
+        document.getElementById('campaign-id').value = '';
+        document.getElementById('campaign-form').reset();
+        
+        document.getElementById('form-title').innerHTML = '<i class="bi bi-lightning-charge-fill text-blue"></i> สร้างแคมเปญใหม่';
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.innerText = 'สร้างแคมเปญ';
+        submitBtn.name = 'add';
+        submitBtn.className = 'btn btn-blue w-100 rounded-3 py-2 fw-bold';
+        document.getElementById('cancel-edit-btn').style.display = 'none';
+    }
+
+    function submitCampaignForm(event) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = document.getElementById('submit-btn');
+        const isEdit = document.getElementById('campaign-id').value !== '';
+        
+        btn.disabled = true;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+        
+        const formData = new FormData(form);
+        if (isEdit) {
+            formData.append('update', '1');
+        } else {
+            formData.append('add', '1');
+        }
+        formData.append('ajax', '1');
+        
+        fetch('admin_flash_sale.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (data.status === 'success') {
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+                form.reset();
+                if (isEdit) exitEditMode();
+                fetchCampaigns();
+            } else {
+                Swal.fire('ข้อผิดพลาด', data.message, 'error');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    function submitSettingsForm(event) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> กำลังบันทึก...';
+        
+        const formData = new FormData(form);
+        formData.append('update_settings', '1');
+        formData.append('ajax', '1');
+        
+        fetch('admin_flash_sale.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (data.status === 'success') {
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', data.message || 'บันทึกไม่สำเร็จ', 'error');
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    function fetchCampaigns() {
+        fetch('admin_flash_sale.php?ajax_fetch=1')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('campaigns-tbody').innerHTML = data.html;
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function cancelCampaign(id, token) {
+        Swal.fire({
+            title: 'จบแคมเปญทันที?',
+            text: "แคมเปญนี้จะสิ้นสุดลงทันที",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'ใช่, บังคับปิด',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`admin_flash_sale.php?cancel_campaign=${id}&csrf_token=${token}&ajax=1`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        fetchCampaigns();
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'เกิดข้อผิดพลาด'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'การเชื่อมต่อล้มเหลว'
+                    });
+                });
+            }
+        });
+    }
+
+    function deleteCampaign(id, token) {
+        Swal.fire({
+            title: 'ลบแคมเปญ Flash Sale?',
+            text: "ข้อมูลแคมเปญจะถูกลบถาวร",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'ลบเลย',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`admin_flash_sale.php?del=${id}&csrf_token=${token}&ajax=1`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        const row = document.getElementById('campaign-row-' + id);
+                        if (row) {
+                            row.style.transition = 'all 0.3s ease';
+                            row.style.opacity = '0';
+                            row.style.transform = 'translateX(30px)';
+                            setTimeout(() => {
+                                row.remove();
+                                const tbody = document.getElementById('campaigns-tbody');
+                                if (tbody && tbody.querySelectorAll('.campaign-row').length === 0) {
+                                    tbody.innerHTML = `
+                                        <tr id="no-campaigns-placeholder">
+                                            <td colspan="6" class="text-center py-4 text-muted">ไม่พบข้อมูลแคมเปญ Flash Sale</td>
+                                        </tr>
+                                    `;
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'ลบไม่สำเร็จ'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'การเชื่อมต่อล้มเหลว'
+                    });
+                });
+            }
+        });
+    }
+</script>
 </body>
 </html>

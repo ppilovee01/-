@@ -7,6 +7,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 
 if (isset($_GET['delete'])) {
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['delete']);
@@ -46,6 +51,11 @@ if (isset($_GET['delete'])) {
             ]
         ]
     ]);
+    if (isset($_GET['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'success', 'message' => 'ลบรีวิวสินค้าเรียบร้อยแล้ว']);
+        exit();
+    }
     header("Location: admin_reviews.php"); exit();
 }
 ?>
@@ -94,7 +104,7 @@ if (isset($_GET['delete'])) {
                                 <th class="text-end">จัดการ</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="reviews-tbody">
                             <?php 
                             // ดึงรีวิว + ชื่อสินค้า + ชื่อคนรีวิว (เลี่ยงคอลัมน์ image ชนกัน)
                             $sql = "SELECT r.*, r.image as review_image, p.name as product_name, p.image as product_image, u.fullname 
@@ -107,7 +117,7 @@ if (isset($_GET['delete'])) {
                             if(mysqli_num_rows($res) > 0):
                                 while($row = mysqli_fetch_assoc($res)): 
                             ?>
-                            <tr>
+                            <tr id="review-row-<?= $row['id'] ?>">
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <img src="<?= $row['product_image'] ?>" class="rounded me-2" style="width:35px; height:35px; object-fit:cover;">
@@ -137,7 +147,7 @@ if (isset($_GET['delete'])) {
                                 </td>
                             </tr>
                             <?php endwhile; else: ?>
-                                <tr><td colspan="6" class="text-center py-4 text-muted">ยังไม่มีรีวิว</td></tr>
+                                <tr id="no-reviews-placeholder"><td colspan="6" class="text-center py-4 text-muted">ยังไม่มีรีวิว</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -149,6 +159,18 @@ if (isset($_GET['delete'])) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
     function confirmDelete(id, token) {
         Swal.fire({
             title: 'ลบรีวิวนี้?',
@@ -156,10 +178,45 @@ if (isset($_GET['delete'])) {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
-            confirmButtonText: 'ลบเลย'
+            confirmButtonText: 'ลบเลย',
+            cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                window.location.href = '?delete=' + id + '&csrf_token=' + token;
+                fetch('admin_reviews.php?delete=' + id + '&csrf_token=' + token + '&ajax=1')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        const row = document.getElementById('review-row-' + id);
+                        if (row) {
+                            row.style.transition = 'all 0.3s ease';
+                            row.style.opacity = '0';
+                            row.style.transform = 'translateX(30px)';
+                            setTimeout(() => {
+                                row.remove();
+                                const tbody = document.getElementById('reviews-tbody');
+                                if (tbody && tbody.querySelectorAll('tr:not(#no-reviews-placeholder)').length === 0) {
+                                    tbody.innerHTML = '<tr id="no-reviews-placeholder"><td colspan="6" class="text-center py-4 text-muted">ยังไม่มีรีวิว</td></tr>';
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'ลบไม่สำเร็จ'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'การเชื่อมต่อล้มเหลว'
+                    });
+                });
             }
         })
     }
@@ -179,5 +236,3 @@ if (isset($_GET['delete'])) {
 </script>
 </body>
 </html>
-
-

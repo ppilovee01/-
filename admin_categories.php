@@ -6,6 +6,11 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
 }
@@ -13,16 +18,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_POST['add_cat'])) {
     $name = mysqli_real_escape_string($conn, $_POST['cat_name']);
     mysqli_query($conn, "INSERT INTO categories (name) VALUES ('$name')");
+    $new_id = mysqli_insert_id($conn);
     log_admin_action($conn, 'เพิ่มหมวดหมู่', [
         'title' => "เพิ่มหมวดหมู่สินค้าใหม่: $name",
         'changes' => [
             ['field' => 'ชื่อหมวดหมู่', 'old' => '-', 'new' => $name]
         ]
     ]);
+    if (isset($_POST['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'success', 
+            'message' => 'เพิ่มหมวดหมู่เรียบร้อยแล้ว',
+            'id' => $new_id,
+            'name' => $name,
+            'csrf_token' => get_csrf_token()
+        ]);
+        exit();
+    }
     header("Location: admin_categories.php"); exit();
 }
+
 if (isset($_GET['delete'])) {
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
+        if (isset($_GET['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+            exit();
+        }
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['delete']);
@@ -43,8 +66,14 @@ if (isset($_GET['delete'])) {
             ]
         ]
     ]);
+    if (isset($_GET['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'success', 'message' => 'ลบหมวดหมู่สินค้าเรียบร้อยแล้ว']);
+        exit();
+    }
     header("Location: admin_categories.php"); exit();
 }
+
 if (isset($_POST['edit_cat'])) {
     $id = intval($_POST['edit_id']);
     $name = mysqli_real_escape_string($conn, $_POST['edit_name']);
@@ -60,6 +89,16 @@ if (isset($_POST['edit_cat'])) {
             ['field' => 'ชื่อหมวดหมู่', 'old' => $old_name, 'new' => $name]
         ]
     ]);
+    if (isset($_POST['ajax'])) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'success', 
+            'message' => 'แก้ไขชื่อหมวดหมู่สินค้าเรียบร้อยแล้ว',
+            'id' => $id,
+            'name' => $name
+        ]);
+        exit();
+    }
     header("Location: admin_categories.php"); exit();
 }
 ?>
@@ -80,6 +119,8 @@ if (isset($_POST['edit_cat'])) {
         .table-card { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.03); background: white; overflow: hidden; }
         .btn-gradient { background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); color: white; border: none; }
         .btn-gradient:hover { color: white; opacity: 0.9; }
+        .category-row { transition: all 0.3s ease; }
+        .category-row.fade-out { opacity: 0; transform: translateX(30px); }
     </style>
 </head>
 <body>
@@ -104,11 +145,11 @@ if (isset($_POST['edit_cat'])) {
                 <div class="col-md-4 mb-4">
                     <div class="card border-0 shadow-sm rounded-4 p-4">
                         <h5 class="fw-bold mb-3">สร้างหมวดหมู่ใหม่</h5>
-                        <form method="POST">
+                        <form id="add-cat-form" method="POST" onsubmit="submitAddCat(event)">
                             <?= get_csrf_input() ?>
                             <div class="mb-3">
                                 <label class="text-muted small">ชื่อหมวดหมู่</label>
-                                <input type="text" name="cat_name" class="form-control" placeholder="ขนม" required>
+                                <input type="text" name="cat_name" id="add_cat_name" class="form-control" placeholder="ขนม" required>
                             </div>
                             <button type="submit" name="add_cat" class="btn btn-gradient w-100 rounded-pill">บันทึก</button>
                         </form>
@@ -126,21 +167,21 @@ if (isset($_POST['edit_cat'])) {
                                         <th class="text-end pe-4">จัดการ</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="categories-tbody">
                                     <?php 
                                     $res = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) as prod_count FROM categories c ORDER BY c.id DESC");
                                     if(mysqli_num_rows($res) > 0): while($row = mysqli_fetch_assoc($res)): 
                                     ?>
-                                    <tr>
-                                        <td class="ps-4 fw-bold"><?= $row['name'] ?></td>
+                                    <tr id="cat-row-<?= $row['id'] ?>" class="category-row">
+                                        <td class="ps-4 fw-bold cat-name-td"><?= htmlspecialchars($row['name']) ?></td>
                                         <td><span class="badge bg-light text-dark border"><?= $row['prod_count'] ?> ชิ้น</span></td>
                                         <td class="text-end pe-4">
-                                            <button onclick="editCat(<?= $row['id'] ?>, '<?= $row['name'] ?>')" class="btn btn-light text-primary btn-sm rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill"></i></button>
-                                            <a href="?delete=<?= $row['id'] ?>&csrf_token=<?= get_csrf_token() ?>" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm" onclick="return confirm('ยืนยันลบ?');"><i class="bi bi-trash-fill"></i></a>
+                                            <button onclick="editCat(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>')" class="btn btn-light text-primary btn-sm rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill"></i></button>
+                                            <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars($row['name'], ENT_QUOTES) ?>', '<?= get_csrf_token() ?>')" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
                                         </td>
                                     </tr>
                                     <?php endwhile; else: ?>
-                                        <tr><td colspan="3" class="text-center py-4 text-muted">ยังไม่มีหมวดหมู่</td></tr>
+                                        <tr id="no-cats-placeholder"><td colspan="3" class="text-center py-4 text-muted">ยังไม่มีหมวดหมู่</td></tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
@@ -155,26 +196,234 @@ if (isset($_POST['edit_cat'])) {
 <div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0">
-            <div class="modal-header border-0"><h5 class="modal-title fw-bold">เนเเน‰เน„ขชื่อหมวดหมู่</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-            <form method="POST">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">แก้ไขชื่อหมวดหมู่</h5>
+                <button class="btn-close" data-bs-dismiss="modal" id="closeEditModalBtn"></button>
+            </div>
+            <form id="edit-cat-form" method="POST" onsubmit="submitEditCat(event)">
                 <?= get_csrf_input() ?>
                 <div class="modal-body">
                     <input type="hidden" name="edit_id" id="edit_id">
                     <input type="text" name="edit_name" id="edit_name" class="form-control" required>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="submit" name="edit_cat" class="btn btn-warning w-100 rounded-pill text-white">บันทึกการเนเเน‰เน„ข</button>
+                    <button type="submit" name="edit_cat" class="btn btn-warning w-100 rounded-pill text-white">บันทึกการแก้ไข</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<script>
-    function editCat(id, name) { document.getElementById('edit_id').value = id; document.getElementById('edit_name').value = name; }
-</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    let currentCsrfToken = '<?= get_csrf_token() ?>';
+
+    function editCat(id, name) { 
+        document.getElementById('edit_id').value = id; 
+        document.getElementById('edit_name').value = name; 
+    }
+
+    function submitAddCat(e) {
+        e.preventDefault();
+        const form = document.getElementById('add-cat-form');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const catNameInput = document.getElementById('add_cat_name');
+        
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(form);
+        formData.append('add_cat', '1');
+        formData.append('ajax', '1');
+        formData.append('csrf_token', currentCsrfToken);
+        
+        fetch('admin_categories.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            if (data.status === 'success') {
+                catNameInput.value = '';
+                currentCsrfToken = data.csrf_token;
+                
+                // update hidden csrf values in all forms/buttons
+                document.querySelectorAll('input[name="csrf_token"]').forEach(el => el.value = currentCsrfToken);
+                
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+                
+                // remove no categories placeholder if exists
+                const placeholder = document.getElementById('no-cats-placeholder');
+                if (placeholder) placeholder.remove();
+                
+                // Prepend new row
+                const tbody = document.getElementById('categories-tbody');
+                const tr = document.createElement('tr');
+                tr.id = 'cat-row-' + data.id;
+                tr.className = 'category-row';
+                tr.innerHTML = `
+                    <td class="ps-4 fw-bold cat-name-td">${escapeHtml(data.name)}</td>
+                    <td><span class="badge bg-light text-dark border">0 ชิ้น</span></td>
+                    <td class="text-end pe-4">
+                        <button onclick="editCat(${data.id}, '${escapeHtmlString(data.name)}')" class="btn btn-light text-primary btn-sm rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal"><i class="bi bi-pencil-fill"></i></button>
+                        <button onclick="confirmDelete(${data.id}, '${escapeHtmlString(data.name)}', '${currentCsrfToken}')" class="btn btn-light text-danger btn-sm rounded-circle shadow-sm"><i class="bi bi-trash-fill"></i></button>
+                    </td>
+                `;
+                tbody.insertBefore(tr, tbody.firstChild);
+            } else {
+                Toast.fire({
+                    icon: 'error',
+                    title: data.message || 'เกิดข้อผิดพลาดในการบันทึก'
+                });
+            }
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    function submitEditCat(e) {
+        e.preventDefault();
+        const form = document.getElementById('edit-cat-form');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const id = document.getElementById('edit_id').value;
+        const name = document.getElementById('edit_name').value;
+        
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(form);
+        formData.append('edit_cat', '1');
+        formData.append('ajax', '1');
+        formData.append('csrf_token', currentCsrfToken);
+        
+        fetch('admin_categories.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            
+            const closeBtn = document.getElementById('closeEditModalBtn');
+            if (closeBtn) closeBtn.click();
+            
+            if (data.status === 'success') {
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+                
+                const row = document.getElementById('cat-row-' + id);
+                if (row) {
+                    row.querySelector('.cat-name-td').innerText = name;
+                    const buttons = row.querySelectorAll('button');
+                    if (buttons[0]) {
+                        buttons[0].setAttribute('onclick', `editCat(${id}, '${escapeHtmlString(name)}')`);
+                    }
+                    if (buttons[1]) {
+                        buttons[1].setAttribute('onclick', `confirmDelete(${id}, '${escapeHtmlString(name)}', '${currentCsrfToken}')`);
+                    }
+                }
+            } else {
+                Toast.fire({
+                    icon: 'error',
+                    title: data.message || 'เกิดข้อผิดพลาดในการแก้ไข'
+                });
+            }
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    function confirmDelete(id, name, token) {
+        Swal.fire({
+            title: 'ลบหมวดหมู่หรือไม่?',
+            text: `ยืนยันการลบหมวดหมู่ "${name}"? สินค้าในหมวดหมู่นี้จะกลายเป็นไม่มีหมวดหมู่`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'ลบเลย',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`admin_categories.php?delete=${id}&csrf_token=${token}&ajax=1`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Toast.fire({
+                            icon: 'success',
+                            title: data.message
+                        });
+                        
+                        const row = document.getElementById('cat-row-' + id);
+                        if (row) {
+                            row.classList.add('fade-out');
+                            setTimeout(() => {
+                                row.remove();
+                                const tbody = document.getElementById('categories-tbody');
+                                if (tbody.children.length === 0) {
+                                    tbody.innerHTML = `<tr id="no-cats-placeholder"><td colspan="3" class="text-center py-4 text-muted">ยังไม่มีหมวดหมู่</td></tr>`;
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        Toast.fire({
+                            icon: 'error',
+                            title: data.message || 'ลบไม่สำเร็จ'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'การเชื่อมต่อล้มเหลว'
+                    });
+                });
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function escapeHtmlString(text) {
+        return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+</script>
 </body>
 </html>
-
-

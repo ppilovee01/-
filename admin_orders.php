@@ -6,6 +6,15 @@ include 'mail_sender.php';
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
 
+if (isset($_GET['check_new_orders'])) {
+    $max_q = mysqli_query($conn, "SELECT MAX(id) as max_id FROM orders");
+    $max_row = mysqli_fetch_assoc($max_q);
+    $max_id = intval($max_row['max_id'] ?? 0);
+    header('Content-Type: application/json');
+    echo json_encode(['status' => 'success', 'max_id' => $max_id]);
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrf_token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     if (!verify_csrf_token($csrf_token)) {
@@ -319,6 +328,18 @@ if (isset($_POST['save_note'])) {
         @media (min-width: 768px) {
             .border-end-md { border-right: 1px solid #eee; }
         }
+        .badge-wrap {
+            white-space: normal !important;
+            text-align: left;
+            word-break: break-word;
+            max-width: 100%;
+            display: inline-block;
+        }
+        .modal-product-item:last-child {
+            border-bottom: none !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
     </style>
 </head>
 <body>
@@ -336,10 +357,13 @@ if (isset($_POST['save_note'])) {
             </div>
         </div>
 
-        <div class="col-md-10 p-4">
+        <div class="col-md-10 p-3 p-md-4">
             <h3 class="fw-bold mb-4">จัดการคำสั่งซื้อ</h3>
 
             <?php 
+            $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
+            $notification_sound = $shop['notification_sound'] ?? 'chime';
+
             // 1. คำนวณตัวเลขสถิติออเดอร์ (ไม่รวมเงื่อนไขการค้นหาเพื่อดูภาพรวมระบบตลอดเวลา)
             $count_all = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders"))['count'] ?? 0;
             $count_pending = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE status='pending'"))['count'] ?? 0;
@@ -408,7 +432,7 @@ if (isset($_POST['save_note'])) {
 
             <!-- Search & Filter Controls -->
             <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
-                <form method="GET" class="row g-2 align-items-center">
+                <form id="filter-form" method="GET" class="row g-2 align-items-center" onsubmit="event.preventDefault(); fetchOrdersFiltered();">
                     <div class="col-md-5 col-12">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
@@ -418,7 +442,7 @@ if (isset($_POST['save_note'])) {
                     <div class="col-md-4 col-12">
                         <div class="d-flex align-items-center gap-2">
                             <span class="small text-muted fw-bold text-nowrap">สถานะ:</span>
-                            <select name="status_filter" class="form-select form-select-sm bg-light" onchange="this.form.submit()">
+                            <select name="status_filter" class="form-select form-select-sm bg-light" onchange="fetchOrdersFiltered()">
                                 <option value="" <?= ($status_filter == '') ? 'selected' : '' ?>>ทั้งหมด</option>
                                 <option value="pending" <?= ($status_filter == 'pending') ? 'selected' : '' ?>>รอตรวจสอบ (Pending)</option>
                                 <option value="shipping" <?= ($status_filter == 'shipping') ? 'selected' : '' ?>>กำลังจัดส่ง (Shipping)</option>
@@ -429,20 +453,23 @@ if (isset($_POST['save_note'])) {
                     </div>
                     <div class="col-md-3 col-12 d-flex gap-2">
                         <button type="submit" class="btn btn-sm btn-primary w-100 rounded-pill"><i class="bi bi-funnel-fill me-1"></i>กรอง</button>
-                        <?php if ($search !== '' || $status_filter !== ''): ?>
-                            <a href="admin_orders.php" class="btn btn-sm btn-outline-secondary w-100 rounded-pill"><i class="bi bi-x-circle me-1"></i>ล้าง</a>
-                        <?php endif; ?>
+                        <button type="button" id="clear-filter-btn" onclick="clearFilters()" class="btn btn-sm btn-outline-secondary w-100 rounded-pill" style="<?= ($search !== '' || $status_filter !== '') ? '' : 'display: none;' ?>"><i class="bi bi-x-circle me-1"></i>ล้าง</button>
                     </div>
                 </form>
             </div>
 
-            <?php if (mysqli_num_rows($res) > 0): ?>
-                <?php 
-                while ($row = mysqli_fetch_assoc($res)): 
-                    $oid = $row['id']; 
-                    $st = $row['status'];
-                ?>
-            <div class="order-card p-4">
+            <?php 
+            $ajax_fetch = isset($_GET['ajax_fetch']);
+            if ($ajax_fetch) ob_start(); 
+            ?>
+            <div id="orders-list-wrapper">
+                <?php if (mysqli_num_rows($res) > 0): ?>
+                    <?php 
+                    while ($row = mysqli_fetch_assoc($res)): 
+                        $oid = $row['id']; 
+                        $st = $row['status'];
+                    ?>
+            <div class="order-card p-3 p-md-4">
                 <div class="row align-items-center">
                     <div class="col-12 col-md-3 border-end-md">
                         <div class="d-flex align-items-center justify-content-between mb-1">
@@ -468,13 +495,13 @@ if (isset($_POST['save_note'])) {
                         </button>
                     </div>
 
-                    <div class="col-6 col-md-3 border-end-md text-center">
+                    <div class="col-12 col-md-3 border-end-md text-start text-md-center">
                         <div class="text-muted small">ยอดสุทธิ</div>
                         <h4 class="fw-bold text-danger m-0">฿<?= number_format($row['final_price'], 2) ?></h4>
                         <div class="small text-muted mt-1"><?= $row['payment_method'] ?></div>
                         
                         <?php if (intval($row['points_spent']) > 0 || intval($row['points_earned']) > 0): ?>
-                            <div class="mt-2 text-start px-2 mx-auto" style="max-width: 200px; font-size: 0.75rem; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 4px 8px;">
+                            <div class="mt-2 text-start px-2 ms-0 ms-md-auto me-md-auto" style="max-width: 200px; font-size: 0.75rem; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 4px 8px;">
                                 <?php if (intval($row['points_spent']) > 0): ?>
                                     <div class="text-muted">
                                         🪙 ใช้แต้ม: <span class="fw-bold text-danger"><?= number_format($row['points_spent']) ?></span> (-฿<?= number_format($row['points_discount'], 2) ?>)
@@ -495,13 +522,37 @@ if (isset($_POST['save_note'])) {
                             </div>
                         <?php endif; ?>
 
-                        <button class="btn btn-sm btn-outline-primary rounded-pill mt-2 px-3" data-bs-toggle="modal" data-bs-target="#detailModal<?= $oid ?>">
-                            <i class="bi bi-list-ul"></i> สินค้า
-                        </button>
+                        <!-- รายการสินค้าแสดงเลยไม่ต้องกดเปิดโมดอล -->
+                        <div class="mt-3 text-start mx-auto ms-md-auto me-md-auto" style="max-width: 250px;">
+                            <div class="text-muted small mb-2 fw-semibold text-center text-md-start">📦 รายการสินค้า:</div>
+                            <?php 
+                            $items = mysqli_query($conn, "SELECT oi.*, p.name, p.image FROM order_items oi JOIN products p ON oi.product_id=p.id WHERE oi.order_id='$oid'"); 
+                            while($i = mysqli_fetch_assoc($items)): 
+                            ?>
+                                <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom border-light modal-product-item">
+                                    <?php if(!empty($i['image'])): ?>
+                                        <img src="<?= $i['image'] ?>" class="rounded" style="width: 32px; height: 32px; object-fit: cover;">
+                                    <?php else: ?>
+                                        <div class="rounded bg-light d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="bi bi-box-seam text-muted" style="font-size: 0.8rem;"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div style="font-size: 0.8rem; line-height: 1.2; min-width: 0; flex: 1;">
+                                        <div class="fw-semibold text-dark text-truncate" title="<?= htmlspecialchars($i['name']) ?>"><?= htmlspecialchars($i['name']) ?></div>
+                                        <div class="text-muted" style="font-size: 0.72rem;">
+                                            x<?= $i['quantity'] ?> (฿<?= number_format($i['price']) ?>)
+                                            <?php if(!empty($i['selected_option'])): ?>
+                                                <span class="ms-1 badge bg-light text-secondary border fw-normal" style="font-size: 0.65rem; padding: 2px 4px;"><?= htmlspecialchars($i['selected_option']) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endwhile; ?>
+                        </div>
                     </div>
 
                     <div class="col-12 col-md-6 ps-md-4 pt-3 pt-md-0">
-                        <div class="d-flex justify-content-between mb-3 align-items-center">
+                        <div class="d-flex justify-content-between mb-3 align-items-center flex-wrap gap-2">
                             <?php
                             $badge_color = match($st) {
                                 'pending' => 'bg-warning text-dark',
@@ -520,7 +571,7 @@ if (isset($_POST['save_note'])) {
                             ?>
                             <div>สถานะ: <span class="badge rounded-pill <?= $badge_color ?>" id="status-badge-<?= $oid ?>"><?= $st_th ?></span></div>
                             <?php if($row['payment_slip']): ?>
-                                <div class="d-flex flex-column align-items-end gap-1">
+                                <div class="d-flex flex-column align-items-end gap-1" id="slip-ai-badge-container-<?= $oid ?>">
                                     <button onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn btn-sm btn-light border rounded-pill py-1 px-2" style="font-size: 0.8rem;">
                                         <i class="bi bi-image me-1"></i> ดูสลิป
                                     </button>
@@ -531,25 +582,25 @@ if (isset($_POST['save_note'])) {
                                     $ai_note = $row['slip_ai_note'] ?? '';
                                     
                                     if ($ai_st === 'verified'): ?>
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:0.7rem;" title="ยอดเงินโอนตรงกับคำสั่งซื้อ">
+                                        <span class="badge badge-wrap bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:0.7rem;" title="ยอดเงินโอนตรงกับคำสั่งซื้อ">
                                             🤖 AI: ตรงยอด (฿<?= number_format($ai_amt, 2) ?>)
                                         </span>
                                     <?php elseif ($ai_st === 'mismatch'): ?>
-                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="ยอดเงินโอนไม่ตรงกับคำสั่งซื้อ (สลิปโอนเงิน: ฿<?= number_format($ai_amt, 2) ?>)">
+                                        <span class="badge badge-wrap bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="ยอดเงินโอนไม่ตรงกับคำสั่งซื้อ (สลิปโอนเงิน: ฿<?= number_format($ai_amt, 2) ?>)">
                                             🤖 AI: ยอดไม่ตรง (฿<?= number_format($ai_amt, 2) ?>)
                                         </span>
                                         <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
                                             🤖 ลองสแกนใหม่
                                         </button>
                                     <?php elseif ($ai_st === 'invalid'): ?>
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="AI ประเมินว่ารูปนี้ไม่ใช่สลิป หรือชื่อผู้รับเงินไม่ตรง: <?= htmlspecialchars($ai_note) ?>">
+                                        <span class="badge badge-wrap bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="AI ประเมินว่ารูปนี้ไม่ใช่สลิป หรือชื่อผู้รับเงินไม่ตรง: <?= htmlspecialchars($ai_note) ?>">
                                             🤖 AI: ไม่ผ่าน (<?= htmlspecialchars($ai_note) ?>)
                                         </span>
                                         <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
                                             🤖 ลองสแกนใหม่
                                         </button>
                                     <?php elseif ($ai_st === 'error' || $ai_st === 'skipped'): ?>
-                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem; cursor:help;" data-bs-toggle="tooltip" data-bs-placement="top" title="ระบบขัดข้อง: <?= htmlspecialchars($ai_note ?: 'กรุณาลองสแกนใหม่อีกครั้ง') ?>">
+                                        <span class="badge badge-wrap bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem; cursor:help;" data-bs-toggle="tooltip" data-bs-placement="top" title="ระบบขัดข้อง: <?= htmlspecialchars($ai_note ?: 'กรุณาลองสแกนใหม่อีกครั้ง') ?>">
                                             ⚠️ 😱 AI ขัดข้อง
                                         </span>
                                         <button onclick="runSlipAI('<?= $oid ?>', '<?= htmlspecialchars($row['payment_slip']) ?>', '<?= $row['final_price'] ?>', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
@@ -567,7 +618,7 @@ if (isset($_POST['save_note'])) {
                         <div class="bg-light p-3 rounded-3">
                             <form method="POST" class="row g-2" onsubmit="event.preventDefault()">
                                 <input type="hidden" name="order_id" value="<?= $oid ?>">
-                                <div class="<?= $st == 'cancelled' ? 'col-12' : 'col-6' ?>" id="status-col-<?= $oid ?>">
+                                <div class="<?= $st == 'cancelled' ? 'col-12' : 'col-12 col-sm-6' ?>" id="status-col-<?= $oid ?>">
                                     <select name="status" class="form-select form-select-sm shadow-sm" onchange="submitStatusAjax(this, '<?= $oid ?>')">
                                         <option value="pending" <?=$st=='pending'?'selected':''?>>รอตรวจ</option>
                                         <option value="shipping" <?=$st=='shipping'?'selected':''?>>ส่งแล้ว</option>
@@ -576,7 +627,7 @@ if (isset($_POST['save_note'])) {
                                     </select>
                                     <input type="hidden" name="update_status" value="1">
                                 </div>
-                                <div class="col-6" id="tracking-btn-container-<?= $oid ?>" style="<?= $st == 'cancelled' ? 'display: none;' : '' ?>">
+                                <div class="col-12 col-sm-6" id="tracking-btn-container-<?= $oid ?>" style="<?= $st == 'cancelled' ? 'display: none;' : '' ?>">
                                     <button type="button" class="btn btn-sm btn-dark w-100 shadow-sm" data-bs-toggle="modal" data-bs-target="#trackingModal<?= $oid ?>">
                                         <i class="bi bi-truck"></i> เลขพัสดุเรียบร้อย
                                     </button>
@@ -637,18 +688,30 @@ if (isset($_POST['save_note'])) {
                     </div>
                 </div>
             </div>
-            <div class="modal fade" id="detailModal<?= $oid ?>" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header bg-light"><h5 class="modal-title fw-bold">รายการสินค้า #<?= $oid ?></h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-3"><?php $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id=p.id WHERE oi.order_id='$oid'"); while($i = mysqli_fetch_assoc($items)): ?><div class="d-flex justify-content-between mb-2 small"><span><?= $i['name'] ?> (x<?= $i['quantity'] ?>)</span><span class="fw-bold">฿<?= number_format($i['price'] * $i['quantity']) ?></span></div><?php endwhile; ?></div></div></div></div>
+            <!-- รายการโมดอลสินค้าถูกยกเลิกเนื่องจากใช้การแสดงผล inline บนการ์ดโดยตรงแล้ว -->
 
             <?php endwhile; ?>
             <?php else: ?>
                 <div class="text-center py-5 bg-white rounded-4 shadow-sm my-4">
                     <i class="bi bi-inbox display-3 text-muted opacity-25"></i>
                     <h5 class="text-muted mt-3">ไม่พบรายการสั่งซื้อที่ค้นหา</h5>
-                    <?php if ($search !== '' || $status_filter !== ''): ?>
-                        <a href="admin_orders.php" class="btn btn-sm btn-primary rounded-pill mt-3 px-4">ดูรายการทั้งหมด</a>
-                    <?php endif; ?>
+                    <button type="button" onclick="clearFilters()" class="btn btn-sm btn-primary rounded-pill mt-3 px-4">ดูรายการทั้งหมด</button>
                 </div>
             <?php endif; ?>
+            </div>
+            <?php 
+            if ($ajax_fetch) {
+                $html = ob_get_clean();
+                ob_end_clean(); // Discard outer buffer
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'status' => 'success',
+                    'html' => $html,
+                    'stats' => get_stats_counts($conn)
+                ]);
+                exit();
+            }
+            ?>
         </div>
     </div>
 </div>
@@ -670,16 +733,193 @@ if (isset($_POST['save_note'])) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+let currentMaxOrderId = 0;
+
 document.addEventListener("DOMContentLoaded", function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    // Initialize absolute max order ID from database
+    initMaxOrderId();
+    
+    // Check for new orders every 10 seconds
+    setInterval(checkForNewOrders, 10000);
 });
+
+function initMaxOrderId() {
+    fetch('admin_orders.php?check_new_orders=1')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                currentMaxOrderId = parseInt(data.max_id, 10);
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+function checkForNewOrders() {
+    fetch('admin_orders.php?check_new_orders=1')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const serverMaxId = parseInt(data.max_id, 10);
+                if (currentMaxOrderId > 0 && serverMaxId > currentMaxOrderId) {
+                    currentMaxOrderId = serverMaxId;
+                    
+                    // Play synthesized chime notification
+                    playNotificationSound();
+                    
+                    // Show top-right Swal Toast
+                    Toast.fire({
+                        icon: 'info',
+                        title: '🔔 มีคำสั่งซื้อใหม่เข้ามา!'
+                    });
+                    
+                    // Refresh current filtered view silently
+                    fetchOrdersFiltered(true);
+                } else if (currentMaxOrderId === 0) {
+                    currentMaxOrderId = serverMaxId;
+                }
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+const activeSoundType = '<?= $notification_sound ?>';
+
+function playNotificationSound() {
+    const soundType = activeSoundType;
+    if (soundType === 'mute') return;
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+        
+        if (soundType === 'chime') {
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(659.25, now);
+            gain1.gain.setValueAtTime(0.1, now);
+            gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.5);
+            
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880.00, now + 0.1);
+            gain2.gain.setValueAtTime(0.15, now + 0.1);
+            gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.1);
+            osc2.stop(now + 0.7);
+        } else if (soundType === 'glass') {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1500, now);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (soundType === 'beep') {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(880, now);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.setValueAtTime(0.1, now + 0.15);
+            gain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (soundType === 'piano') {
+            const notes = [261.63, 329.63, 392.00, 523.25];
+            notes.forEach((freq, index) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + index * 0.05);
+                gain.gain.setValueAtTime(0.08, now + index * 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + index * 0.05);
+                osc.stop(now + 1.0);
+            });
+        }
+    } catch (e) {
+        console.warn('AudioContext playback blocked or failed:', e);
+    }
+}
 
 function viewSlip(url){ 
     new bootstrap.Modal(document.getElementById('slipModal')).show(); 
     document.getElementById('slipImage').src=url; 
+}
+
+function updateSlipAIBadge(orderId, aiStatus, aiAmount, aiNote, filename, expected) {
+    const container = document.getElementById('slip-ai-badge-container-' + orderId);
+    if (!container) return;
+
+    let html = `
+        <button onclick="viewSlip('uploads/${filename}')" class="btn btn-sm btn-light border rounded-pill py-1 px-2" style="font-size: 0.8rem;">
+            <i class="bi bi-image me-1"></i> ดูสลิป
+        </button>
+    `;
+
+    if (aiStatus === 'verified') {
+        html += `
+            <span class="badge badge-wrap bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:0.7rem;" title="ยอดเงินโอนตรงกับคำสั่งซื้อ">
+                🤖 AI: ตรงยอด (฿${Number(aiAmount).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})})
+            </span>
+        `;
+    } else if (aiStatus === 'mismatch') {
+        html += `
+            <span class="badge badge-wrap bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="ยอดเงินโอนไม่ตรงกับคำสั่งซื้อ (สลิปโอนเงิน: ฿${Number(aiAmount).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})})">
+                🤖 AI: ยอดไม่ตรง (฿${Number(aiAmount).toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2})})
+            </span>
+            <button onclick="runSlipAI('${orderId}', '${filename}', '${expected}', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
+                🤖 ลองสแกนใหม่
+            </button>
+        `;
+    } else if (aiStatus === 'invalid') {
+        html += `
+            <span class="badge badge-wrap bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 mb-1" style="font-size:0.7rem;" title="AI ประเมินว่ารูปนี้ไม่ใช่สลิป หรือชื่อผู้รับเงินไม่ตรง: ${escapeHtml(aiNote)}">
+                🤖 AI: ไม่ผ่าน (${escapeHtml(aiNote)})
+            </span>
+            <button onclick="runSlipAI('${orderId}', '${filename}', '${expected}', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
+                🤖 ลองสแกนใหม่
+            </button>
+        `;
+    } else if (aiStatus === 'error' || aiStatus === 'skipped') {
+        html += `
+            <span class="badge badge-wrap bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 mb-1" style="font-size:0.7rem; cursor:help;" data-bs-toggle="tooltip" data-bs-placement="top" title="ระบบขัดข้อง: ${escapeHtml(aiNote || 'กรุณาลองสแกนใหม่อีกครั้ง')}">
+                ⚠️ 😱 AI ขัดข้อง
+            </span>
+            <button onclick="runSlipAI('${orderId}', '${filename}', '${expected}', this)" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded border small text-muted animate__animated animate__fadeIn" style="font-size:0.65rem;" title="ลองส่งสลิปให้ AI ตรวจสอบใหม่อีกครั้ง">
+                🤖 ลองสแกนใหม่
+            </button>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    // Re-initialize tooltips if any
+    var tooltipTriggerList = [].slice.call(container.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 }
 
 function runSlipAI(orderId, filename, expected, btn) {
@@ -707,7 +947,9 @@ function runSlipAI(orderId, filename, expected, btn) {
                 text: data.message,
                 confirmButtonColor: '#AEE2FF'
             }).then(() => {
-                window.location.reload();
+                // อัปเดตสถานะสลิปโดยไม่ต้องรีโหลดหน้าเว็บ!
+                updateSlipAIBadge(orderId, data.ai_status, data.ai_amount, data.note, filename, expected);
+                fetchOrdersFiltered(true);
             });
         } else {
             btn.innerHTML = originalText;
@@ -799,9 +1041,10 @@ function submitStatusAjax(selectEl, orderId) {
                     if (statusCol) statusCol.className = 'col-12';
                 } else {
                     trackingBtnCont.style.display = 'block';
-                    if (statusCol) statusCol.className = 'col-6';
+                    if (statusCol) statusCol.className = 'col-12 col-sm-6';
                 }
             }
+            fetchOrdersFiltered(true);
         } else {
             Toast.fire({
                 icon: 'error',
@@ -859,6 +1102,7 @@ function submitNoteAjax(event, orderId) {
                     container.innerHTML = '';
                 }
             }
+            fetchOrdersFiltered(true);
         } else {
             Toast.fire({
                 icon: 'error',
@@ -931,6 +1175,7 @@ function submitTrackingAjax(event, orderId) {
             }
             
             updateDashboardStats(data.stats);
+            fetchOrdersFiltered(true);
         } else {
             Toast.fire({
                 icon: 'error',
@@ -957,6 +1202,67 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+function fetchOrdersFiltered(silent = false) {
+    const filterForm = document.getElementById('filter-form');
+    if (!filterForm) return;
+    
+    const search = filterForm.querySelector('input[name="search"]').value;
+    const status_filter = filterForm.querySelector('select[name="status_filter"]').value;
+    
+    // Update URL query parameters in browser without reload
+    if (!silent) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('search', search);
+        url.searchParams.set('status_filter', status_filter);
+        window.history.pushState(null, '', url.toString());
+    }
+    
+    // Show a loading opacity on the orders list
+    const wrapper = document.getElementById('orders-list-wrapper');
+    if (wrapper && !silent) wrapper.style.opacity = '0.5';
+    
+    fetch(`admin_orders.php?search=${encodeURIComponent(search)}&status_filter=${encodeURIComponent(status_filter)}&ajax_fetch=1`)
+    .then(res => res.json())
+    .then(data => {
+        if (wrapper) {
+            wrapper.style.opacity = '1';
+            if (data.status === 'success') {
+                wrapper.innerHTML = data.html;
+                updateDashboardStats(data.stats);
+                
+                // Re-initialize tooltips if any
+                var tooltipTriggerList = [].slice.call(wrapper.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                
+                // Show/hide clear button
+                const clearBtn = document.getElementById('clear-filter-btn');
+                if (clearBtn) {
+                    if (search !== '' || status_filter !== '') {
+                        clearBtn.style.display = 'inline-block';
+                    } else {
+                        clearBtn.style.display = 'none';
+                    }
+                }
+            }
+        }
+    })
+    .catch(err => {
+        if (wrapper) wrapper.style.opacity = '1';
+        console.error(err);
+    });
+}
+
+function clearFilters() {
+    const filterForm = document.getElementById('filter-form');
+    if (filterForm) {
+        filterForm.querySelector('input[name="search"]').value = '';
+        filterForm.querySelector('select[name="status_filter"]').value = '';
+        fetchOrdersFiltered();
+    }
 }
 </script>
 </body>

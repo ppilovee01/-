@@ -3,11 +3,10 @@ session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok'); 
 
-$discord_webhook_url = "https://discord.com/api/webhooks/1473327005234761760/yOg6j2pYCa0DDSnqUxs5yCL3mlODeIrnYNNo1nJJldGFjnvDHQalkSHzd6RM0691w-b4"; 
-
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
 $user_id = $_SESSION['user_id'];
 $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
+$discord_webhook_url = getSecretValue('DISCORD_WEBHOOK_URL', $shop['discord_webhook_url'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -273,7 +272,8 @@ if (isset($_POST['confirm_order'])) {
                         $discord_items .= "- {$pr['name']} (x$qty) $opts\n";
                     }
 
-                    if($discord_webhook_url) {
+                    // 1. ส่งแจ้งเตือน Discord Webhook
+                    if(!empty($discord_webhook_url)) {
                         $msg_content = "💰 **มีคำสั่งซื้อใหม่! #$order_id**\n👤 ลูกค้า: {$a['recipient_name']}\n📦 สินค้า:\n$discord_items\n💵 ยอดสุทธิ: " . number_format($final, 2) . " บาท\n💳 ชำระโดย: {$pm['name']}";
                         $json_data = json_encode(["content" => $msg_content], JSON_UNESCAPED_UNICODE);
                         $ch = curl_init($discord_webhook_url);
@@ -283,6 +283,69 @@ if (isset($_POST['confirm_order'])) {
                         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
                         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); 
                         curl_setopt($ch, CURLOPT_TIMEOUT, 2); 
+                        curl_exec($ch); curl_close($ch);
+                    }
+
+                    // 2. ส่งแจ้งเตือน Telegram Bot
+                    $telegram_bot_token = getSecretValue('TELEGRAM_BOT_TOKEN', $shop['telegram_bot_token'] ?? '');
+                    $telegram_chat_id = getSecretValue('TELEGRAM_CHAT_ID', $shop['telegram_chat_id'] ?? '');
+                    if (!empty($telegram_bot_token) && !empty($telegram_chat_id)) {
+                        $telegram_msg = "💰 *มีคำสั่งซื้อใหม่! #$order_id*\n👤 ลูกค้า: {$a['recipient_name']}\n📦 สินค้า:\n$discord_items💵 ยอดสุทธิ: " . number_format($final, 2) . " บาท\n💳 ชำระโดย: {$pm['name']}";
+                        $tg_url = "https://api.telegram.org/bot" . $telegram_bot_token . "/sendMessage";
+                        $tg_data = [
+                            'chat_id' => $telegram_chat_id,
+                            'text' => $telegram_msg,
+                            'parse_mode' => 'Markdown'
+                        ];
+                        $ch = curl_init($tg_url);
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($tg_data));
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); 
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+                        curl_exec($ch); curl_close($ch);
+                    }
+
+                    // 3. ส่งแจ้งเตือน Slack Webhook
+                    $slack_webhook_url = getSecretValue('SLACK_WEBHOOK_URL', $shop['slack_webhook_url'] ?? '');
+                    if (!empty($slack_webhook_url)) {
+                        $slack_msg = "💰 *มีคำสั่งซื้อใหม่! #$order_id*\n👤 ลูกค้า: {$a['recipient_name']}\n📦 สินค้า:\n$discord_items💵 ยอดสุทธิ: " . number_format($final, 2) . " บาท\n💳 ชำระโดย: {$pm['name']}";
+                        $slack_data = json_encode(['text' => $slack_msg], JSON_UNESCAPED_UNICODE);
+                        $ch = curl_init($slack_webhook_url);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, $slack_data);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); 
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+                        curl_exec($ch); curl_close($ch);
+                    }
+
+                    // 4. ส่งแจ้งเตือน Custom Webhook API (POST JSON)
+                    $custom_webhook_url = getSecretValue('CUSTOM_WEBHOOK_URL', $shop['custom_webhook_url'] ?? '');
+                    if (!empty($custom_webhook_url)) {
+                        $webhook_payload = json_encode([
+                            'event' => 'order.created',
+                            'order_id' => $order_id,
+                            'customer' => [
+                                'name' => $a['recipient_name'],
+                                'phone' => $a['phone'],
+                                'address' => $full_addr
+                            ],
+                            'items' => $discord_items,
+                            'total_price' => floatval($total),
+                            'discount_amount' => floatval($disc),
+                            'final_price' => floatval($final),
+                            'payment_method' => $pm['name'],
+                            'order_date' => date('Y-m-d H:i:s')
+                        ], JSON_UNESCAPED_UNICODE);
+                        $ch = curl_init($custom_webhook_url);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, $webhook_payload);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3); 
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
                         curl_exec($ch); curl_close($ch);
                     }
 

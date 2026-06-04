@@ -17,17 +17,22 @@ if (isset($_POST['save_about'])) {
     $title = mysqli_real_escape_string($conn, $_POST['title']);
     $desc = mysqli_real_escape_string($conn, $_POST['description']);
     
-    // ดึงรูปแเนˆามาเเนˆอน
+    // ดึงรูปเก่ามาก่อน
     $q_old = mysqli_query($conn, "SELECT image FROM about_content WHERE id=1");
-    $old_img = mysqli_fetch_assoc($q_old)['image'];
+    $old_img = mysqli_fetch_assoc($q_old)['image'] ?? '';
     $image_path = $old_img;
 
-    // ถ้ามีการอัปเน‚หลดรูปใหม่
+    // ถ้ามีการอัปโหลดรูปใหม่
     if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
         $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
         $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         if (!in_array(strtolower($ext), $allowed)) {
             $err = "รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp) เท่านั้น";
+            if (isset($_POST['ajax'])) {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'error', 'message' => $err]);
+                exit();
+            }
         } else {
             $new_name = "about_" . uniqid() . "." . strtolower($ext);
             
@@ -35,7 +40,6 @@ if (isset($_POST['save_about'])) {
             
             if (move_uploaded_file($_FILES['image']['tmp_name'], "uploads/" . $new_name)) {
                 $image_path = "uploads/" . $new_name;
-                // (Optional) ลบรูปแเนˆาทิเน‰งถ้ามี
                 if (!empty($old_img) && file_exists($old_img)) { unlink($old_img); }
             }
         }
@@ -44,13 +48,27 @@ if (isset($_POST['save_about'])) {
     $sql = "UPDATE about_content SET title='$title', description='$desc', image='$image_path' WHERE id=1";
     
     if (mysqli_query($conn, $sql)) {
-        // โœ… เนเเน‰เน„ข 1: บันทึกเสรเน‡จแล้ว ดีดไปหน้าเดิมเžรเน‰อมเนนบคเนˆา success=1
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'success', 
+                'message' => 'บันทึกข้อมูลเรียบร้อยแล้ว',
+                'image' => $image_path
+            ]);
+            exit();
+        }
         header("Location: admin_about.php?status=success");
         exit();
     } else {
-        $err = "แิดข้อผิดพลาด: " . mysqli_error($conn);
+        $err = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => $err]);
+            exit();
+        }
     }
 }
+
 
 $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHERE id=1"));
 ?>
@@ -87,16 +105,18 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
             <h2 class="fw-bold mb-4">จัดการหน้า "เกี่ยวกับเรา"</h2>
 
             <div class="card border-0 shadow-sm rounded-4 p-4">
-                <form method="POST" enctype="multipart/form-data">
+                <form id="about-form" method="POST" enctype="multipart/form-data" onsubmit="submitAboutForm(event)">
                     <?= get_csrf_input() ?>
                     <div class="row">
                         <div class="col-md-4 mb-4 text-center">
                             <label class="form-label fw-bold d-block">รูปภาพ</label>
-                            <?php if(!empty($data['image'])): ?>
-                                <img src="<?= $data['image'] ?>" class="img-fluid rounded shadow-sm mb-3" style="max-height: 300px;">
-                            <?php else: ?>
-                                <div class="bg-light rounded p-5 text-muted border border-dashed mb-3">ไม่มีรูปภาพ</div>
-                            <?php endif; ?>
+                            <div id="image-preview-container">
+                                <?php if(!empty($data['image'])): ?>
+                                    <img src="<?= $data['image'] ?>" id="about-image" class="img-fluid rounded shadow-sm mb-3" style="max-height: 300px;">
+                                <?php else: ?>
+                                    <div class="bg-light rounded p-5 text-muted border border-dashed mb-3">ไม่มีรูปภาพ</div>
+                                <?php endif; ?>
+                            </div>
                             <label class="btn btn-outline-primary w-100">
                                 <i class="bi bi-upload me-1"></i> เปลี่ยนรูปภาพ
                                 <input type="file" name="image" class="d-none" accept="image/*" onchange="previewImage(this)">
@@ -129,10 +149,79 @@ $data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM about_content WHER
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
     function previewImage(input) {
         if (input.files && input.files[0]) {
-            Swal.fire('เลือกรูปแล้ว', 'อย่าลืมบันทึกนะครับ', 'info');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const container = document.getElementById('image-preview-container');
+                container.innerHTML = `<img src="${e.target.result}" id="about-image" class="img-fluid rounded shadow-sm mb-3" style="max-height: 300px;">`;
+            }
+            reader.readAsDataURL(input.files[0]);
+            Toast.fire({ icon: 'info', title: 'เลือกรูปภาพแล้ว อย่าลืมบันทึกนะครับ' });
         }
+    }
+
+    function submitAboutForm(event) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
+        
+        const formData = new FormData(form);
+        formData.append('save_about', '1');
+        formData.append('ajax', '1');
+        
+        fetch('admin_about.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ',
+                    text: data.message,
+                    confirmButtonColor: '#AEE2FF'
+                });
+                if (data.image) {
+                    const container = document.getElementById('image-preview-container');
+                    container.innerHTML = `<img src="${data.image}?v=${new Date().getTime()}" id="about-image" class="img-fluid rounded shadow-sm mb-3" style="max-height: 300px;">`;
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ข้อผิดพลาด',
+                    text: data.message,
+                    confirmButtonColor: '#AEE2FF'
+                });
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
     }
 </script>
 
