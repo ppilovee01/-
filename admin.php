@@ -416,21 +416,30 @@ if($res) {
             }
             .td-actions {
                 display: flex;
-                flex-wrap: wrap;
+                flex-direction: row;
+                flex-wrap: nowrap;
+                align-items: center;
                 gap: 8px;
                 margin-top: 15px;
                 padding-top: 15px;
                 border-top: 1px dashed #eee;
+                width: 100%;
             }
-            .td-actions > button, .td-actions > a {
-                flex: 1;
-                justify-content: center;
+            .td-actions > button:first-child {
+                flex: 1 1 auto;
                 margin: 0 !important;
+                justify-content: center;
             }
             .btn-circle-mobile {
-                flex-grow: 0 !important;
-                width: 40px; height: 40px;
-                display: flex; align-items: center; justify-content: center;
+                flex: 0 0 40px !important;
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 12px !important;
+                display: inline-flex !important;
+                align-items: center;
+                justify-content: center;
+                margin: 0 !important;
+                padding: 0 !important;
             }
         }
     </style>

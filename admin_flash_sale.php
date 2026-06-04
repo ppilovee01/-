@@ -567,7 +567,8 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                     <div class="card-modern p-4">
                         <h5 class="fw-bold mb-4"><i class="bi bi-list-stars text-blue"></i> รายการแคมเปญทั้งหมด</h5>
                         
-                        <div class="table-responsive">
+                        <!-- Desktop View (Table) -->
+                        <div class="table-responsive d-none d-md-block">
                             <table class="table table-hover align-middle">
                                 <thead>
                                     <tr class="text-muted small">
@@ -663,16 +664,102 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
-                                    <?php
-                                    if ($ajax_fetch) {
-                                        $html = ob_get_clean();
-                                        header('Content-Type: application/json');
-                                        echo json_encode(['status' => 'success', 'html' => $html]);
-                                        exit();
-                                    }
-                                    ?>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Mobile View (Cards List) -->
+                        <div class="d-md-none mt-2" id="campaigns-mobile-list">
+                            <?php
+                            $ajax_fetch_mob = isset($_GET['ajax_fetch']);
+                            if ($ajax_fetch_mob) {
+                                $desktop_html = ob_get_clean();
+                                ob_start();
+                            }
+                            ?>
+                            <?php if (empty($campaigns)): ?>
+                                <div class="text-center py-4 text-muted small" id="no-campaigns-placeholder-mob">ไม่พบข้อมูลแคมเปญ Flash Sale</div>
+                            <?php else: ?>
+                                <?php foreach ($campaigns as $camp): 
+                                    $now = time();
+                                    $start = strtotime($camp['start_time']);
+                                    $end = strtotime($camp['end_time']);
+                                    
+                                    $status_text = "";
+                                    $status_class = "";
+                                    $is_active = false;
+                                    
+                                    if ($now < $start) {
+                                        $status_text = "Waiting";
+                                        $status_class = "badge-scheduled";
+                                    } elseif ($now > $end) {
+                                        $status_text = "End";
+                                        $status_class = "badge-expired";
+                                    } elseif ($camp['flash_sold'] >= $camp['flash_stock']) {
+                                        $status_text = "Sold Out";
+                                        $status_class = "badge-expired";
+                                    } else {
+                                        $status_text = "Run";
+                                        $status_class = "badge-active";
+                                        $is_active = true;
+                                    }
+                                    
+                                    $pct = $camp['flash_stock'] > 0 ? ($camp['flash_sold'] / $camp['flash_stock']) * 100 : 0;
+                                    if ($pct > 100) $pct = 100;
+                                ?>
+                                    <div class="card-modern-mobile p-3 mb-3 text-start animate__animated animate__fadeIn" id="campaign-mob-card-<?= $camp['id'] ?>">
+                                        <div class="d-flex align-items-center gap-3 mb-2">
+                                            <img src="<?= htmlspecialchars($camp['product_image']) ?>" class="product-thumbnail" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                            <div class="flex-grow-1 min-w-0">
+                                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;"><?= htmlspecialchars($camp['product_name']) ?></div>
+                                                <div class="d-flex align-items-center gap-2 mt-1">
+                                                    <small class="text-muted text-decoration-line-through">฿<?= number_format($camp['original_price']) ?></small>
+                                                    <strong class="text-danger">฿<?= number_format($camp['flash_price'], 2) ?></strong>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span class="flash-badge <?= $status_class ?>"><?= $status_text ?></span>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="small text-muted mb-1 d-flex justify-content-between" style="font-size: 0.8rem;">
+                                                <span>ขายแล้ว <?= $camp['flash_sold'] ?>/<?= $camp['flash_stock'] ?> ชิ้น</span>
+                                                <span><?= round($pct) ?>%</span>
+                                            </div>
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar bg-blue" role="progressbar" style="width: <?= $pct ?>%"></div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                                            <div style="font-size: 0.75rem;" class="text-muted">
+                                                <div><i class="bi bi-play-circle-fill text-success me-1"></i><?= date('d/m/Y H:i', $start) ?></div>
+                                                <div><i class="bi bi-stop-circle-fill text-danger me-1"></i><?= date('d/m/Y H:i', $end) ?></div>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                <?php if ($is_active): ?>
+                                                    <button onclick="cancelCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-outline-danger btn-sm rounded-3 px-2 py-1" style="font-size: 0.75rem;" title="จบแคมเปญทันที">
+                                                        <i class="bi bi-stop-fill"></i> จบแคมเปญ
+                                                    </button>
+                                                <?php endif; ?>
+                                                <button onclick="loadEditCampaign(<?= $camp['id'] ?>)" class="btn btn-light btn-sm rounded-3 text-warning border px-2 py-1" title="แก้ไข">
+                                                    <i class="bi bi-pencil-fill"></i> แก้ไข
+                                                </button>
+                                                <button onclick="deleteCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm rounded-3 text-danger border px-2 py-1" title="ลบ">
+                                                    <i class="bi bi-trash-fill"></i> ลบ
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                            <?php
+                            if ($ajax_fetch_mob) {
+                                $mobile_html = ob_get_clean();
+                                header('Content-Type: application/json');
+                                echo json_encode(['status' => 'success', 'html' => $desktop_html, 'mobile_html' => $mobile_html]);
+                                exit();
+                            }
+                            ?>
                         </div>
                     </div>
                 </div>
@@ -839,6 +926,10 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         .then(data => {
             if (data.status === 'success') {
                 document.getElementById('campaigns-tbody').innerHTML = data.html;
+                const mobList = document.getElementById('campaigns-mobile-list');
+                if (mobList) {
+                    mobList.innerHTML = data.mobile_html;
+                }
             }
         })
         .catch(err => console.error(err));
@@ -902,22 +993,35 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                             title: data.message
                         });
                         const row = document.getElementById('campaign-row-' + id);
+                        const mobCard = document.getElementById('campaign-mob-card-' + id);
                         if (row) {
                             row.style.transition = 'all 0.3s ease';
                             row.style.opacity = '0';
                             row.style.transform = 'translateX(30px)';
-                            setTimeout(() => {
-                                row.remove();
-                                const tbody = document.getElementById('campaigns-tbody');
-                                if (tbody && tbody.querySelectorAll('.campaign-row').length === 0) {
-                                    tbody.innerHTML = `
-                                        <tr id="no-campaigns-placeholder">
-                                            <td colspan="6" class="text-center py-4 text-muted">ไม่พบข้อมูลแคมเปญ Flash Sale</td>
-                                        </tr>
-                                    `;
-                                }
-                            }, 300);
+                            setTimeout(() => row.remove(), 300);
                         }
+                        if (mobCard) {
+                            mobCard.style.transition = 'all 0.3s ease';
+                            mobCard.style.opacity = '0';
+                            mobCard.style.transform = 'translateX(30px)';
+                            setTimeout(() => mobCard.remove(), 300);
+                        }
+                        setTimeout(() => {
+                            const tbody = document.getElementById('campaigns-tbody');
+                            if (tbody && tbody.querySelectorAll('.campaign-row').length === 0) {
+                                tbody.innerHTML = `
+                                    <tr id="no-campaigns-placeholder">
+                                        <td colspan="6" class="text-center py-4 text-muted">ไม่พบข้อมูลแคมเปญ Flash Sale</td>
+                                    </tr>
+                                `;
+                            }
+                            const mobList = document.getElementById('campaigns-mobile-list');
+                            if (mobList && mobList.querySelectorAll('.card-modern-mobile').length === 0) {
+                                mobList.innerHTML = `
+                                    <div class="text-center py-4 text-muted small" id="no-campaigns-placeholder-mob">ไม่พบข้อมูลแคมเปญ Flash Sale</div>
+                                `;
+                            }
+                        }, 320);
                     } else {
                         Toast.fire({
                             icon: 'error',

@@ -1,7 +1,9 @@
 <?php
 $page_title = "ทดสอบระบบความคืบหน้าหน้าเว็บ (Progress Bar & Percentages Demo)";
+include 'db.php';
 include 'header.php';
 ?>
+
 
 <div class="container py-5">
     <div class="row justify-content-center">
