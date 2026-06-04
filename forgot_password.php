@@ -58,6 +58,7 @@ if (isset($_POST['request_reset'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
+    <link rel="stylesheet" href="style.css?v=2.7">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Kanit'; background: #f8f9fa; display: flex; align-items: center; min-height: 100vh; }
@@ -66,9 +67,58 @@ if (isset($_POST['request_reset'])) {
         .btn-blue:hover { background: #7FB5FF; transform: translateY(-2px); }
         .link-back { text-decoration: none; color: #666; font-size: 0.9rem; transition: 0.2s; }
         .link-back:hover { color: #AEE2FF; }
+
+        /* Dark Theme Specific Overrides */
+        body.dark-theme.auth-page {
+            background: #060913 !important;
+        }
+        body.dark-theme .card-auth {
+            background: rgba(13, 20, 38, 0.65) !important;
+            backdrop-filter: blur(14px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+            box-shadow: 0 10px 40px rgba(56, 189, 248, 0.15) !important;
+            border: 1px solid rgba(56, 189, 248, 0.15) !important;
+        }
+        body.dark-theme .link-back {
+            color: #8493a8 !important;
+        }
+        body.dark-theme .link-back:hover {
+            color: var(--blue-main) !important;
+        }
+        body.dark-theme .btn-blue {
+            background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%) !important;
+            color: #060913 !important;
+            font-weight: 700 !important;
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important;
+        }
+        body.dark-theme .btn-blue:hover {
+            background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+            color: #060913 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.5) !important;
+        }
+        body.dark-theme svg.bi-shield-lock-fill {
+            fill: var(--blue-main) !important;
+        }
+        body.dark-theme .form-floating > label {
+            color: #8493a8 !important;
+        }
+        body.dark-theme .form-floating > .form-control:focus ~ label,
+        body.dark-theme .form-floating > .form-control:not(:placeholder-shown) ~ label {
+            color: var(--blue-main) !important;
+            background-color: transparent !important;
+        }
     </style>
 </head>
-<body>
+<body class="auth-page">
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+    })();
+</script>
 
 <div class="container">
     <div class="row justify-content-center">

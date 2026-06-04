@@ -410,22 +410,22 @@ $extra_css = "
         --cart-progress-track: #e2e8f0;
     }
     body.dark-theme {
-        --cart-bg-card: #131c2e;
-        --cart-bg-header: #131c2e;
-        --cart-border: rgba(174, 226, 255, 0.08);
-        --cart-header-border: rgba(174, 226, 255, 0.08);
-        --cart-qty-bg: #080d1a;
-        --cart-qty-btn-bg: #080d1a;
-        --cart-qty-border: rgba(174, 226, 255, 0.12);
+        --cart-bg-card: rgba(13, 20, 38, 0.65);
+        --cart-bg-header: rgba(13, 20, 38, 0.7);
+        --cart-border: rgba(56, 189, 248, 0.15);
+        --cart-header-border: rgba(56, 189, 248, 0.15);
+        --cart-qty-bg: rgba(6, 9, 19, 0.8);
+        --cart-qty-btn-bg: rgba(6, 9, 19, 0.8);
+        --cart-qty-border: rgba(56, 189, 248, 0.15);
         --cart-qty-btn-color: #cbd5e1;
         
-        --cart-modal-bg: #131c2e;
-        --cart-modal-header-bg: linear-gradient(135deg, #16243d, #131c2e);
-        --cart-modal-body-bg: #080d1a;
+        --cart-modal-bg: rgba(13, 20, 38, 0.95);
+        --cart-modal-header-bg: linear-gradient(135deg, rgba(6, 9, 19, 0.95), rgba(13, 20, 38, 0.95));
+        --cart-modal-body-bg: rgba(6, 9, 19, 0.95);
         
-        --cart-checkout-text: #0a0f1d;
-        --cart-checkout-shadow: rgba(0, 0, 0, 0.4);
-        --cart-progress-track: #1c2a47;
+        --cart-checkout-text: #060913;
+        --cart-checkout-shadow: rgba(56, 189, 248, 0.35);
+        --cart-progress-track: rgba(6, 9, 19, 0.8);
     }
 
     .card-modern { border: 1px solid var(--cart-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background: var(--cart-bg-card); margin-bottom: 25px; overflow: hidden; }
@@ -1372,6 +1372,7 @@ function verifySlipWithAI(input) {
     formData.append('expected_amount', expected.toFixed(2));
     formData.append('payment_method_id', pmId);
     formData.append('order_id', '0'); 
+    formData.append('csrf_token', '<?= get_csrf_token() ?>');
     
     fetch('verify_slip.php', {
         method: 'POST',
@@ -1524,12 +1525,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="modal fade" id="couponModal" tabindex="-1" aria-labelledby="couponModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md">
-        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
-            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #f5f8ff, #ffffff);">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header border-0 pb-0 bg-transparent">
                 <h5 class="modal-title fw-bold text-dark animate__animated animate__fadeInDown" id="couponModalLabel"><i class="bi bi-ticket-perforated-fill text-primary me-2"></i>คูปองส่วนลดของฉัน</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body py-3" style="max-height: 400px; overflow-y: auto; background: #f8f9fa;">
+            <div class="modal-body py-3" style="max-height: 400px; overflow-y: auto;">
                 <div id="coupon-list-container">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary" role="status">
@@ -1539,7 +1540,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-2 pb-3 bg-light d-flex justify-content-end">
+            <div class="modal-footer border-0 pt-2 pb-3 bg-transparent d-flex justify-content-end">
                 <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิด</button>
             </div>
         </div>

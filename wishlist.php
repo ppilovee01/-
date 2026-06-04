@@ -61,7 +61,7 @@ include 'header.php';
             <?php else: ?>
                 <div class="text-center py-5 content-card rounded-4 shadow-sm">
                     <h5 class="fw-bold">ยังไม่มีสินค้าที่ถูกใจ</h5>
-                    <a href="index.php" class="btn btn-dark rounded-pill px-4 mt-3">ไปช้อปเลย</a>
+                    <a href="index.php" class="btn btn-gradient rounded-pill px-4 mt-3">ไปช้อปเลย</a>
                 </div>
             <?php endif; ?>
         </div>

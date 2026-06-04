@@ -559,7 +559,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
     </style>
     
     <?php if(isset($extra_css)) echo $extra_css; ?>
-    <link rel="stylesheet" href="style.css?v=2.4">
+    <link rel="stylesheet" href="style.css?v=2.7">
     <script>
         // ฟังก์ชันแปลงชื่อไฟล์หน้าเว็บเป็นชื่อภาษาไทยที่เข้าใจง่าย
         window.getPageNameThai = (urlStr) => {
@@ -1377,8 +1377,8 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                                 <i class="bi bi-bell"></i>
                                 <span id="notification-badge" class="badge-count hidden">0</span>
                             </a>
-                            <div class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn p-0 shadow-lg border-0" style="width: 320px; border-radius: var(--radius-md); overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); z-index: 9999;">
-                                <div class="p-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-soft);">
+                            <div class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn p-0 shadow-lg border-0" style="width: 320px; border-radius: var(--radius-md); overflow: hidden; z-index: 9999;">
+                                <div class="p-3 border-bottom d-flex justify-content-between align-items-center notification-header">
                                     <span class="fw-bold text-dark mb-0" style="font-size: 0.95rem;">การแจ้งเตือน</span>
                                     <div class="d-flex gap-2">
                                         <button class="btn btn-link p-0 text-decoration-none text-muted small" onclick="markAllNotificationsAsRead()" style="font-size: 0.75rem;">อ่านทั้งหมด</button>
@@ -1464,8 +1464,8 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                     <i class="bi bi-bell"></i>
                     <span id="mobile-notification-badge" class="badge-count hidden" style="font-size: 0.6rem; top: -1px; right: -1px; min-width: 15px; height: 15px;">0</span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn p-0 shadow-lg border-0" style="width: 290px; border-radius: var(--radius-md); overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); z-index: 9999;">
-                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-soft);">
+                <div class="dropdown-menu dropdown-menu-end animate__animated animate__fadeIn p-0 shadow-lg border-0" style="width: 290px; border-radius: var(--radius-md); overflow: hidden; z-index: 9999;">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center notification-header">
                         <span class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">การแจ้งเตือน</span>
                         <div class="d-flex gap-2">
                             <button class="btn btn-link p-0 text-decoration-none text-muted small" onclick="markAllNotificationsAsRead()" style="font-size: 0.7rem;">อ่านทั้งหมด</button>

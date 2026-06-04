@@ -75,6 +75,7 @@ if (isset($_POST['save_password'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
+    <link rel="stylesheet" href="style.css?v=2.7">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Kanit'; background: #f8f9fa; display: flex; align-items: center; min-height: 100vh; }
@@ -83,9 +84,56 @@ if (isset($_POST['save_password'])) {
         .btn-blue:hover { background: #7FB5FF; transform: translateY(-2px); }
         .link-back { text-decoration: none; color: #666; font-size: 0.9rem; transition: 0.2s; }
         .link-back:hover { color: #7FB5FF; }
+
+        /* Dark Theme Specific Overrides */
+        body.dark-theme.auth-page {
+            background: #060913 !important;
+        }
+        body.dark-theme .card-reset {
+            background: rgba(13, 20, 38, 0.65) !important;
+            backdrop-filter: blur(14px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(14px) saturate(180%) !important;
+            box-shadow: 0 10px 40px rgba(56, 189, 248, 0.15) !important;
+            border: 1px solid rgba(56, 189, 248, 0.15) !important;
+        }
+        body.dark-theme .link-back {
+            color: #8493a8 !important;
+        }
+        body.dark-theme .link-back:hover {
+            color: var(--blue-main) !important;
+        }
+        body.dark-theme .btn-blue {
+            background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%) !important;
+            color: #060913 !important;
+            font-weight: 700 !important;
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important;
+        }
+        body.dark-theme .btn-blue:hover {
+            background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+            color: #060913 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.5) !important;
+        }
+        body.dark-theme .btn-outline-secondary {
+            background-color: rgba(6, 9, 19, 0.8) !important;
+            border-color: rgba(56, 189, 248, 0.15) !important;
+            color: #8493a8 !important;
+        }
+        body.dark-theme .btn-outline-secondary:hover {
+            background-color: rgba(13, 20, 38, 0.8) !important;
+            color: #f8fafc !important;
+        }
     </style>
 </head>
-<body>
+<body class="auth-page">
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+    })();
+</script>
 
 <div class="container">
     <div class="row justify-content-center">
@@ -111,7 +159,7 @@ if (isset($_POST['save_password'])) {
                             <label class="form-label text-muted small fw-bold">รหัสผ่านใหม่</label>
                             <div class="input-group">
                                 <input type="password" name="new_password" id="resetNewPass" class="form-control rounded-start-4" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6">
-                                <button class="btn btn-outline-secondary rounded-end-4 border-start-0" type="button" onclick="togglePasswordVisibility('resetNewPass', this)" style="background: white; border-color: #dee2e6;">
+                                <button class="btn btn-outline-secondary rounded-end-4 border-start-0" type="button" onclick="togglePasswordVisibility('resetNewPass', this)">
                                     <i class="bi bi-eye"></i>
                                 </button>
                             </div>
@@ -120,7 +168,7 @@ if (isset($_POST['save_password'])) {
                             <label class="form-label text-muted small fw-bold">ยืนยันรหัสผ่านอีกครั้ง</label>
                             <div class="input-group">
                                 <input type="password" name="confirm_password" id="resetConfirmPass" class="form-control rounded-start-4" placeholder="กรอกให้ตรงกับช่องบน" required minlength="6">
-                                <button class="btn btn-outline-secondary rounded-end-4 border-start-0" type="button" onclick="togglePasswordVisibility('resetConfirmPass', this)" style="background: white; border-color: #dee2e6;">
+                                <button class="btn btn-outline-secondary rounded-end-4 border-start-0" type="button" onclick="togglePasswordVisibility('resetConfirmPass', this)">
                                     <i class="bi bi-eye"></i>
                                 </button>
                             </div>

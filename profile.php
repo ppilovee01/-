@@ -102,6 +102,93 @@ $extra_css = "
         font-size: 0.8rem;
         color: #64748b;
     }
+
+    .avatar-circle {
+        width: 80px; height: 80px; background: #f0f0f0; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 2.5rem; color: #ccc;
+    }
+    body.dark-theme .avatar-circle {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #475569 !important;
+    }
+
+    /* Dark Theme Local Overrides */
+    body.dark-theme .content-card {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+        box-shadow: none !important;
+    }
+    body.dark-theme .form-control {
+        background-color: rgba(6, 9, 19, 0.8) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        color: #f8fafc !important;
+    }
+    body.dark-theme .form-control:focus {
+        background-color: rgba(13, 20, 38, 0.8) !important;
+        border-color: var(--blue-main) !important;
+        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .btn-save {
+        background: linear-gradient(135deg, var(--blue-main) 0%, var(--blue-hover) 100%) !important;
+        color: #060913 !important;
+        font-weight: 700 !important;
+        box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35) !important;
+    }
+    body.dark-theme .btn-save:hover {
+        background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+        color: #060913 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(56, 189, 248, 0.5) !important;
+    }
+    body.dark-theme .address-item {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        box-shadow: none !important;
+    }
+    body.dark-theme .address-item:hover {
+        border-color: var(--blue-main) !important;
+        box-shadow: 0 5px 15px rgba(56, 189, 248, 0.1) !important;
+    }
+    body.dark-theme .btn-del-addr {
+        background: rgba(220, 53, 69, 0.15) !important;
+        color: #ef4444 !important;
+    }
+    body.dark-theme .btn-del-addr:hover {
+        background: #dc3545 !important;
+        color: white !important;
+    }
+    body.dark-theme .timeline-activity {
+        border-left-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    body.dark-theme .timeline-item::before {
+        background-color: var(--blue-main) !important;
+        border-color: #0b1329 !important;
+    }
+    body.dark-theme .btn-outline-secondary {
+        background-color: rgba(6, 9, 19, 0.8) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        color: #8493a8 !important;
+    }
+    body.dark-theme .btn-outline-secondary:hover {
+        background-color: rgba(13, 20, 38, 0.8) !important;
+        color: #f8fafc !important;
+    }
+    body.dark-theme .btn-outline-dark {
+        background-color: rgba(6, 9, 19, 0.8) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        color: #f8fafc !important;
+    }
+    body.dark-theme .btn-outline-dark:hover {
+        background-color: var(--blue-main) !important;
+        color: #060913 !important;
+        border-color: var(--blue-main) !important;
+    }
+    body.dark-theme #no-addr-msg {
+        background-color: rgba(6, 9, 19, 0.4) !important;
+        border: 1px solid rgba(56, 189, 248, 0.08) !important;
+        color: #8493a8 !important;
+    }
 </style>
 ";
 include 'header.php';
@@ -151,7 +238,7 @@ include 'header.php';
                             <input type="hidden" name="action" value="update_profile">
                             <div class="row g-4">
                                 <div class="col-md-12 text-center mb-2">
-                                    <div style="width:80px; height:80px; background:#f0f0f0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:2.5rem; color:#ccc;">
+                                    <div class="avatar-circle">
                                         <i class="bi bi-person-circle"></i>
                                     </div>
                                 </div>
@@ -255,12 +342,12 @@ include 'header.php';
                     <div class="tab-pane fade" id="history-pane" role="tabpanel">
                         <div class="row g-4">
                             <div class="col-lg-4 animate__animated animate__fadeInLeft">
-                                <div class="card border-0 rounded-4 p-4 text-white shadow-sm mb-4" style="background: linear-gradient(135deg, #FFE07D 0%, #FFB100 100%);">
+                                <div class="card border-0 rounded-4 p-4 text-dark shadow-sm mb-4" style="background: linear-gradient(135deg, #FFE07D 0%, #FFB100 100%);">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div>
-                                            <h6 class="text-white-50 mb-1 fw-bold">คะแนนสะสมของคุณ</h6>
-                                            <h2 class="fw-bold mb-0 text-white" style="font-size: 2.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-                                                <i class="bi bi-coin me-1 text-white"></i><?= number_format($user['points'] ?? 0) ?> <span style="font-size: 1.1rem;">แต้ม</span>
+                                            <h6 class="text-dark opacity-75 mb-1 fw-bold">คะแนนสะสมของคุณ</h6>
+                                            <h2 class="fw-bold mb-0 text-dark" style="font-size: 2.2rem;">
+                                                <i class="bi bi-coin me-1 text-dark"></i><?= number_format($user['points'] ?? 0) ?> <span style="font-size: 1.1rem;">แต้ม</span>
                                             </h2>
                                         </div>
                                         <div class="opacity-25 display-5">

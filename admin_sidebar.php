@@ -1,7 +1,7 @@
 <?php
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
-<link rel="stylesheet" href="style.css?v=2.3">
+<link rel="stylesheet" href="style.css?v=2.7">
 <style>
     .sidebar { background: white; border-right: 1px solid #f1f5f9; padding: 30px 20px; }
     @media (min-width: 768px) { .sidebar { min-height: 100vh; } }

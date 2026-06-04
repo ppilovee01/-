@@ -2,6 +2,15 @@
 session_start();
 include 'db.php';
 $page_title = "ติดต่อเรา | Por Mae Bet Taled";
+$extra_css = "
+<style>
+    /* Premium overrides for contact.php */
+    body.dark-theme .bg-dark {
+        background: linear-gradient(135deg, rgba(6, 9, 19, 0.95) 0%, rgba(13, 20, 38, 0.95) 100%) !important;
+        border-right: 1px solid rgba(56, 189, 248, 0.15) !important;
+    }
+</style>
+";
 include 'header.php';
 ?>
 

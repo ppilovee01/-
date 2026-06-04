@@ -136,6 +136,66 @@ $extra_css = "
     .star-rating i { color: #FFC107; font-size: 0.9rem; }
     .review-img-thumb { width: 100px; height: 100px; object-fit: cover; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid rgba(226, 232, 240, 0.8); transition: var(--transition-smooth); margin-top: 10px; }
     .review-img-thumb:hover { transform: scale(1.05); box-shadow: var(--shadow-md); }
+
+    /* Dark Theme Overrides for product details */
+    body.dark-theme .product-img-container {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .btn-option {
+        background: rgba(6, 9, 19, 0.8) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        color: var(--text-primary) !important;
+    }
+    body.dark-theme .btn-option:hover {
+        border-color: var(--blue-main) !important;
+        color: var(--blue-main) !important;
+    }
+    body.dark-theme .btn-check:checked + .btn-option {
+        background-color: var(--blue-main) !important;
+        color: #060913 !important;
+        border-color: var(--blue-main) !important;
+        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4) !important;
+    }
+    body.dark-theme .qty-input-group {
+        background: rgba(6, 9, 19, 0.8) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .btn-qty {
+        background: transparent !important;
+        color: var(--text-primary) !important;
+    }
+    body.dark-theme .btn-qty:hover {
+        background: var(--blue-light) !important;
+        color: var(--blue-main) !important;
+    }
+    body.dark-theme .form-control-qty {
+        background: transparent !important;
+        color: #ffffff !important;
+    }
+    body.dark-theme .btn-icon-action {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        color: var(--text-secondary) !important;
+    }
+    body.dark-theme .btn-icon-action:hover {
+        border-color: #ff5e84 !important;
+        color: #ff5e84 !important;
+        background: rgba(255, 94, 132, 0.08) !important;
+    }
+    body.dark-theme .detail-box {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .nav-tabs {
+        border-bottom-color: rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .review-item {
+        border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+    }
+    body.dark-theme .review-img-thumb {
+        border-color: rgba(56, 189, 248, 0.15) !important;
+    }
 </style>
 ";
 include 'header.php';
@@ -463,12 +523,12 @@ if (!empty($recommended_products)):
                 $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
             ?>
             <div style="flex: 0 0 auto; width: 220px; height: 350px; position: relative;">
-                <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
+                <div class="card card-product h-100 shadow-sm border-0" style="border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
                     <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
                     <?php $rec_fs = getActiveFlashSale($conn, $p['id']); ?>
-                    <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
+                    <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($rec_fs !== null): ?>
@@ -566,11 +626,11 @@ if (!empty($display_recently_viewed)):
                 $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
             ?>
             <div style="flex: 0 0 auto; width: 220px; height: 300px; position: relative;">
-                <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
+                <div class="card card-product h-100 shadow-sm border-0" style="border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
                     <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
-                    <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
+                    <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php $rv_fs = getActiveFlashSale($conn, $p['id']); ?>

@@ -181,6 +181,49 @@ $extra_css = "
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(220, 53, 69, 0.15) !important;
     }
+
+    /* Premium Dark Theme Overrides for index.php elements */
+    body.dark-theme .hero-section {
+        background: linear-gradient(135deg, #090e1a 0%, #060913 100%) !important;
+    }
+    body.dark-theme .hero-section::before {
+        background: rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .hero-section::after {
+        background: rgba(56, 189, 248, 0.1) !important;
+    }
+    body.dark-theme .cat-btn {
+        border-color: rgba(56, 189, 248, 0.15) !important;
+        background: rgba(13, 20, 38, 0.65) !important;
+        color: var(--text-primary) !important;
+    }
+    body.dark-theme .cat-btn:hover,
+    body.dark-theme .cat-btn.active {
+        background: var(--blue-main) !important;
+        border-color: var(--blue-main) !important;
+        color: #060913 !important;
+        box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4) !important;
+    }
+    body.dark-theme .flash-sale-banner-card {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(13, 20, 38, 0.75) 100%) !important;
+        border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    }
+    body.dark-theme .filter-card-collapse {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .flash-card-hover {
+        background: rgba(13, 20, 38, 0.65) !important;
+        color: var(--text-primary) !important;
+    }
+    body.dark-theme .flash-card-hover .badge.bg-dark {
+        background-color: var(--blue-main) !important;
+        color: #060913 !important;
+    }
+    body.dark-theme #flash-countdown-container span.badge.bg-dark {
+        background-color: var(--blue-main) !important;
+        color: #060913 !important;
+    }
 </style>
 ";
 include 'header.php';
@@ -240,7 +283,7 @@ if (!empty($active_flash_sales)):
     $nearest_end_time = $active_flash_sales[0]['end_time'];
 ?>
     <div class="container mt-5 animate__animated animate__fadeIn">
-        <div class="card border-0 shadow-sm p-4 rounded-4" style="background: linear-gradient(135deg, rgba(174, 226, 255, 0.15) 0%, rgba(255, 255, 255, 0.75) 100%); border: 1px solid rgba(174, 226, 255, 0.35); backdrop-filter: blur(10px);">
+        <div class="card border-0 shadow-sm p-4 rounded-4 flash-sale-banner-card" style="background: linear-gradient(135deg, rgba(174, 226, 255, 0.15) 0%, rgba(255, 255, 255, 0.75) 100%); border: 1px solid rgba(174, 226, 255, 0.35); backdrop-filter: blur(10px);">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
                 <div class="d-flex align-items-center gap-2">
                     <div class="flash-icon-wrapper bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; animation: pulse-lightning 1.5s infinite;">
@@ -273,7 +316,7 @@ if (!empty($active_flash_sales)):
                     $discount_pct = round((($fs['original_price'] - $fs['flash_price']) / $fs['original_price']) * 100);
                 ?>
                     <div class="col-6 col-md-3">
-                        <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden position-relative flash-card-hover" style="background: white;">
+                        <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden position-relative flash-card-hover">
                             <!-- Floating Flash Discount Tag -->
                             <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem;">
                                 -<?= $discount_pct ?>%
@@ -402,7 +445,7 @@ if (!empty($active_flash_sales)):
             </span>
         </div>
         <div class="col-12 col-md-6 d-flex justify-content-center justify-content-md-end gap-2">
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse" style="border-color: #E2E8F0; color: var(--text-secondary); background: white; font-weight: 500;">
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse" style="border-color: #E2E8F0; color: var(--text-secondary); font-weight: 500;">
                 <i class="bi bi-sliders"></i> ตัวกรองขั้นสูง
                 <?php if (($min_price !== null) || ($max_price !== null) || $in_stock): ?>
                     <span class="badge bg-primary rounded-circle" style="width: 8px; height: 8px; padding: 0;"></span>
@@ -422,7 +465,7 @@ if (!empty($active_flash_sales)):
 
     <!-- ลิ้นชักตัวกรองแบบพับได้ (Filter Collapse Drawer) -->
     <div class="collapse <?= (($min_price !== null) || ($max_price !== null) || $in_stock) ? 'show' : '' ?> mb-4" id="filterCollapse">
-        <div class="card card-body shadow-sm border-0 p-4" style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.5);">
+        <div class="card card-body shadow-sm border-0 p-4 filter-card-collapse" style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.5);">
             <form method="GET" action="index.php#shop">
                 <!-- รักษาตัวแปรที่มีอยู่ -->
                 <?php if($cat_id): ?>
@@ -455,7 +498,7 @@ if (!empty($active_flash_sales)):
                             นำไปใช้
                         </button>
                         <?php if (($min_price !== null) || ($max_price !== null) || $in_stock): ?>
-                            <a href="index.php?<?= $cat_id ? 'cat='.urlencode($cat_id) : '' ?><?= $search ? '&q='.urlencode($search) : '' ?>#shop" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center justify-content-center" style="border-color: #E2E8F0; width: 38px; height: 38px; padding: 0; background: white;" title="ล้างตัวกรอง">
+                            <a href="index.php?<?= $cat_id ? 'cat='.urlencode($cat_id) : '' ?><?= $search ? '&q='.urlencode($search) : '' ?>#shop" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center justify-content-center" style="border-color: #E2E8F0; width: 38px; height: 38px; padding: 0;" title="ล้างตัวกรอง">
                                 <i class="bi bi-trash3"></i>
                             </a>
                         <?php endif; ?>
@@ -595,11 +638,11 @@ if (!empty($recently_viewed)):
                 $fav_icon = $is_fav ? 'bi-heart-fill' : 'bi-heart';
             ?>
             <div style="flex: 0 0 auto; width: 240px; height: 320px; position: relative;">
-                <div class="card card-product h-100 shadow-sm border-0" style="background: #fff; border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
+                <div class="card card-product h-100 shadow-sm border-0" style="border-radius: var(--radius-md); overflow: hidden; transition: var(--transition-smooth);">
                     <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this)" class="wishlist-tag <?= $fav_class ?>" title="เก็บลงรายการโปรด" style="position: absolute; top: 12px; right: 12px; z-index: 5;">
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
-                    <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; background: #fff; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
+                    <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($is_out): ?>
@@ -683,7 +726,7 @@ endif;
 <!-- Quick Add to Cart Option Modal -->
 <div class="modal fade" id="quickOptionModal" tabindex="-1" aria-labelledby="quickOptionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 420px; width: 95%;">
-        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255,255,255,0.98); backdrop-filter: blur(15px);">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
             <div class="modal-header border-0 pb-0 px-4 pt-4">
                 <h6 class="modal-title fw-bold text-dark" id="quickOptionModalLabel"><i class="bi bi-bag-plus me-2" style="color: var(--blue-hover);"></i>เลือกตัวเลือกสินค้า</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1066,8 +1109,8 @@ endif;
 <!-- Modal คูปองต้อนรับ -->
 <div class="modal fade" id="welcomePromoModal" tabindex="-1" aria-labelledby="welcomePromoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md">
-        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);">
-            <div class="modal-header border-0 pb-0" style="background: #f8f9fa;">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header border-0 pb-0 bg-transparent">
                 <h5 class="modal-title fw-bold text-dark animate__animated animate__fadeInDown" id="welcomePromoModalLabel"><i class="bi bi-gift-fill text-danger me-2"></i>ข้อเสนอสุดพิเศษสำหรับคุณ!</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -1078,19 +1121,19 @@ endif;
                 <h4 class="fw-bold text-dark mb-1">ยินดีต้อนรับสู่ พ่อแม่ เบ็ดเตล็ด</h4>
                 <p class="text-muted small mb-4">รับโค้ดส่วนลดพิเศษเพื่อฉลองการช้อปปิ้งของคุณวันนี้!</p>
                 
-                <div class="coupon-box-premium p-3 rounded-4 mb-4 border d-flex flex-column align-items-center justify-content-center" style="background: linear-gradient(135deg, #7FB5FF, #AEE2FF); border-color: rgba(255,255,255,0.5); box-shadow: 0 8px 25px rgba(127,181,255,0.3);">
-                    <span class="badge bg-white text-primary rounded-pill px-3 py-1 fw-bold mb-2 shadow-sm" style="font-size: 0.75rem;">คูปองต้อนรับสมาชิก</span>
+                <div class="coupon-box-premium p-3 rounded-4 mb-4 border d-flex flex-column align-items-center justify-content-center">
+                    <span class="badge badge-promo rounded-pill px-3 py-1 fw-bold mb-2 shadow-sm" style="font-size: 0.75rem;">คูปองต้อนรับสมาชิก</span>
                     <h2 class="fw-bold text-white mb-1 font-monospace" style="letter-spacing: 1px; font-size: 2rem;"><?= htmlspecialchars($welcome_coupon['code']) ?></h2>
                     <h3 class="fw-bold text-white mb-2" style="font-size: 1.5rem;">
                         ลดทันที <?= $welcome_coupon['discount_type'] == 'percent' ? intval($welcome_coupon['discount_value']) . '%' : '฿' . number_format($welcome_coupon['discount_value']) ?>
                     </h3>
-                    <div class="text-white small opacity-90" style="font-size: 0.75rem;">
+                    <div class="coupon-desc text-white small opacity-90" style="font-size: 0.75rem;">
                         <?= $welcome_coupon['min_spend'] > 0 ? 'ยอดซื้อขั้นต่ำ ฿' . number_format($welcome_coupon['min_spend']) : 'ไม่มีขั้นต่ำ' ?>
                         • หมดอายุ: <?= date('d/m/Y', strtotime($welcome_coupon['expiry_date'])) ?>
                     </div>
                 </div>
                 
-                <button type="button" class="btn btn-primary rounded-pill w-100 py-3 border-0 shadow-md fw-bold" onclick="claimWelcomeCoupon('<?= htmlspecialchars($welcome_coupon['code']) ?>')" style="background: linear-gradient(45deg, #7FB5FF, #AEE2FF); font-size: 1.05rem; color: #fff;">
+                <button type="button" class="btn btn-promo-claim rounded-pill w-100 py-3 border-0 shadow-md fw-bold" onclick="claimWelcomeCoupon('<?= htmlspecialchars($welcome_coupon['code']) ?>')" style="font-size: 1.05rem;">
                     <i class="bi bi-tag-fill me-2"></i>เก็บสะสมโค้ดเลย
                 </button>
             </div>

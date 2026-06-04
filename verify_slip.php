@@ -17,6 +17,15 @@ if (!isset($_SESSION['user_id']) && (!isset($_SESSION['role']) || $_SESSION['rol
     exit();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrf_token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verify_csrf_token($csrf_token)) {
+        ob_end_clean();
+        echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+        exit();
+    }
+}
+
 // ดึงการตั้งค่า AI จาก DB
 $settings_q = mysqli_query($conn, "SELECT slip_ai_provider, openai_api_key, gemini_api_key, claude_api_key FROM shop_settings WHERE id=1");
 $settings = mysqli_fetch_assoc($settings_q);
@@ -316,7 +325,14 @@ if ($order_id > 0) {
     $ai_status_esc  = mysqli_real_escape_string($conn, $ai_status);
     $ai_amount_val  = $ai_amount !== null ? "'$ai_amount'" : 'NULL';
     $ai_note_esc    = mysqli_real_escape_string($conn, $note . ($receiver ? " | ผู้รับ: $receiver" : '') . (!$receiver_match ? " | ผู้รับไม่ตรง" : ''));
-    mysqli_query($conn, "UPDATE orders SET slip_ai_status='$ai_status_esc', slip_ai_amount=$ai_amount_val, slip_ai_note='$ai_note_esc' WHERE id='$order_id'");
+    
+    // Security Fix: Ensure regular users can only update their own orders. Admin can update any order.
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+        mysqli_query($conn, "UPDATE orders SET slip_ai_status='$ai_status_esc', slip_ai_amount=$ai_amount_val, slip_ai_note='$ai_note_esc' WHERE id='$order_id'");
+    } else {
+        $curr_user_id = intval($_SESSION['user_id'] ?? 0);
+        mysqli_query($conn, "UPDATE orders SET slip_ai_status='$ai_status_esc', slip_ai_amount=$ai_amount_val, slip_ai_note='$ai_note_esc' WHERE id='$order_id' AND user_id='$curr_user_id'");
+    }
 }
 
 ob_end_clean();

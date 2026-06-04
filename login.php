@@ -126,7 +126,7 @@ unset($_SESSION['active_tab']);
                                 <div class="input-group">
                                     <span class="input-group-text rounded-start-4 text-muted"><i class="bi bi-key"></i></span>
                                     <input type="password" name="password" id="loginPassword" class="form-control border-start-0 ps-2" placeholder="รหัสผ่าน" required>
-                                    <button class="btn btn-outline-light border border-start-0 text-muted rounded-end-4" type="button" onclick="togglePasswordVisibility('loginPassword', this)" style="background: #f8f9fa;">
+                                    <button class="btn btn-outline-light border border-start-0 text-muted rounded-end-4" type="button" onclick="togglePasswordVisibility('loginPassword', this)">
                                         <i class="bi bi-eye"></i>
                                     </button>
                                 </div>
@@ -146,7 +146,7 @@ unset($_SESSION['active_tab']);
                                 <div class="col-6 mb-3">
                                     <div class="input-group">
                                         <input type="password" name="password" id="regPassword" class="form-control rounded-start-4 ps-3" placeholder="รหัส 6 ตัวขึ้นไป" required>
-                                        <button class="btn btn-outline-light border border-start-0 text-muted rounded-end-4" type="button" onclick="togglePasswordVisibility('regPassword', this)" style="background: #f8f9fa;">
+                                        <button class="btn btn-outline-light border border-start-0 text-muted rounded-end-4" type="button" onclick="togglePasswordVisibility('regPassword', this)">
                                             <i class="bi bi-eye"></i>
                                         </button>
                                     </div>

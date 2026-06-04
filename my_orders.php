@@ -150,6 +150,88 @@ $extra_css = "
     .tracking-box { background: #fdf2f8; border: 1px dashed var(--blue-hover); border-radius: 10px; padding: 10px; text-align: center; margin-top: 15px; }
     .tracking-number { font-size: 1rem; font-weight: 700; color: var(--blue-hover); letter-spacing: 1px; }
     .hidden { display: none !important; }
+
+    /* Dark Theme Overrides for my_orders.php */
+    body.dark-theme .order-card {
+        background: rgba(13, 20, 38, 0.65) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+        box-shadow: none !important;
+    }
+    body.dark-theme .card-header-custom {
+        background: transparent !important;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.08) !important;
+    }
+    body.dark-theme .step-progress::before {
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+    body.dark-theme .step-progress-line {
+        background: var(--blue-main) !important;
+    }
+    body.dark-theme .step-circle {
+        background: #0b1329 !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        color: #475569 !important;
+    }
+    body.dark-theme .step-item.active .step-circle {
+        background: var(--blue-main) !important;
+        border-color: var(--blue-main) !important;
+        color: #060913 !important;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.4) !important;
+    }
+    body.dark-theme .step-text {
+        color: #475569 !important;
+    }
+    body.dark-theme .step-item.active .step-text {
+        color: #f8fafc !important;
+    }
+    body.dark-theme .product-item {
+        border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+    }
+    body.dark-theme .product-img {
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    body.dark-theme .btn-view-slip {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: #94a3b8 !important;
+    }
+    body.dark-theme .btn-view-slip:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: #f8fafc !important;
+    }
+    body.dark-theme .btn-cancel {
+        background: transparent !important;
+        border-color: #ef4444 !important;
+        color: #f87171 !important;
+    }
+    body.dark-theme .btn-cancel:hover {
+        background: #ef4444 !important;
+        color: #ffffff !important;
+    }
+    body.dark-theme .btn-review {
+        border-color: var(--blue-main) !important;
+        color: var(--blue-main) !important;
+        background: transparent !important;
+    }
+    body.dark-theme .btn-review:hover {
+        background: var(--blue-main) !important;
+        color: #060913 !important;
+    }
+    body.dark-theme .btn-track {
+        background: rgba(56, 189, 248, 0.15) !important;
+        color: var(--blue-main) !important;
+        border-color: rgba(56, 189, 248, 0.3) !important;
+    }
+    body.dark-theme .btn-track:hover {
+        background: var(--blue-main) !important;
+        color: #060913 !important;
+    }
+    body.dark-theme .tracking-box {
+        background: rgba(56, 189, 248, 0.03) !important;
+        border-color: rgba(56, 189, 248, 0.15) !important;
+    }
+    body.dark-theme .tracking-number {
+        color: var(--blue-main) !important;
+    }
 </style>
 ";
 include 'header.php';
@@ -254,9 +336,9 @@ date_default_timezone_set('Asia/Bangkok');
                                     <i class="bi bi-copy ms-2 text-secondary" style="cursor:pointer;" onclick="navigator.clipboard.writeText('<?= htmlspecialchars($row['tracking_no']) ?>'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'คัดลอกเลขพัสดุแล้ว', showConfirmButton:false, timer:1000})"></i>
                                 </div>
                                 <div class="mt-2">
-                                    <a href="<?= $track_url ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 font-size-xs" style="font-size: 0.75rem; border-color: #AEE2FF; color: #444;">
-                                        <i class="bi bi-search"></i> ติดตามสถานะพัสดุด่วน (<?= $carrier_label ?>)
-                                    </a>
+                                    <a href="<?= $track_url ?>" target="_blank" class="btn btn-sm btn-outline-custom rounded-pill px-3" style="font-size: 0.75rem;">
+                                         <i class="bi bi-search"></i> ติดตามสถานะพัสดุด่วน (<?= $carrier_label ?>)
+                                     </a>
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -385,7 +467,7 @@ date_default_timezone_set('Asia/Bangkok');
                 <div id="track-no-box" class="bg-light rounded-3 p-3 mb-4 d-none text-center">
                     <span class="small text-muted d-block fw-bold text-start">เลขพัสดุ (Tracking Number)</span>
                     <span class="fw-bold fs-5 text-blue d-block my-1" id="track-no-val"></span>
-                    <a id="track-link-btn" href="" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 mt-2 text-white" style="background-color:#AEE2FF; border-color:#AEE2FF; color:#444 !important; font-size: 0.8rem; font-weight: 500;">
+                    <a id="track-link-btn" href="" target="_blank" class="btn btn-sm btn-blue rounded-pill px-3 mt-2" style="font-size: 0.8rem; font-weight: 500;">
                         <i class="bi bi-box-seam"></i> ติดตามพัสดุผ่านระบบ 17Track
                     </a>
                 </div>

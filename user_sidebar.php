@@ -38,4 +38,20 @@ $current_page = basename($_SERVER['PHP_SELF']);
     .bg-blue { background-color: #AEE2FF !important; border-color: #AEE2FF !important; }
     .list-group-item-action:hover { background-color: #F0F8FF; color: #AEE2FF; }
     .list-group-item.active { z-index: 2; color: #fff; background-color: #AEE2FF; border-color: #AEE2FF; }
+
+    /* Dark Mode Overrides for Sidebar */
+    body.dark-theme .bg-blue {
+        background-color: var(--blue-main) !important;
+        border-color: var(--blue-main) !important;
+        color: #060913 !important;
+    }
+    body.dark-theme .list-group-item.active {
+        background-color: var(--blue-main) !important;
+        border-color: var(--blue-main) !important;
+        color: #060913 !important;
+    }
+    body.dark-theme .list-group-item-action:hover {
+        background-color: var(--blue-light) !important;
+        color: var(--blue-main) !important;
+    }
 </style>
