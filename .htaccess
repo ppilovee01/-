@@ -1,6 +1,31 @@
 # ----------------------------------------------------------------------
-# Por Mae Bet Taled (พ่อแม่ เบ็ดเตล็ด) - Root Security Configurations
+# Por Mae Bet Taled (พ่อแม่ เบ็ดเตล็ด) - Root Security & URL Rewriting
 # ----------------------------------------------------------------------
+
+# Enable Rewrite Engine & Hide .php Extension
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # 1. Redirect /page.php to /page (External Redirect for clean URL, preserving subdirectory)
+    # Skip POST requests to preserve form submissions and AJAX request payloads
+    RewriteCond %{REQUEST_METHOD} !POST
+    # Skip AJAX centralized router and verification files to prevent redirect overhead/data loss
+    RewriteCond %{REQUEST_URI} !ajax\.php
+    RewriteCond %{REQUEST_URI} !verify_slip\.php
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s([^\s?]+)\.php [NC]
+    # ป้องกันการวนลูปสำหรับกรณีที่เป็นโฟลเดอร์หรือไฟล์ระบบ
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ %1 [R=302,L]
+
+
+
+    # 2. Map /page to /page.php internally (Internal Rewrite)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.*?)/?$ $1.php [L]
+</IfModule>
+
+
 
 # 1. Prevent Directory Indexing (Disable directory browsing)
 Options -Indexes

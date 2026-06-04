@@ -24,6 +24,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
     <title>Label #<?= $order_id ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         /* --- ตั้งค่าหน้าเระดาษ A4 --- */
         @page { size: A4; margin: 0; }
@@ -88,8 +89,9 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
 
         .footer { margin-top: auto; text-align: center; font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 20px; }
 
-        .btn-print { position: fixed; bottom: 30px; right: 30px; background: #AEE2FF; color: white; border: none; width: 70px; height: 70px; border-radius: 50%; cursor: pointer; font-size: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.3s; z-index: 999; display: flex; align-items: center; justify-content: center; }
-        .btn-print:hover { transform: scale(1.1); background: #7FB5FF; }
+        .btn-print { position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none; width: 70px; height: 70px; border-radius: 50%; cursor: pointer; font-size: 28px; box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 999; display: flex; align-items: center; justify-content: center; }
+        .btn-print:hover { transform: scale(1.1) translateY(-2px); background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%); box-shadow: 0 8px 25px rgba(0, 242, 254, 0.6); }
+        .btn-print i { color: #fff !important; }
 
         @media print {
             body { background: white; padding: 0; margin: 0; display: block; }
@@ -100,7 +102,7 @@ $items = mysqli_query($conn, "SELECT oi.*, p.name FROM order_items oi JOIN produ
 </head>
 <body>
     
-    <button onclick="window.print()" class="btn-print" title="พิมพ์ฉลากจัดส่ง">🖨️</button>
+    <button onclick="window.print()" class="btn-print" title="พิมพ์ฉลากจัดส่ง"><i class="bi bi-printer-fill"></i></button>
 
     <div class="page">
         <div class="header">

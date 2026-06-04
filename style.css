@@ -1191,6 +1191,70 @@ body.dark-theme .list-group-item.bg-dark {
     color: #ffffff !important;
 }
 
+/* Premium Icon Styling & Micro-Animations */
+.bi, [class^="bi-"], [class*=" bi-"] {
+    font-family: bootstrap-icons !important;
+    vertical-align: -0.125em;
+    display: inline-block;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+}
+.btn:hover .bi, 
+a:hover .bi, 
+button:hover .bi,
+.wishlist-tag:hover .bi {
+    transform: scale(1.18) rotate(3deg);
+}
+
+/* Inherit button text color on solid/colored buttons and hover states */
+.btn-primary .bi, 
+.btn-danger .bi, 
+.btn-success .bi, 
+.btn-warning .bi, 
+.btn-info .bi, 
+.btn-dark .bi,
+.btn-print .bi,
+.btn-print:hover .bi,
+.btn:hover .bi,
+.btn:hover [class^="bi-"],
+.btn:hover [class*=" bi-"],
+button:hover .bi,
+button:hover [class^="bi-"],
+button:hover [class*=" bi-"] {
+    color: inherit !important;
+}
+
+/* Trash bin icon (Delete) modern soft red */
+.bi-trash, .bi-trash-fill, .bi-trash3, .bi-trash3-fill {
+    color: #ff5e62 !important;
+}
+.btn-danger .bi-trash, 
+.btn-danger .bi-trash-fill,
+.btn-outline-danger:hover .bi-trash, 
+.btn-outline-danger:hover .bi-trash-fill,
+.btn-light:hover .bi-trash, 
+.btn-light:hover .bi-trash-fill {
+    color: #ff3b3f !important;
+}
+
+/* Printer icon (Print) soft blue */
+.bi-printer, .bi-printer-fill {
+    color: #3b82f6 !important;
+}
+.btn-print:hover .bi-printer,
+.btn-print:hover .bi-printer-fill {
+    color: #1d4ed8 !important;
+}
+
+/* Plus/Add icon soft green */
+.bi-plus-circle, .bi-plus-circle-fill, .bi-plus-lg {
+    color: #10b981 !important;
+}
+.btn-success .bi-plus-circle,
+.btn-success .bi-plus-circle-fill {
+    color: #ffffff !important;
+}
+
+
 
 
 

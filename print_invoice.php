@@ -44,6 +44,8 @@ $shop_icon = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "asset
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ใบเสร็จรับเงิน ออเดอร์ #<?= str_pad($oid, 5, '0', STR_PAD_LEFT) ?></title>
+    <link rel="icon" type="image/x-icon" href="<?= isset($current_favicon) ? $current_favicon : 'assets/default_icon.png' ?>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -163,20 +165,32 @@ $shop_icon = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "asset
             margin-bottom: 20px;
         }
         .btn-print {
-            background-color: #0d6efd;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: #fff;
             border: none;
-            padding: 10px 24px;
-            font-size: 14px;
+            padding: 12px 30px;
+            font-family: 'Kanit', sans-serif;
+            font-size: 15px;
             font-weight: 500;
             border-radius: 30px;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(13, 110, 253, 0.15);
-            transition: all 0.2s;
+            box-shadow: 0 6px 20px rgba(0, 242, 254, 0.35);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         .btn-print:hover {
-            background-color: #0b5ed7;
-            transform: translateY(-1px);
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 8px 25px rgba(0, 242, 254, 0.5);
+        }
+        .btn-print:active {
+            transform: translateY(0) scale(1.0);
+        }
+        .btn-print i {
+            font-size: 18px;
+            color: #fff !important;
         }
         
         @media print {
@@ -197,7 +211,7 @@ $shop_icon = !empty($shop['shop_icon']) ? "uploads/".$shop['shop_icon'] : "asset
 <body>
 
     <div class="no-print-area">
-        <button onclick="window.print()" class="btn-print">🖨️ สั่งพิมพ์ใบเสร็จ</button>
+        <button onclick="window.print()" class="btn-print"><i class="bi bi-printer-fill"></i> สั่งพิมพ์ใบเสร็จ</button>
     </div>
 
     <div class="invoice-box">
