@@ -34,25 +34,43 @@ if (isset($_SESSION['error_msg'])) {
 
 if (isset($_POST['update_settings'])) {
     $auto_flash_sale = isset($_POST['auto_flash_sale']) ? 1 : 0;
-    $auto_flash_discount = intval($_POST['auto_flash_discount']);
-    $auto_flash_duration = intval($_POST['auto_flash_duration']);
+    $auto_flash_type = mysqli_real_escape_string($conn, $_POST['auto_flash_type'] ?? 'static');
+    $auto_flash_discount = intval($_POST['auto_flash_discount'] ?? 20);
+    $auto_flash_min_discount = intval($_POST['auto_flash_min_discount'] ?? 10);
+    $auto_flash_max_discount = intval($_POST['auto_flash_max_discount'] ?? 50);
+    $auto_flash_selection_rule = mysqli_real_escape_string($conn, $_POST['auto_flash_selection_rule'] ?? 'random');
+    $auto_flash_count = intval($_POST['auto_flash_count'] ?? 3);
+    $auto_flash_duration = intval($_POST['auto_flash_duration'] ?? 2);
+    $auto_flash_stock = intval($_POST['auto_flash_stock'] ?? 10);
     
     // ดึงค่าตั้งค่าเดิมมาตรวจสอบส่วนต่าง
-    $settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration FROM shop_settings WHERE id = 1");
+    $settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration, auto_flash_type, auto_flash_min_discount, auto_flash_max_discount, auto_flash_selection_rule, auto_flash_count, auto_flash_stock FROM shop_settings WHERE id = 1");
     $shop_s = mysqli_fetch_assoc($settings_res);
     
     $upd_s = mysqli_query($conn, "UPDATE shop_settings SET 
         auto_flash_sale = '$auto_flash_sale', 
+        auto_flash_type = '$auto_flash_type',
         auto_flash_discount = '$auto_flash_discount', 
-        auto_flash_duration = '$auto_flash_duration' 
+        auto_flash_min_discount = '$auto_flash_min_discount',
+        auto_flash_max_discount = '$auto_flash_max_discount',
+        auto_flash_selection_rule = '$auto_flash_selection_rule',
+        auto_flash_count = '$auto_flash_count',
+        auto_flash_duration = '$auto_flash_duration',
+        auto_flash_stock = '$auto_flash_stock'
         WHERE id = 1");
     if ($upd_s) {
         log_admin_action($conn, 'ตั้งค่า Flash Sale อัตโนมัติ', [
             'title' => 'อัปเดตการตั้งค่าระบบ Flash Sale อัตโนมัติ',
             'changes' => [
                 ['field' => 'เปิดใช้งานระบบอัตโนมัติ', 'old' => ($shop_s['auto_flash_sale'] ?? 0) ? 'เปิด' : 'ปิด', 'new' => $auto_flash_sale ? 'เปิด' : 'ปิด'],
+                ['field' => 'ประเภทส่วนลด', 'old' => $shop_s['auto_flash_type'] ?? 'static', 'new' => $auto_flash_type],
                 ['field' => 'ส่วนลดอัตโนมัติ (%)', 'old' => ($shop_s['auto_flash_discount'] ?? 20) . '%', 'new' => $auto_flash_discount . '%'],
-                ['field' => 'ระยะเวลารอบ (ชม.)', 'old' => ($shop_s['auto_flash_duration'] ?? 2) . ' ชม.', 'new' => $auto_flash_duration . ' ชม.']
+                ['field' => 'ส่วนลดขั้นต่ำ Dynamic (%)', 'old' => ($shop_s['auto_flash_min_discount'] ?? 10) . '%', 'new' => $auto_flash_min_discount . '%'],
+                ['field' => 'ส่วนลดขั้นสูง Dynamic (%)', 'old' => ($shop_s['auto_flash_max_discount'] ?? 50) . '%', 'new' => $auto_flash_max_discount . '%'],
+                ['field' => 'กฎการเลือกสินค้า', 'old' => $shop_s['auto_flash_selection_rule'] ?? 'random', 'new' => $auto_flash_selection_rule],
+                ['field' => 'จำนวนสินค้าต่อรอบ', 'old' => $shop_s['auto_flash_count'] ?? 3, 'new' => $auto_flash_count],
+                ['field' => 'ระยะเวลารอบ (ชม.)', 'old' => ($shop_s['auto_flash_duration'] ?? 2) . ' ชม.', 'new' => $auto_flash_duration . ' ชม.'],
+                ['field' => 'โควตาสินค้าอัตโนมัติ (ชิ้น)', 'old' => ($shop_s['auto_flash_stock'] ?? 10) . ' ชิ้น', 'new' => $auto_flash_stock . ' ชิ้น']
             ]
         ]);
         // Trigger generation check
@@ -373,7 +391,7 @@ while ($p = mysqli_fetch_assoc($p_res)) {
 }
 
 // Fetch shop settings for auto flash sale
-$settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration FROM shop_settings WHERE id = 1");
+$settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration, auto_flash_type, auto_flash_min_discount, auto_flash_max_discount, auto_flash_selection_rule, auto_flash_count, auto_flash_stock FROM shop_settings WHERE id = 1");
 $shop_s = mysqli_fetch_assoc($settings_res);
 
 // Fetch flash sale campaigns
@@ -415,8 +433,58 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         @media (min-width: 1200px) {
             .sticky-column-wrapper {
                 position: sticky;
-                top: 30px;
+                top: 20px;
+                max-height: calc(100vh - 40px);
+                overflow-y: auto;
+                padding-right: 6px;
                 z-index: 10;
+            }
+            /* Custom thin scrollbar for elegant UI */
+            .sticky-column-wrapper::-webkit-scrollbar {
+                width: 5px;
+            }
+            .sticky-column-wrapper::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .sticky-column-wrapper::-webkit-scrollbar-thumb {
+                background: rgba(127, 181, 255, 0.4);
+                border-radius: 10px;
+            }
+            .sticky-column-wrapper::-webkit-scrollbar-thumb:hover {
+                background: rgba(127, 181, 255, 0.7);
+            }
+        }
+
+        /* Mobile Responsive Overrides */
+        @media (max-width: 767.98px) {
+            .card-modern {
+                padding: 15px !important;
+            }
+            .card-modern-mobile {
+                background: #ffffff !important;
+                border: 1px solid rgba(226, 232, 240, 0.8) !important;
+                border-radius: 16px !important;
+                box-shadow: 0 8px 25px rgba(127, 181, 255, 0.04) !important;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                position: relative !important;
+                overflow: hidden !important;
+                border-left: 5px solid #7FB5FF !important;
+            }
+            .card-modern-mobile:hover, .card-modern-mobile:active {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 30px rgba(127, 181, 255, 0.1) !important;
+                border-color: rgba(127, 181, 255, 0.3) !important;
+            }
+            .flash-badge {
+                min-width: 70px !important;
+                padding: 4px 8px !important;
+                font-size: 0.7rem !important;
+            }
+            .card-modern-mobile .btn {
+                border-radius: 10px !important;
+                font-weight: 500;
+                padding: 5px 10px;
+                font-size: 0.72rem;
             }
         }
     </style>
@@ -515,7 +583,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                         <!-- Auto Flash Settings Card -->
                         <div class="card-modern p-4 mt-4">
                             <h5 class="fw-bold mb-3"><i class="bi bi-robot text-blue"></i> ระบบรันแคมเปญอัตโนมัติ</h5>
-                            <p class="text-muted small mb-3">เมื่อเปิดใช้งาน หากระบบตรวจไม่พบแคมเปญ Flash Sale ที่กำลังรันอยู่ ระบบจะสุ่มเลือกสินค้าขึ้นมาจัดแคมเปญอัตโนมัติทันที</p>
+                            <p class="text-muted small mb-3">เมื่อเปิดใช้งาน ระบบจะคำนวณและสร้างคิวรอบแคมเปญ Flash Sale ล่วงหน้าอัตโนมัติ โดยรักษาโควตาจำนวนสินค้าต่อรอบ</p>
                             
                             <form id="settings-form" method="POST" action="admin_flash_sale.php" onsubmit="submitSettingsForm(event)">
                                 <?= get_csrf_input() ?>
@@ -523,23 +591,76 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                     <input class="form-check-input" type="checkbox" name="auto_flash_sale" id="autoFlashCheck" value="1" <?= (isset($shop_s['auto_flash_sale']) && $shop_s['auto_flash_sale'] == 1) ? 'checked' : '' ?> style="cursor: pointer; width: 2.2em; height: 1.1em;">
                                     <label class="form-check-label fw-bold text-dark small ms-2" for="autoFlashCheck" style="cursor: pointer;">เปิดใช้งานระบบอัตโนมัติ</label>
                                 </div>
-                                
+
                                 <div class="mb-3">
-                                    <label class="form-label fw-semibold small text-muted">ส่วนลดอัตโนมัติ (%)</label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" class="form-control" name="auto_flash_discount" value="<?= isset($shop_s['auto_flash_discount']) ? $shop_s['auto_flash_discount'] : '20' ?>" required min="10" max="85">
-                                        <span class="input-group-text bg-light text-muted">%</span>
-                                    </div>
-                                    <span class="text-muted" style="font-size: 0.75rem;">สัดส่วนการลดราคาจากราคาปกติ (10% - 85%)</span>
+                                    <label class="form-label fw-semibold small text-muted">รูปแบบการคำนวณส่วนลด</label>
+                                    <select class="form-select form-select-sm" name="auto_flash_type" id="autoFlashTypeSelect" onchange="toggleDiscountFields()" required>
+                                        <option value="static" <?= (isset($shop_s['auto_flash_type']) && $shop_s['auto_flash_type'] === 'static') ? 'selected' : '' ?>>ส่วนลดคงที่ (Static Discount)</option>
+                                        <option value="dynamic" <?= (isset($shop_s['auto_flash_type']) && $shop_s['auto_flash_type'] === 'dynamic') ? 'selected' : '' ?>>ปรับตามความนิยมอัตโนมัติ (Dynamic Discount)</option>
+                                    </select>
                                 </div>
                                 
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold small text-muted">ระยะเวลาแต่ละรอบ (ชั่วโมง)</label>
+                                <div class="mb-3" id="static-discount-group" <?= (isset($shop_s['auto_flash_type']) && $shop_s['auto_flash_type'] === 'dynamic') ? 'style="display: none;"' : '' ?>>
+                                    <label class="form-label fw-semibold small text-muted">ส่วนลดอัตโนมัติ (%)</label>
                                     <div class="input-group input-group-sm">
-                                        <input type="number" class="form-control" name="auto_flash_duration" value="<?= isset($shop_s['auto_flash_duration']) ? $shop_s['auto_flash_duration'] : '2' ?>" required min="1" max="24">
-                                        <span class="input-group-text bg-light text-muted">ชม.</span>
+                                        <input type="number" class="form-control" name="auto_flash_discount" value="<?= isset($shop_s['auto_flash_discount']) ? $shop_s['auto_flash_discount'] : '20' ?>" min="5" max="90">
+                                        <span class="input-group-text bg-light text-muted">%</span>
                                     </div>
-                                    <span class="text-muted" style="font-size: 0.75rem;">ระยะเวลานับถอยหลังต่อหนึ่งรอบแคมเปญ</span>
+                                    <span class="text-muted" style="font-size: 0.75rem;">ส่วนลดคงที่ของสินค้าทุกรายการ (5% - 90%)</span>
+                                </div>
+
+                                <div id="dynamic-discount-group" <?= (isset($shop_s['auto_flash_type']) && $shop_s['auto_flash_type'] === 'dynamic') ? '' : 'style="display: none;"' ?>>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="form-label fw-semibold small text-muted">ลดขั้นต่ำ (%)</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" name="auto_flash_min_discount" value="<?= isset($shop_s['auto_flash_min_discount']) ? $shop_s['auto_flash_min_discount'] : '10' ?>" min="5" max="90">
+                                                <span class="input-group-text bg-light text-muted">%</span>
+                                            </div>
+                                            <span class="text-muted" style="font-size: 0.7rem;">สำหรับสินค้าขายดีที่สุด</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label fw-semibold small text-muted">ลดสูงสุด (%)</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" name="auto_flash_max_discount" value="<?= isset($shop_s['auto_flash_max_discount']) ? $shop_s['auto_flash_max_discount'] : '50' ?>" min="5" max="90">
+                                                <span class="input-group-text bg-light text-muted">%</span>
+                                            </div>
+                                            <span class="text-muted" style="font-size: 0.7rem;">สำหรับสินค้าขายช้าที่สุด</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">เกณฑ์การคัดเลือกสินค้า</label>
+                                    <select class="form-select form-select-sm" name="auto_flash_selection_rule" required>
+                                        <option value="random" <?= (isset($shop_s['auto_flash_selection_rule']) && $shop_s['auto_flash_selection_rule'] === 'random') ? 'selected' : '' ?>>สุ่มเลือกสินค้า (Random)</option>
+                                        <option value="slow_moving" <?= (isset($shop_s['auto_flash_selection_rule']) && $shop_s['auto_flash_selection_rule'] === 'slow_moving') ? 'selected' : '' ?>>สินค้าขายไม่ดีก่อน (Slow-moving first)</option>
+                                        <option value="popular" <?= (isset($shop_s['auto_flash_selection_rule']) && $shop_s['auto_flash_selection_rule'] === 'popular') ? 'selected' : '' ?>>สินค้าขายดีก่อน (Popular first)</option>
+                                        <option value="high_stock" <?= (isset($shop_s['auto_flash_selection_rule']) && $shop_s['auto_flash_selection_rule'] === 'high_stock') ? 'selected' : '' ?>>สินค้าสต็อกเยอะสุดก่อน (High stock first)</option>
+                                    </select>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold small text-muted">จำนวนสินค้าต่อรอบ</label>
+                                        <input type="number" class="form-control form-control-sm" name="auto_flash_count" value="<?= isset($shop_s['auto_flash_count']) ? $shop_s['auto_flash_count'] : '3' ?>" required min="1" max="8">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold small text-muted">ระยะเวลารอบ (ชม.)</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" name="auto_flash_duration" value="<?= isset($shop_s['auto_flash_duration']) ? $shop_s['auto_flash_duration'] : '2' ?>" required min="1" max="24">
+                                            <span class="input-group-text bg-light text-muted">ชม.</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small text-muted">โควตาสินค้าอัตโนมัติ (ชิ้นสูงสุด)</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control" name="auto_flash_stock" value="<?= isset($shop_s['auto_flash_stock']) ? $shop_s['auto_flash_stock'] : '10' ?>" required min="1" max="100">
+                                        <span class="input-group-text bg-light text-muted">ชิ้น</span>
+                                    </div>
+                                    <div class="form-text" style="font-size: 0.75rem;">ขีดจำกัดสูงสุดจำนวนสินค้าที่จะดึงมาลดราคาต่อแคมเปญ (ดึงเท่าที่มีจริงในระบบแต่ไม่เกินจำนวนนี้)</div>
                                 </div>
                                 
                                 <button type="submit" name="update_settings" class="btn btn-blue w-100 btn-sm py-2 fw-bold">บันทึกการตั้งค่าออโต้</button>
@@ -554,7 +675,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                     <li>เลือกสินค้าที่มีสต็อกมากกว่า 5 ชิ้นเป็นลำดับแรก</li>
                                     <li>ต้องเป็นสินค้าที่ยังไม่มีแคมเปญ Flash Sale อื่นที่ยังไม่สิ้นสุดครอบคลุมอยู่</li>
                                     <li>หากไม่มีสินค้าตรงตามเงื่อนไขด้านบน จะสุ่มเลือกจากสินค้าใดก็ได้ที่มีสต็อก > 0 และไม่มีแคมเปญทับซ้อน</li>
-                                    <li>โควตาสินค้าอัตโนมัติคิดเป็น 30% ของสต็อกจริง (ขั้นต่ำ 1 ชิ้น, สูงสุด 10 ชิ้น)</li>
+                                    <li>โควตาสินค้าอัตโนมัติ คิดตามจำนวนสูงสุดที่ตั้งไว้ (ไม่เกินจำนวนสต็อกที่มีอยู่จริง)</li>
                                     <li>ส่วนลดจะอิงตามร้อยละที่ตั้งค่าไว้ข้างต้น</li>
                                 </ul>
                             </div>
@@ -707,18 +828,20 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                     $pct = $camp['flash_stock'] > 0 ? ($camp['flash_sold'] / $camp['flash_stock']) * 100 : 0;
                                     if ($pct > 100) $pct = 100;
                                 ?>
-                                    <div class="card-modern-mobile p-3 mb-3 text-start animate__animated animate__fadeIn" id="campaign-mob-card-<?= $camp['id'] ?>">
-                                        <div class="d-flex align-items-center gap-3 mb-2">
-                                            <img src="<?= htmlspecialchars($camp['product_image']) ?>" class="product-thumbnail" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                    <div class="card-modern-mobile p-3 mb-3 text-start animate__animated animate__fadeIn position-relative" id="campaign-mob-card-<?= $camp['id'] ?>">
+                                        <!-- Status Badge (Floating top-right) -->
+                                        <div class="position-absolute" style="top: 15px; right: 15px; z-index: 2;">
+                                            <span class="flash-badge <?= $status_class ?>"><?= $status_text ?></span>
+                                        </div>
+
+                                        <div class="d-flex align-items-start gap-3 mb-2" style="padding-right: 85px;">
+                                            <img src="<?= htmlspecialchars($camp['product_image']) ?>" class="product-thumbnail" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
                                             <div class="flex-grow-1 min-w-0">
-                                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;"><?= htmlspecialchars($camp['product_name']) ?></div>
+                                                <div class="fw-bold text-dark lh-sm" style="font-size: 0.9rem; word-break: break-word; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.4em; padding-right: 5px;"><?= htmlspecialchars($camp['product_name']) ?></div>
                                                 <div class="d-flex align-items-center gap-2 mt-1">
                                                     <small class="text-muted text-decoration-line-through">฿<?= number_format($camp['original_price']) ?></small>
                                                     <strong class="text-danger">฿<?= number_format($camp['flash_price'], 2) ?></strong>
                                                 </div>
-                                            </div>
-                                            <div>
-                                                <span class="flash-badge <?= $status_class ?>"><?= $status_text ?></span>
                                             </div>
                                         </div>
                                         <div class="mb-3">
@@ -730,21 +853,21 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                                                 <div class="progress-bar bg-blue" role="progressbar" style="width: <?= $pct ?>%"></div>
                                             </div>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center border-top pt-2">
-                                            <div style="font-size: 0.75rem;" class="text-muted">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top pt-2">
+                                            <div style="font-size: 0.72rem; line-height: 1.3;" class="text-muted">
                                                 <div><i class="bi bi-play-circle-fill text-success me-1"></i><?= date('d/m/Y H:i', $start) ?></div>
                                                 <div><i class="bi bi-stop-circle-fill text-danger me-1"></i><?= date('d/m/Y H:i', $end) ?></div>
                                             </div>
-                                            <div class="d-flex gap-1">
+                                            <div class="d-flex gap-1 ms-auto">
                                                 <?php if ($is_active): ?>
-                                                    <button onclick="cancelCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-outline-danger btn-sm rounded-3 px-2 py-1" style="font-size: 0.75rem;" title="จบแคมเปญทันที">
-                                                        <i class="bi bi-stop-fill"></i> จบแคมเปญ
+                                                    <button onclick="cancelCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-outline-danger btn-sm rounded-3 px-2 py-1" style="font-size: 0.72rem;" title="จบแคมเปญทันที">
+                                                        <i class="bi bi-stop-fill"></i> จบ
                                                     </button>
                                                 <?php endif; ?>
-                                                <button onclick="loadEditCampaign(<?= $camp['id'] ?>)" class="btn btn-light btn-sm rounded-3 text-warning border px-2 py-1" title="แก้ไข">
+                                                <button onclick="loadEditCampaign(<?= $camp['id'] ?>)" class="btn btn-light btn-sm rounded-3 text-warning border px-2 py-1" style="font-size: 0.72rem;" title="แก้ไข">
                                                     <i class="bi bi-pencil-fill"></i> แก้ไข
                                                 </button>
-                                                <button onclick="deleteCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm rounded-3 text-danger border px-2 py-1" title="ลบ">
+                                                <button onclick="deleteCampaign(<?= $camp['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-light btn-sm rounded-3 text-danger border px-2 py-1" style="font-size: 0.72rem;" title="ลบ">
                                                     <i class="bi bi-trash-fill"></i> ลบ
                                                 </button>
                                             </div>
@@ -770,6 +893,10 @@ while ($c = mysqli_fetch_assoc($c_res)) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        toggleDiscountFields();
+    });
+
     const Toast = Swal.mixin({
         toast: true,
         position: 'top-end',
@@ -829,6 +956,19 @@ while ($c = mysqli_fetch_assoc($c_res)) {
         submitBtn.name = 'add';
         submitBtn.className = 'btn btn-blue w-100 rounded-3 py-2 fw-bold';
         document.getElementById('cancel-edit-btn').style.display = 'none';
+    }
+
+    function toggleDiscountFields() {
+        const typeSelect = document.getElementById('autoFlashTypeSelect');
+        const staticGroup = document.getElementById('static-discount-group');
+        const dynamicGroup = document.getElementById('dynamic-discount-group');
+        if (typeSelect && typeSelect.value === 'dynamic') {
+            if (staticGroup) staticGroup.style.display = 'none';
+            if (dynamicGroup) dynamicGroup.style.display = 'block';
+        } else {
+            if (staticGroup) staticGroup.style.display = 'block';
+            if (dynamicGroup) dynamicGroup.style.display = 'none';
+        }
     }
 
     function submitCampaignForm(event) {

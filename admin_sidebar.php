@@ -4,7 +4,18 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <link rel="stylesheet" href="style.css?v=2.7">
 <style>
     .sidebar { background: white; border-right: 1px solid #f1f5f9; padding: 30px 20px; }
-    @media (min-width: 768px) { .sidebar { min-height: 100vh; } }
+    @media (min-width: 768px) { 
+        #sidebarMenu { 
+            position: sticky !important; 
+            top: 0 !important; 
+            height: 100vh !important; 
+            overflow-y: auto !important; 
+            z-index: 1000 !important;
+        } 
+        .sidebar {
+            min-height: 100vh !important;
+        }
+    }
     .brand-logo { font-weight: 800; color: #1e293b; font-size: 1.4rem; letter-spacing: -0.5px; }
     .brand-logo span { color: #7FB5FF; }
     .admin-badge { background: #7FB5FF; color: white; font-size: 0.65rem; padding: 4px 8px; border-radius: 6px; vertical-align: middle; margin-left: 5px; font-weight: 700; letter-spacing: 0.5px; }

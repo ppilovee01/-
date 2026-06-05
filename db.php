@@ -226,50 +226,182 @@ function getProductPriceText($conn, $product_id, $qty) {
     return '฿' . number_format($regular_price, 2) . ' / ชิ้น';
 }
 
+// --- Helper to calculate dynamic discount based on 30-day popularity/sales velocity ---
+function calculateDynamicDiscount($conn, $product_id, $min_discount, $max_discount) {
+    $all_sales_q = mysqli_query($conn, "
+        SELECT p.id, COALESCE(SUM(oi.quantity), 0) AS total_sold
+        FROM products p
+        LEFT JOIN order_items oi ON p.id = oi.product_id
+        LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled' AND o.order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        GROUP BY p.id
+    ");
+    
+    $sales_map = [];
+    $max_sold = 0;
+    $min_sold = null;
+    
+    if ($all_sales_q) {
+        while ($row = mysqli_fetch_assoc($all_sales_q)) {
+            $sold = intval($row['total_sold']);
+            $sales_map[$row['id']] = $sold;
+            if ($sold > $max_sold) {
+                $max_sold = $sold;
+            }
+            if ($min_sold === null || $sold < $min_sold) {
+                $min_sold = $sold;
+            }
+        }
+    }
+    
+    if ($min_sold === null) $min_sold = 0;
+    $target_sold = $sales_map[$product_id] ?? 0;
+    
+    if ($max_sold > $min_sold) {
+        $discount = $max_discount - (($max_discount - $min_discount) * ($target_sold - $min_sold) / ($max_sold - $min_sold));
+    } else {
+        $discount = $max_discount;
+    }
+    
+    return max($min_discount, min($max_discount, round($discount)));
+}
+
 // --- Helper to check and automatically generate a flash sale campaign if enabled ---
 function checkAndGenerateAutoFlashSale($conn) {
-    // Check if there is an active flash sale campaign (ใช้ MySQL NOW() เพื่อป้องกันปัญหา timezone)
-    $q = mysqli_query($conn, "SELECT id FROM flash_sales WHERE NOW() BETWEEN start_time AND end_time AND flash_sold < flash_stock LIMIT 1");
-    if ($q && mysqli_num_rows($q) > 0) {
-        return; // Campaign is already active
+    // Check if auto flash sale setting is enabled
+    $s_q = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration, auto_flash_type, auto_flash_min_discount, auto_flash_max_discount, auto_flash_selection_rule, auto_flash_count, auto_flash_stock FROM shop_settings WHERE id = 1");
+    if (!$s_q || mysqli_num_rows($s_q) == 0) {
+        return;
+    }
+    $s = mysqli_fetch_assoc($s_q);
+    if ($s['auto_flash_sale'] != 1) {
+        return;
     }
 
-    // Check if auto flash sale setting is enabled
-    $s_q = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration FROM shop_settings WHERE id = 1");
-    if ($s_q && mysqli_num_rows($s_q) > 0) {
-        $s = mysqli_fetch_assoc($s_q);
-        if ($s['auto_flash_sale'] == 1) {
-            // Find a product with stock > 5 and no upcoming campaigns
-            $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 5 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > NOW()) ORDER BY RAND() LIMIT 1");
-            if (!$p_q || mysqli_num_rows($p_q) == 0) {
-                // Fallback: any product with stock > 0 and no upcoming campaigns
-                $p_q = mysqli_query($conn, "SELECT id, price, stock FROM products WHERE stock > 0 AND id NOT IN (SELECT product_id FROM flash_sales WHERE end_time > NOW()) ORDER BY RAND() LIMIT 1");
-            }
+    $duration_hours = intval($s['auto_flash_duration']);
+    if ($duration_hours <= 0) $duration_hours = 2;
+    $round_limit = intval($s['auto_flash_count'] ?? 3);
+    if ($round_limit <= 0) $round_limit = 3;
 
-            if ($p_q && mysqli_num_rows($p_q) > 0) {
-                $product = mysqli_fetch_assoc($p_q);
-                $pid = $product['id'];
-                
-                // Calculate discount price
-                $discount_pct = intval($s['auto_flash_discount']);
-                $discount_pct = max(10, min(85, $discount_pct));
-                $flash_price = round($product['price'] * (1 - $discount_pct / 100));
-                
-                // Calculate stock quota: 30% of current stock, min 1, max 10
-                $flash_stock = min(10, max(1, round($product['stock'] * 0.3)));
-                
-                // Set start and end times (ใช้ MySQL NOW() และ DATE_ADD เพื่อให้ timezone ตรงกัน)
-                $duration_hours = intval($s['auto_flash_duration']);
-                if ($duration_hours <= 0) $duration_hours = 2;
-                
-                mysqli_query($conn, "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
-                    VALUES ('$pid', '$flash_price', '$flash_stock', 0, NOW(), DATE_ADD(NOW(), INTERVAL $duration_hours HOUR))");
-            }
+    // 1. Determine the current active round window.
+    $active_q = mysqli_query($conn, "SELECT start_time, end_time FROM flash_sales WHERE end_time > NOW() AND start_time <= NOW() ORDER BY start_time ASC LIMIT 1");
+    
+    if ($active_q && mysqli_num_rows($active_q) > 0) {
+        $active_row = mysqli_fetch_assoc($active_q);
+        $curr_start = $active_row['start_time'];
+        $curr_end = $active_row['end_time'];
+    } else {
+        $curr_start = date('Y-m-d H:i:s');
+        $curr_end = date('Y-m-d H:i:s', strtotime($curr_start) + ($duration_hours * 3600));
+    }
+
+    // 2. Count campaigns in current round
+    $curr_count_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM flash_sales WHERE start_time = '$curr_start' AND end_time = '$curr_end'");
+    $curr_count = intval(mysqli_fetch_assoc($curr_count_q)['cnt'] ?? 0);
+
+    if ($curr_count < $round_limit) {
+        $target_start = $curr_start;
+        $target_end = $curr_end;
+    } else {
+        $next_start = $curr_end;
+        $next_end = date('Y-m-d H:i:s', strtotime($next_start) + ($duration_hours * 3600));
+
+        // Count campaigns in next round
+        $next_count_q = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM flash_sales WHERE start_time = '$next_start' AND end_time = '$next_end'");
+        $next_count = intval(mysqli_fetch_assoc($next_count_q)['cnt'] ?? 0);
+
+        if ($next_count < $round_limit) {
+            $target_start = $next_start;
+            $target_end = $next_end;
+        } else {
+            return; // Both current and next rounds are fully populated
+        }
+    }
+
+    // 3. Select a product for the target round ($target_start to $target_end)
+    $overlap_subquery = "SELECT product_id FROM flash_sales WHERE end_time > '$target_start' AND start_time < '$target_end'";
+
+    $rule = $s['auto_flash_selection_rule'] ?? 'random';
+    $product = null;
+    $stock_filter = "stock > 5";
+
+    for ($attempt = 1; $attempt <= 2; $attempt++) {
+        if ($attempt == 2) {
+            $stock_filter = "stock > 0";
+        }
+
+        $sql = "";
+        if ($rule === 'slow_moving') {
+            $sql = "SELECT p.id, p.price, p.stock, COALESCE(SUM(oi.quantity), 0) AS total_sold
+                    FROM products p
+                    LEFT JOIN order_items oi ON p.id = oi.product_id
+                    LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled' AND o.order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    WHERE p.{$stock_filter} AND p.id NOT IN ($overlap_subquery)
+                    GROUP BY p.id
+                    ORDER BY total_sold ASC, p.id ASC
+                    LIMIT 1";
+        } elseif ($rule === 'popular') {
+            $sql = "SELECT p.id, p.price, p.stock, COALESCE(SUM(oi.quantity), 0) AS total_sold
+                    FROM products p
+                    LEFT JOIN order_items oi ON p.id = oi.product_id
+                    LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled' AND o.order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    WHERE p.{$stock_filter} AND p.id NOT IN ($overlap_subquery)
+                    GROUP BY p.id
+                    ORDER BY total_sold DESC, p.id ASC
+                    LIMIT 1";
+        } elseif ($rule === 'high_stock') {
+            $sql = "SELECT id, price, stock FROM products
+                    WHERE {$stock_filter} AND id NOT IN ($overlap_subquery)
+                    ORDER BY stock DESC, id ASC
+                    LIMIT 1";
+        } else { // 'random'
+            $sql = "SELECT id, price, stock FROM products
+                    WHERE {$stock_filter} AND id NOT IN ($overlap_subquery)
+                    ORDER BY RAND()
+                    LIMIT 1";
+        }
+
+        $p_res = mysqli_query($conn, $sql);
+        if ($p_res && mysqli_num_rows($p_res) > 0) {
+            $product = mysqli_fetch_assoc($p_res);
+            break;
+        }
+    }
+
+    if ($product) {
+        $pid = intval($product['id']);
+
+        if ($s['auto_flash_type'] === 'dynamic') {
+            $min_d = intval($s['auto_flash_min_discount']);
+            $max_d = intval($s['auto_flash_max_discount']);
+            $discount_pct = calculateDynamicDiscount($conn, $pid, $min_d, $max_d);
+        } else {
+            $discount_pct = intval($s['auto_flash_discount']);
+        }
+
+        $discount_pct = max(5, min(90, $discount_pct));
+        $flash_price = round($product['price'] * (1 - $discount_pct / 100));
+        $max_auto_stock = intval($s['auto_flash_stock'] ?? 10);
+        if ($max_auto_stock <= 0) $max_auto_stock = 10;
+        // Limit stock to max configured or actual product stock (min 1)
+        $flash_stock = min($max_auto_stock, max(1, $product['stock']));
+
+        $ins = mysqli_query($conn, "INSERT INTO flash_sales (product_id, flash_price, flash_stock, flash_sold, start_time, end_time) 
+            VALUES ('$pid', '$flash_price', '$flash_stock', 0, '$target_start', '$target_end')");
+
+        if ($ins) {
+            $p_name_res = mysqli_query($conn, "SELECT name FROM products WHERE id = $pid");
+            $p_name = mysqli_fetch_assoc($p_name_res)['name'] ?? 'Unknown';
+
+            log_admin_action($conn, 'ระบบสุ่ม Flash Sale อัตโนมัติ', [
+                'title' => "สร้างแคมเปญ Flash Sale อัตโนมัติสำเร็จสำหรับสินค้า '$p_name'",
+                'details' => "สินค้า: $p_name (ID #$pid), ราคา: ฿$flash_price (ส่วนลด $discount_pct% แบบ {$s['auto_flash_type']}), โควตา: $flash_stock ชิ้น, เริ่มต้น: $target_start, สิ้นสุด: $target_end"
+            ]);
+
+            checkAndGenerateAutoFlashSale($conn);
         }
     }
 }
 
-// Automatically check and trigger auto-campaign on load
 checkAndGenerateAutoFlashSale($conn);
 
 // --- Helper to send Line Notify alerts ---

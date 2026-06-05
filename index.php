@@ -224,6 +224,10 @@ $extra_css = "
         background-color: var(--blue-main) !important;
         color: #060913 !important;
     }
+    body.dark-theme .upcoming-round-card {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, rgba(13, 20, 38, 0.75) 100%) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+    }
 </style>
 ";
 include 'header.php';
@@ -277,6 +281,23 @@ $fs_query = mysqli_query($conn, "SELECT fs.*, p.name, p.image, p.price as origin
     ORDER BY fs.end_time ASC");
 while ($fs_row = mysqli_fetch_assoc($fs_query)) {
     $active_flash_sales[] = $fs_row;
+}
+
+// --- Query Upcoming Flash Sale Campaigns ---
+$upcoming_flash_sales = [];
+$up_query = mysqli_query($conn, "SELECT fs.*, p.name, p.image, p.price as original_price 
+    FROM flash_sales fs 
+    JOIN products p ON fs.product_id = p.id 
+    WHERE fs.start_time > NOW() 
+    ORDER BY fs.start_time ASC, fs.id ASC");
+while ($up_row = mysqli_fetch_assoc($up_query)) {
+    $upcoming_flash_sales[] = $up_row;
+}
+
+$upcoming_by_round = [];
+foreach ($upcoming_flash_sales as $ufs) {
+    $round_key = $ufs['start_time'];
+    $upcoming_by_round[$round_key][] = $ufs;
 }
 
 if (!empty($active_flash_sales)):
@@ -387,6 +408,90 @@ if (!empty($active_flash_sales)):
             
             updateTimer();
             var x = setInterval(updateTimer, 1000);
+        })();
+    </script>
+<?php endif; ?>
+
+<?php
+// Render upcoming rounds if any exist
+if (!empty($upcoming_by_round)):
+?>
+    <div class="container mt-4 animate__animated animate__fadeIn">
+        <h4 class="fw-bold text-dark mb-3"><i class="bi bi-calendar-event text-blue"></i> แคมเปญถัดไป (Coming Soon)</h4>
+        <div class="row g-3">
+            <?php foreach ($upcoming_by_round as $round_start => $round_items): 
+                $round_start_ts = strtotime($round_start);
+                $js_time_str = date('Y-m-d\TH:i:s', $round_start_ts);
+            ?>
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm p-4 rounded-4 upcoming-round-card mb-3" style="background: linear-gradient(135deg, rgba(174, 226, 255, 0.05) 0%, rgba(255, 255, 255, 0.75) 100%); border: 1px solid rgba(174, 226, 255, 0.25); backdrop-filter: blur(10px);">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 pb-2 border-bottom border-light gap-2">
+                            <div>
+                                <span class="badge bg-blue text-dark fw-bold me-2 px-2 py-1 rounded-2">รอบถัดไป</span>
+                                <strong class="text-dark">เริ่มเวลา <?= date('d/m/Y H:i', $round_start_ts) ?> น.</strong>
+                            </div>
+                            <div>
+                                <span class="badge bg-dark text-white px-3 py-2 rounded-pill fw-bold upcoming-countdown" data-start-time="<?= $js_time_str ?>">
+                                    คำนวณเวลา...
+                                </span>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <?php foreach ($round_items as $fs): 
+                                $discount_pct = round((($fs['original_price'] - $fs['flash_price']) / $fs['original_price']) * 100);
+                            ?>
+                                <div class="col-6 col-md-3">
+                                    <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden position-relative flash-card-hover">
+                                        <div class="position-absolute top-0 start-0 m-2 bg-blue text-dark px-2 py-1 rounded-3 fw-bold small" style="font-size: 0.75rem;">
+                                            -<?= $discount_pct ?>%
+                                        </div>
+                                        <div class="product-img-wrapper" style="height: 120px; overflow: hidden; position: relative; opacity: 0.85;">
+                                            <img src="<?= htmlspecialchars($fs['image']) ?>" class="w-100 h-100" style="object-fit: cover;" alt="<?= htmlspecialchars($fs['name']) ?>">
+                                        </div>
+                                        <div class="card-body p-3 d-flex flex-column">
+                                            <h6 class="card-title fw-bold text-dark mb-1 text-truncate" style="font-size: 0.85rem;" title="<?= htmlspecialchars($fs['name']) ?>"><?= htmlspecialchars($fs['name']) ?></h6>
+                                            <div class="d-flex align-items-baseline gap-2 mt-auto">
+                                                <span class="fw-bold text-danger" style="font-size: 0.95rem;">฿<?= number_format($fs['flash_price']) ?></span>
+                                                <span class="text-muted text-decoration-line-through small" style="font-size: 0.75rem;">฿<?= number_format($fs['original_price']) ?></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    
+    <script>
+        (function() {
+            function updateUpcomingTimers() {
+                const elements = document.querySelectorAll('.upcoming-countdown');
+                elements.forEach(el => {
+                    const startTime = new Date(el.dataset.startTime).getTime();
+                    const now = new Date().getTime();
+                    const distance = startTime - now;
+                    
+                    if (distance < 0) {
+                        el.innerText = "กำลังเริ่มต้น...";
+                        return;
+                    }
+                    
+                    const hours = Math.floor(distance / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    
+                    const hStr = (hours < 10) ? "0" + hours : hours;
+                    const mStr = (minutes < 10) ? "0" + minutes : minutes;
+                    const sStr = (seconds < 10) ? "0" + seconds : seconds;
+                    
+                    el.innerText = `เริ่มใน ${hStr}:${mStr}:${sStr}`;
+                });
+            }
+            updateUpcomingTimers();
+            setInterval(updateUpcomingTimers, 1000);
         })();
     </script>
 <?php endif; ?>
