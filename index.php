@@ -67,7 +67,7 @@ if (isset($_POST['send_feedback'])) {
 
             $_SESSION['swal'] = ['title'=>'ขอบคุณครับ!', 'text'=>'เราได้รับข้อเสนอแนะของคุณแล้ว', 'icon'=>'success'];
         } else {
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'icon'=>'error'];
         }
     }
     header("Location: index.php"); exit();
@@ -244,7 +244,7 @@ include 'header.php';
             <div class="carousel-inner">
                 <?php foreach($banners as $index => $b): ?>
                     <div class="carousel-item <?= $index==0?'active':'' ?>">
-                        <img src="<?= $b['image'] ?>" class="d-block w-100 rounded-4" alt="Banner">
+                        <img src="<?= htmlspecialchars($b['image'], ENT_QUOTES, 'UTF-8') ?>" class="d-block w-100 rounded-4" alt="Banner">
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -537,7 +537,7 @@ if (!empty($upcoming_by_round)):
         <div class="scroll-menu" id="categoryMenu">
             <a href="<?= buildFilterUrl(['cat' => null]) ?>" class="cat-btn <?= !isset($_GET['cat']) ? 'active' : '' ?>">ทั้งหมด</a>
             <?php foreach($categories as $c): ?>
-                <a href="<?= buildFilterUrl(['cat' => $c['id']]) ?>" class="cat-btn <?= (isset($_GET['cat']) && $_GET['cat'] == $c['id']) ? 'active' : '' ?>"><?= $c['name'] ?></a>
+                <a href="<?= buildFilterUrl(['cat' => $c['id']]) ?>" class="cat-btn <?= (isset($_GET['cat']) && $_GET['cat'] == $c['id']) ? 'active' : '' ?>"><?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?></a>
             <?php endforeach; ?>
         </div>
     </div>
@@ -632,7 +632,7 @@ if (!empty($upcoming_by_round)):
                 <?php $active_fs = getActiveFlashSale($conn, $p['id']); ?>
                 <div class="product-img-wrapper">
                     <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
-                        <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>">
+                        <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>">
                         <?php if($active_fs !== null): ?>
                             <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem; box-shadow: 0 2px 6px rgba(220,53,69,0.3);">⚡ FLASH</div>
                         <?php endif; ?>
@@ -645,14 +645,14 @@ if (!empty($upcoming_by_round)):
                 <div class="card-body d-flex flex-column text-center pt-0">
                     <h6 class="fw-bold mb-1 text-truncate mt-3">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name stretched-link">
-                            <?= $p['name'] ?>
+                            <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                         </a>
                     </h6>
                     <div class="small text-warning mb-2">
                         <?php for($i=1; $i<=5; $i++) echo $i<=$rating ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star text-muted opacity-25"></i>'; ?>
                         <span class="text-muted ms-1" style="font-size: 0.8rem;">(<?= $rv_count ?>)</span>
                     </div>
-                    <p class="text-muted small mb-2 d-none d-md-block text-truncate"><?= $p['description'] ?></p>
+                    <p class="text-muted small mb-2 d-none d-md-block text-truncate"><?= htmlspecialchars($p['description'], ENT_QUOTES, 'UTF-8') ?></p>
                     <div class="mt-auto">
                         <div class="mb-3">
                             <?php if ($active_fs !== null): ?>
@@ -749,7 +749,7 @@ if (!empty($recently_viewed)):
                     </button>
                     <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
-                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($is_out): ?>
                                 <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1">สินค้าหมด</span></div>
                             <?php endif; ?>
@@ -758,7 +758,7 @@ if (!empty($recently_viewed)):
                     <div class="card-body d-flex flex-column text-center p-3">
                         <h6 class="fw-bold mb-1 text-truncate mt-1">
                             <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
-                                <?= $p['name'] ?>
+                                <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         </h6>
                         <div class="small text-warning mb-2">
@@ -818,9 +818,9 @@ endif;
 <?php if(isset($_SESSION['swal'])): ?>
 <script>
     Swal.fire({
-        icon: '<?= $_SESSION['swal']['icon'] ?>',
-        title: '<?= $_SESSION['swal']['title'] ?>',
-        text: '<?= $_SESSION['swal']['text'] ?>',
+        icon: <?= json_encode($_SESSION['swal']['icon']) ?>,
+        title: <?= json_encode($_SESSION['swal']['title']) ?>,
+        text: <?= json_encode($_SESSION['swal']['text']) ?>,
         confirmButtonColor: '#AEE2FF'
     });
 </script>

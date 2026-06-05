@@ -92,9 +92,18 @@ if (isset($_POST['confirm_order'])) {
             } else {
                 $full_addr = $a['recipient_name']." (".$a['phone'].")\n".$a['address_line1']." ".$a['subdistrict']." ".$a['district']." ".$a['province']." ".$a['zipcode'];
                 
-                $total = str_replace(',', '', $_POST['total_price_hidden']);
-                $disc = str_replace(',', '', $_POST['discount_hidden']);
-                $final = str_replace(',', '', $_POST['final_price_hidden']);
+                // Server-side recalculation of subtotal to prevent price/discount manipulation
+                $total = 0;
+                if (!empty($_SESSION['cart'])) {
+                    foreach ($_SESSION['cart'] as $key => $item) {
+                        $pid = is_array($item) ? $item['id'] : $key;
+                        $qty = is_array($item) ? $item['qty'] : $item;
+                        $total += getProductTotalPrice($conn, $pid, $qty);
+                    }
+                }
+
+                $disc = 0;
+                $is_free_shipping_coupon = false;
                 $coupon = isset($_SESSION['coupon']) ? $_SESSION['coupon']['code'] : '';
                 
                 if (!empty($coupon)) {
@@ -112,44 +121,41 @@ if (isset($_POST['confirm_order'])) {
                                 $error_msg = "ขออภัย คุณใช้สิทธิ์คูปองนี้ครบโควตาแล้ว";
                             }
                         }
+                        if (!isset($error_msg)) {
+                            if ($total >= $chk_c['min_spend']) {
+                                if ($chk_c['discount_type'] == 'fixed') {
+                                    $disc = floatval($chk_c['discount_value']);
+                                } elseif ($chk_c['discount_type'] == 'percent') {
+                                    $disc = $total * floatval($chk_c['discount_value']) / 100;
+                                    $max_disc = floatval($chk_c['max_discount'] ?? 0);
+                                    if ($max_disc > 0 && $disc > $max_disc) {
+                                        $disc = $max_disc;
+                                    }
+                                } elseif ($chk_c['discount_type'] == 'free_shipping') {
+                                    $is_free_shipping_coupon = true;
+                                }
+                            } else {
+                                $error_msg = "ยอดซื้อขั้นต่ำไม่ถึง " . number_format($chk_c['min_spend']) . " บาท";
+                            }
+                        }
                     } else {
                         $error_msg = "ขออภัย คูปองนี้ใช้งานไม่ได้แล้ว";
                     }
                 }
                 
-                $slip = "";
-                $is_free_order = (floatval($final) <= 0);
-                if (!$is_free_order && $pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {
-                    $ext = pathinfo($_FILES['payment_slip']['name'], PATHINFO_EXTENSION);
-                    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                    if (!in_array(strtolower($ext), $allowed)) {
-                        $error_msg = "รองรับเฉพาะไฟล์รูปภาพสลิปโอนเงิน (jpg, jpeg, png, gif, webp) เท่านั้น";
-                    } else {
-                        $slip = "slip_" . uniqid() . "." . strtolower($ext);
-                        if(!is_dir("uploads")) mkdir("uploads");
-                        move_uploaded_file($_FILES['payment_slip']['tmp_name'], "uploads/" . $slip);
-                    }
-                } elseif (!$is_free_order && $pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
-                     $error_msg = "กรุณาแนบสลิปโอนเงิน";
-                }
-            }
-
-            if (!isset($error_msg)) {
-                // คำนวณแต้มสะสมที่ใช้ลดราคา
+                // Calculate shipping fee and final price server-side
+                $shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
+                $shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
+                $shipping_fee = ($total >= $shipping_free_threshold || $total == 0 || $is_free_shipping_coupon) ? 0 : $shipping_fee_fixed;
+                $base_final = max(0, $total - $disc + $shipping_fee);
+                $final = $base_final;
+                
+                // Handle points if used
                 $points_spent = 0;
                 $points_discount = 0.00;
                 if (isset($_POST['use_points']) && $_POST['use_points'] == '1') {
                     $up_chk = mysqli_fetch_assoc(mysqli_query($conn, "SELECT points FROM users WHERE id = '$user_id'"));
                     $db_points = $up_chk ? intval($up_chk['points']) : 0;
-                    
-                    $shipping_fee_fixed = floatval($shop['shipping_fee_fixed'] ?? 40.00);
-                    $shipping_free_threshold = floatval($shop['shipping_free_threshold'] ?? 350.00);
-                    $is_free_shipping_coupon = false;
-                    if (isset($_SESSION['coupon']) && $_SESSION['coupon']['type'] == 'free_shipping') {
-                        $is_free_shipping_coupon = true;
-                    }
-                    $shipping_fee = ($total >= $shipping_free_threshold || $total == 0 || $is_free_shipping_coupon) ? 0 : $shipping_fee_fixed;
-                    $base_final = max(0, $total - $disc + $shipping_fee);
                     
                     $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                     $points_needed = ceil($base_final / $points_spend_rate);
@@ -158,6 +164,38 @@ if (isset($_POST['confirm_order'])) {
                     $final = max(0, $base_final - $points_discount);
                 }
 
+                $slip = "";
+                $is_free_order = (floatval($final) <= 0);
+                if (!$is_free_order && $pm['type'] != 'cod' && isset($_FILES['payment_slip']) && $_FILES['payment_slip']['error'] == 0) {
+                    $ext = pathinfo($_FILES['payment_slip']['name'], PATHINFO_EXTENSION);
+                    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                    if (!in_array(strtolower($ext), $allowed)) {
+                        $error_msg = "รองรับเฉพาะไฟล์รูปภาพสลิปโอนเงิน (jpg, jpeg, png, gif, webp) เท่านั้น";
+                    } else {
+                        // Validate file size (5MB max)
+                        if ($_FILES['payment_slip']['size'] > 5 * 1024 * 1024) {
+                            $error_msg = "ขนาดไฟล์สลิปต้องไม่เกิน 5MB";
+                        } else {
+                            // Validate actual file content (MIME type)
+                            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                            $mime = finfo_file($finfo, $_FILES['payment_slip']['tmp_name']);
+                            finfo_close($finfo);
+                            $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                            if (!in_array($mime, $allowed_mimes)) {
+                                $error_msg = "ประเภทไฟล์ไม่ถูกต้อง อนุญาตเฉพาะรูปภาพเท่านั้น";
+                            } else {
+                                $slip = "slip_" . uniqid() . "." . strtolower($ext);
+                                if(!is_dir("uploads")) mkdir("uploads");
+                                move_uploaded_file($_FILES['payment_slip']['tmp_name'], "uploads/" . $slip);
+                            }
+                        }
+                    }
+                } elseif (!$is_free_order && $pm['type'] != 'cod' && empty($_FILES['payment_slip']['name'])) {
+                     $error_msg = "กรุณาแนบสลิปโอนเงิน";
+                }
+            }
+
+            if (!isset($error_msg)) {
                 // คำนวณแต้มที่จะได้รับเมื่อจัดส่งสำเร็จ
                 $points_earn_rate = intval($shop['points_earn_rate'] ?? 100);
                 $points_earned = floor($final / $points_earn_rate);
@@ -376,7 +414,8 @@ if (isset($_POST['confirm_order'])) {
                     ];
                     header("Location: my_orders.php"); exit();
                 } else {
-                    $error_msg = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
+                    error_log("Order insert failed: " . mysqli_error($conn));
+                    $error_msg = "เกิดข้อผิดพลาดในการบันทึกคำสั่งซื้อ กรุณาลองใหม่อีกครั้ง";
                 }
             }
         }

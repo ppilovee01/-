@@ -25,7 +25,9 @@ if (isset($_POST['add_user'])) {
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT); 
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $role = $_POST['role'];
+    // Security: ตรวจสอบค่า role ที่อนุญาตเท่านั้น ป้องกันการเปลี่ยนสิทธิ์โดยไม่ได้รับอนุญาต
+    $allowed_roles = ['user', 'admin'];
+    $role = in_array($_POST['role'], $allowed_roles) ? $_POST['role'] : 'user';
 
     // เช็คซ้ำ
     $check = mysqli_query($conn, "SELECT id FROM users WHERE username='$user' OR email='$email'");
@@ -69,12 +71,14 @@ if (isset($_POST['add_user'])) {
             }
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'เพิ่มสมาชิกใหม่เรียบร้อย', 'icon'=>'success'];
         } else {
+            // Security: บันทึก error ลง log แทนการแสดงต่อผู้ใช้ ป้องกันการเปิดเผยโครงสร้าง DB
+            error_log('[admin_users.php] add_user error: ' . mysqli_error($conn));
             if (isset($_POST['ajax'])) {
                 header('Content-Type: application/json');
-                echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)]);
+                echo json_encode(['status' => 'error', 'message' => 'เกิดข้อผิดพลาดในการบันทึกข้อมูล']);
                 exit();
             }
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'icon'=>'error'];
         }
     }
     header("Location: admin_users.php"); exit();
@@ -85,7 +89,9 @@ if (isset($_POST['edit_user'])) {
     $id = intval($_POST['edit_id']);
     $name = mysqli_real_escape_string($conn, $_POST['fullname']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $role = $_POST['role'];
+    // Security: ตรวจสอบค่า role ที่อนุญาตเท่านั้น
+    $allowed_roles = ['user', 'admin'];
+    $role = in_array($_POST['role'], $allowed_roles) ? $_POST['role'] : 'user';
     $points = intval($_POST['points']);
     
     // ดึงข้อมูลเดิมมาเปรียบเทียบส่วนต่าง
@@ -151,12 +157,14 @@ if (isset($_POST['edit_user'])) {
         }
         $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปเดตข้อมูลเรียบร้อย', 'icon'=>'success'];
     } else {
+        // Security: บันทึก error ลง log แทนการแสดงต่อผู้ใช้
+        error_log('[admin_users.php] edit_user error: ' . mysqli_error($conn));
         if (isset($_POST['ajax'])) {
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)]);
+            echo json_encode(['status' => 'error', 'message' => 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล']);
             exit();
         }
-        $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+        $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการอัปเดตข้อมูล', 'icon'=>'error'];
     }
     header("Location: admin_users.php"); exit();
 }

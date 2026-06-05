@@ -350,7 +350,7 @@ if (isset($_POST['update'])) {
                                     <!-- Desktop View -->
                                     <tr id="payment-row-<?= $row['id'] ?>" class="payment-row d-none d-md-table-row">
                                         <td class="fw-bold payment-name-cell"><?= htmlspecialchars($row['name']) ?></td>
-                                        <td class="payment-type-cell"><span class="badge <?= $type_badge ?>"><?= $row['type'] ?></span></td>
+                                        <td class="payment-type-cell"><span class="badge <?= $type_badge ?>"><?= htmlspecialchars($row['type'], ENT_QUOTES, 'UTF-8') ?></span></td>
                                         <td class="payment-accname-cell"><?= !empty($row['account_name']) ? htmlspecialchars($row['account_name']) : '-' ?></td>
                                         <td class="payment-accnumber-cell"><?= !empty($row['account_number']) ? htmlspecialchars($row['account_number']) : '-' ?></td>
                                         <td class="payment-status-cell"><span class="badge <?= $status_badge ?>"><?= $status_text ?></span></td>
@@ -373,7 +373,7 @@ if (isset($_POST['update'])) {
                                                     <div class="payment-status-cell"><span class="badge <?= $status_badge ?>"><?= $status_text ?></span></div>
                                                 </div>
                                                 <div class="mb-2">
-                                                    <span class="payment-type-cell"><span class="badge <?= $type_badge ?>"><?= $row['type'] ?></span></span>
+                                                    <span class="payment-type-cell"><span class="badge <?= $type_badge ?>"><?= htmlspecialchars($row['type'], ENT_QUOTES, 'UTF-8') ?></span></span>
                                                 </div>
                                                 <div class="mb-1 small text-muted">
                                                     <strong>ชื่อบัญชี:</strong> <span class="payment-accname-cell"><?= !empty($row['account_name']) ? htmlspecialchars($row['account_name']) : '-' ?></span>

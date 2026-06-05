@@ -1,11 +1,17 @@
 <?php
-session_start();
 include 'db.php';
 
 // --- Logic: สมัครสมาชิก (Anti-F5 Fixed) ---
 if (isset($_POST['register'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+    }
+    // Security: ตรวจสอบความยาวรหัสผ่านฝั่ง Server
+    if (strlen($_POST['password']) < 6) {
+        $_SESSION['swal'] = ['title'=>'แจ้งเตือน', 'text'=>'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'icon'=>'error'];
+        $_SESSION['active_tab'] = 'register';
+        header('Location: login.php');
+        exit();
     }
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -25,7 +31,8 @@ if (isset($_POST['register'])) {
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ', 'icon'=>'success'];
             $_SESSION['active_tab'] = 'login';
         } else {
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+            error_log('Registration SQL Error: ' . mysqli_error($conn));
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่', 'icon'=>'error'];
             $_SESSION['active_tab'] = 'register';
         }
     }
@@ -37,12 +44,22 @@ if (isset($_POST['login'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
+    // Rate limiting: ป้องกัน Brute-force Attack
+    $rate_key = 'login_attempts_' . ($_SERVER['REMOTE_ADDR'] ?? '');
+    if (!isset($_SESSION[$rate_key])) $_SESSION[$rate_key] = ['count' => 0, 'first_attempt' => time()];
+    if (time() - $_SESSION[$rate_key]['first_attempt'] > 900) $_SESSION[$rate_key] = ['count' => 0, 'first_attempt' => time()];
+    if ($_SESSION[$rate_key]['count'] >= 5) {
+        $_SESSION['swal'] = ['title'=>'ถูกระงับชั่วคราว', 'text'=>'คุณพยายามเข้าสู่ระบบผิดหลายครั้ง กรุณารอ 15 นาที', 'icon'=>'warning'];
+        $_SESSION['active_tab'] = 'login';
+        header('Location: login.php'); exit();
+    }
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $pass = $_POST['password'];
     $res = mysqli_query($conn, "SELECT * FROM users WHERE username='$user'");
     $u = mysqli_fetch_assoc($res);
     if ($u && password_verify($pass, $u['password'])) {
         session_regenerate_id(true);
+        unset($_SESSION[$rate_key]); // Reset rate limit on successful login
         $_SESSION['user_id'] = $u['id'];
         $_SESSION['fullname'] = $u['fullname'];
         $_SESSION['role'] = $u['role'];
@@ -50,6 +67,7 @@ if (isset($_POST['login'])) {
         header("Location: index.php");
         exit();
     } else {
+        $_SESSION[$rate_key]['count']++; // Increment failed login attempts
         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ชื่อผู้ใช้หรือรหัสผ่านผิด!', 'icon'=>'error'];
         $_SESSION['active_tab'] = 'login';
         header("Location: login.php"); exit();
@@ -163,7 +181,7 @@ unset($_SESSION['active_tab']);
 </div>
 
 <?php if(isset($_SESSION['swal'])): ?>
-<script>Swal.fire({icon: '<?= $_SESSION['swal']['icon'] ?>', title: '<?= $_SESSION['swal']['title'] ?>', text: '<?= $_SESSION['swal']['text'] ?>', confirmButtonColor: '#85D1FF'});</script>
+<script>Swal.fire({icon: '<?= htmlspecialchars($_SESSION['swal']['icon'], ENT_QUOTES, 'UTF-8') ?>', title: '<?= htmlspecialchars($_SESSION['swal']['title'], ENT_QUOTES, 'UTF-8') ?>', text: '<?= htmlspecialchars($_SESSION['swal']['text'], ENT_QUOTES, 'UTF-8') ?>', confirmButtonColor: '#85D1FF'});</script>
 <?php unset($_SESSION['swal']); endif; ?>
 
 <script>

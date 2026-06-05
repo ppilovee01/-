@@ -25,6 +25,15 @@ if (isset($_POST['save_password'])) {
     } elseif (strlen($new_pass) < 6) {
         $form_error = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
     } else {
+        // Security: ป้องกัน OTP Brute-force (ล็อค 30 นาที หลังพยายามผิด 5 ครั้ง)
+        $otp_fail_key = 'otp_failures_' . md5($email);
+        if (!isset($_SESSION[$otp_fail_key])) $_SESSION[$otp_fail_key] = ['count' => 0, 'first_attempt' => time()];
+        if (time() - $_SESSION[$otp_fail_key]['first_attempt'] > 1800) $_SESSION[$otp_fail_key] = ['count' => 0, 'first_attempt' => time()];
+        if ($_SESSION[$otp_fail_key]['count'] >= 5) {
+            $form_error = "คุณกรอก OTP ผิดหลายครั้งเกินไป กรุณารอ 30 นาทีแล้วลองใหม่";
+        }
+
+        if (!isset($form_error)) {
         // ตรวจสอบความถูกต้องของ OTP (เปรียบเทียบวันหมดอายุใน PHP เพื่อตัดปัญหาความเหลื่อมล้ำของนาฬิกาและ Timezone ระหว่างเซิร์ฟเวอร์เว็บกับฐานข้อมูล)
         $sql = "SELECT id, reset_expiry FROM users WHERE email = '$email' AND reset_token = '$otp'";
         $result = mysqli_query($conn, $sql);
@@ -53,14 +62,17 @@ if (isset($_POST['save_password'])) {
                     ];
                     header("Location: login.php"); exit();
                 } else {
-                    $form_error = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
+                    error_log('Reset Password SQL Error: ' . mysqli_error($conn));
+                    $form_error = "เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่";
                 }
             } else {
                 $form_error = "รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่";
             }
         } else {
+            $_SESSION[$otp_fail_key]['count']++; // นับจำนวนครั้งที่กรอก OTP ผิด
             $form_error = "รหัส OTP ไม่ถูกต้อง กรุณากรอกรหัสใหม่อีกครั้ง";
         }
+        } // end if (!isset($form_error))
     }
 }
 ?>
@@ -187,7 +199,7 @@ if (isset($_POST['save_password'])) {
 </div>
 
 <?php if(isset($form_error)): ?>
-<script>Swal.fire({icon:'error', title:'ผิดพลาด', text:'<?= $form_error ?>', confirmButtonColor: '#7FB5FF'});</script>
+<script>Swal.fire({icon:'error', title:'ผิดพลาด', text:'<?= htmlspecialchars($form_error, ENT_QUOTES, 'UTF-8') ?>', confirmButtonColor: '#7FB5FF'});</script>
 <?php endif; ?>
 
 <script>

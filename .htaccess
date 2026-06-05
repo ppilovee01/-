@@ -31,7 +31,7 @@
 Options -Indexes
 
 # 2. Block Direct Access to Sensitive Files and Directories
-<FilesMatch "(db\.php|fitness_db\.sql|fitness_dbd\.sql|README\.md|\.git|\.gitignore|composer\.json|composer\.lock|package\.json|package-lock\.json)$">
+<FilesMatch "(\.env|\.env\.example|db\.php|fitness_db\.sql|fitness_dbd\.sql|README\.md|\.git|\.gitignore|composer\.json|composer\.lock|package\.json|package-lock\.json|mail_sender\.php|migrate_slip_ai\.php|php_error_check\.php|demo_loader\.php)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
@@ -66,11 +66,20 @@ Options -Indexes
     Header set X-Content-Type-Options "nosniff"
 
     # Prevent Clickjacking attacks
-    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-Frame-Options "DENY"
 
     # Enable browser XSS protection mode
     Header set X-XSS-Protection "1; mode=block"
 
     # Control Referrer leakage
     Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Restrict browser features (camera, microphone, geolocation)
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 </IfModule>
+
+# 5. Block access to logs directory
+<IfModule mod_rewrite.c>
+    RewriteRule ^logs/ - [F,L]
+</IfModule>
+

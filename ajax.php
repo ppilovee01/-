@@ -251,8 +251,8 @@ elseif ($action == 'change_password') {
         $response = ['status' => 'error', 'message' => 'รหัสผ่านเดิมไม่ถูกต้อง'];
     } elseif ($new_pass !== $confirm_pass) {
         $response = ['status' => 'error', 'message' => 'รหัสผ่านใหม่ไม่ตรงกัน'];
-    } elseif (strlen($new_pass) < 4) {
-        $response = ['status' => 'error', 'message' => 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'];
+    } elseif (strlen($new_pass) < 6) {
+        $response = ['status' => 'error', 'message' => 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'];
     } else {
         $hash = password_hash($new_pass, PASSWORD_DEFAULT);
         mysqli_query($conn, "UPDATE users SET password = '$hash' WHERE id = '$user_id'");
@@ -278,15 +278,16 @@ elseif ($action == 'add_address') {
         $new_id = mysqli_insert_id($conn);
         log_admin_action($conn, 'เพิ่มที่อยู่', "ลูกค้าเพิ่มที่อยู่จัดส่งใหม่: $name ($phone) - ที่อยู่: $addr $sub $dist $prov $zip", $user_id, $_SESSION['fullname']);
         // สร้าง HTML การ์ดที่อยู่เพื่อส่งกลับไปแปะ
+        // Security Fix: ป้องกัน XSS โดย escape ข้อมูลผู้ใช้ก่อนแสดงผลใน HTML
         $html = '
         <div class="col-md-6 animate__animated animate__fadeIn" id="addr-'.$new_id.'">
             <div class="address-item h-100">
-                <div class="fw-bold text-dark mb-1 fs-5">'.$name.'</div>
-                <div class="text-muted small mb-2"><i class="bi bi-telephone"></i> '.$phone.'</div>
+                <div class="fw-bold text-dark mb-1 fs-5">'.htmlspecialchars($name, ENT_QUOTES, 'UTF-8').'</div>
+                <div class="text-muted small mb-2"><i class="bi bi-telephone"></i> '.htmlspecialchars($phone, ENT_QUOTES, 'UTF-8').'</div>
                 <div class="small text-secondary" style="line-height: 1.5;">
-                    '.$addr.'<br>
-                    '.$sub.' '.$dist.'<br>
-                    '.$prov.' '.$zip.'
+                    '.htmlspecialchars($addr, ENT_QUOTES, 'UTF-8').'<br>
+                    '.htmlspecialchars($sub, ENT_QUOTES, 'UTF-8').' '.htmlspecialchars($dist, ENT_QUOTES, 'UTF-8').'<br>
+                    '.htmlspecialchars($prov, ENT_QUOTES, 'UTF-8').' '.htmlspecialchars($zip, ENT_QUOTES, 'UTF-8').'
                 </div>
                 <div class="btn-del-addr" onclick="deleteAddress('.$new_id.')">
                     <i class="bi bi-trash"></i>
@@ -345,13 +346,17 @@ elseif ($action == 'send_contact') {
     if (mysqli_query($conn, $sql)) {
         $response = ['status' => 'success', 'message' => 'ส่งข้อความเรียบร้อย เราจะติดต่อกลับโดยเร็วที่สุด'];
     } else {
-        $response = ['status' => 'error', 'message' => 'เกิดข้อผิดพลาด: ' . mysqli_error($conn)];
+        // Security Fix: ไม่แสดง mysqli_error ให้ผู้ใช้เห็น ป้องกันการรั่วไหลของข้อมูล DB
+        error_log('Contact form DB error: ' . mysqli_error($conn));
+        $response = ['status' => 'error', 'message' => 'เกิดข้อผิดพลาดในการส่งข้อความ กรุณาลองใหม่อีกครั้ง'];
     }
 }
 
 // 4.3 ระบบสืบค้นด่วน (Live Search Suggestion)
 elseif ($action == 'search_suggest') {
     $q = isset($_GET['q']) ? mysqli_real_escape_string($conn, $_GET['q']) : '';
+    // Security Fix: ป้องกัน LIKE wildcard injection โดย escape ตัวอักษรพิเศษ % และ _
+    $q = addcslashes($q, '%_');
     $products = [];
     if (strlen($q) >= 2) {
         $res = mysqli_query($conn, "SELECT id, name, price, image FROM products WHERE name LIKE '%$q%' LIMIT 5");

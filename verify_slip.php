@@ -272,7 +272,9 @@ if (empty($ai_raw)) {
     } elseif (!empty($resp_data['error']['message']['value'])) {
         $err_msg = $resp_data['error']['message']['value'];
     }
-    echo json_encode(['status' => 'error', 'message' => $err_msg, 'debug' => $resp_data]);
+    // Security Fix: ไม่ส่ง debug data ไปยังผู้ใช้ ป้องกันการรั่วไหลของข้อมูล API
+    error_log('Slip AI empty response debug: ' . json_encode($resp_data));
+    echo json_encode(['status' => 'error', 'message' => $err_msg]);
     exit();
 }
 
@@ -283,7 +285,9 @@ $ai_json = json_decode(trim($ai_raw), true);
 
 if (!$ai_json) {
     ob_end_clean();
-    echo json_encode(['status' => 'error', 'message' => 'AI ตอบกลับในรูปแบบที่ไม่ถูกต้อง', 'raw' => $ai_raw]);
+    // Security Fix: ไม่ส่ง raw AI response ไปยังผู้ใช้ ป้องกันการรั่วไหลของข้อมูล
+    error_log('Slip AI invalid JSON raw: ' . $ai_raw);
+    echo json_encode(['status' => 'error', 'message' => 'AI ตอบกลับในรูปแบบที่ไม่ถูกต้อง']);
     exit();
 }
 

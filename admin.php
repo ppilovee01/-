@@ -76,6 +76,15 @@ if (isset($_POST['save_product'])) {
             $_SESSION['swal'] = ['title' => 'ผิดพลาด', 'text' => 'รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp)', 'icon' => 'error'];
             header("Location: admin.php"); exit();
         }
+        // XSS/Security: ตรวจสอบ MIME type จริงของไฟล์เพื่อป้องกันการปลอมนามสกุล
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['image_file']['tmp_name']);
+        finfo_close($finfo);
+        $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!in_array($mime, $allowed_mimes)) {
+            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ประเภทไฟล์ไม่ถูกต้อง', 'icon'=>'error'];
+            header('Location: admin.php'); exit();
+        }
         $new_name = "prod_" . uniqid() . "." . strtolower($ext);
         if (!is_dir("uploads")) mkdir("uploads");
         move_uploaded_file($_FILES['image_file']['tmp_name'], "uploads/" . $new_name);
@@ -480,7 +489,7 @@ if($res) {
                         <?php 
                         $cat_q = mysqli_query($conn, "SELECT * FROM categories ORDER BY name ASC");
                         while($c = mysqli_fetch_assoc($cat_q)) {
-                            echo "<option value='{$c['name']}'>{$c['name']}</option>";
+                            echo "<option value='" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "</option>";
                         }
                         ?>
                     </select>
@@ -505,10 +514,10 @@ if($res) {
                             <tr id="product-row-<?= $row['id'] ?>" class="product-row tr-hover <?= $hl ?>" data-name="<?= htmlspecialchars(strtolower($row['name']), ENT_QUOTES, 'UTF-8') ?>" data-category="<?= htmlspecialchars($row['cat_name'] ?: '', ENT_QUOTES, 'UTF-8') ?>">
                                 <td class="ps-lg-3">
                                     <div class="d-flex align-items-center">
-                                        <img src="<?= $row['image'] ?>" class="img-thumb me-3">
+                                        <img src="<?= htmlspecialchars($row['image'], ENT_QUOTES, 'UTF-8') ?>" class="img-thumb me-3">
                                         <div>
-                                            <div class="fw-bold text-dark text-truncate" style="max-width: 350px; font-size: 1.05rem;"><?= $row['name'] ?></div>
-                                            <small class="badge bg-light text-secondary border mt-1"><i class="bi bi-tag-fill me-1 opacity-50"></i><?= $row['cat_name'] ?: 'ไม่มีหมวดหมู่' ?></small>
+                                            <div class="fw-bold text-dark text-truncate" style="max-width: 350px; font-size: 1.05rem;"><?= htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8') ?></div>
+                                            <small class="badge bg-light text-secondary border mt-1"><i class="bi bi-tag-fill me-1 opacity-50"></i><?= htmlspecialchars($row['cat_name'] ?: 'ไม่มีหมวดหมู่', ENT_QUOTES, 'UTF-8') ?></small>
                                         </div>
                                     </div>
                                 </td>
@@ -597,7 +606,7 @@ if($res) {
                                         $cat_q = mysqli_query($conn, "SELECT * FROM categories ORDER BY name ASC");
                                         while($c = mysqli_fetch_assoc($cat_q)):
                                             $sel = ($edit_data && $edit_data['category_id'] == $c['id']) ? 'selected' : '';
-                                            echo "<option value='{$c['id']}' $sel>{$c['name']}</option>";
+                                            echo "<option value='" . (int)$c['id'] . "' $sel>" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "</option>";
                                         endwhile; 
                                         ?>
                                     </select>
@@ -716,7 +725,7 @@ if($res) {
             <div class="modal-body p-4">
                 <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
                     <img src="<?= $row['image'] ?>" class="rounded-3 me-3" style="width:50px; height:50px; object-fit:cover;">
-                    <h6 class="text-primary fw-bold mb-0"><?= $row['name'] ?></h6>
+                    <h6 class="text-primary fw-bold mb-0"><?= htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8') ?></h6>
                 </div>
                 
                 <div class="table-responsive border rounded-3 bg-white">

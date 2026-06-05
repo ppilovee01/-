@@ -12,39 +12,48 @@ if (isset($_POST['request_reset'])) {
     }
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     
-    // 1. เช็คว่ามีอีเมลนี้ในระบบไหม
-    $check = mysqli_query($conn, "SELECT id, fullname FROM users WHERE email = '$email'");
-    
-    if (mysqli_num_rows($check) > 0) {
-        $user = mysqli_fetch_assoc($check);
-        
-        // 2. สร้างรหัส OTP 6 หลัก และวันหมดอายุ (15 นาที)
-        // ใช้ NOW() ของ MySQL เพื่อป้องกันปัญหา timezone ต่างกันระหว่าง PHP กับ MySQL server
-        $otp = sprintf("%06d", rand(100000, 999999));
-        
-        // 3. บันทึกลงฐานข้อมูล (คำนวณวันหมดอายุใน PHP เพื่อหลีกเลี่ยงปัญหาความเหลื่อมล้ำของนาฬิกาบน Hosting)
-        $expiry_str = date('Y-m-d H:i:s', time() + 900); // 15 นาที
-        $sql = "UPDATE users SET reset_token='$otp', reset_expiry='$expiry_str' WHERE email='$email'";
-        
-        if (mysqli_query($conn, $sql)) {
-            include 'mail_sender.php';
-            $_SESSION['reset_email'] = $email;
-            
-            // ส่งอีเมลจริง
-            $sent = send_password_reset_email($conn, $email, $otp);
-            if ($sent) {
-                $success_msg = "ระบบได้ส่งรหัส OTP ไปยังอีเมลของท่านเรียบร้อยแล้ว";
-                $otp_sent = true;
-            } else {
-                $success_msg = "ระบบสร้างรหัส OTP เรียบร้อย (จำลองเนื่องจากไม่ได้ตั้งค่า SMTP)";
-                $debug_otp = $otp;
-                $otp_sent = false;
-            }
-        } else {
-            $error_msg = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
-        }
+    // Rate limiting: จำกัดจำนวนครั้งในการขอ OTP (สูงสุด 3 ครั้ง / 30 นาที)
+    $otp_rate_key = 'otp_requests_' . md5($email);
+    if (!isset($_SESSION[$otp_rate_key])) $_SESSION[$otp_rate_key] = ['count' => 0, 'first_attempt' => time()];
+    if (time() - $_SESSION[$otp_rate_key]['first_attempt'] > 1800) $_SESSION[$otp_rate_key] = ['count' => 0, 'first_attempt' => time()];
+    if ($_SESSION[$otp_rate_key]['count'] >= 3) {
+        $error_msg = "คุณขอรหัส OTP บ่อยเกินไป กรุณารอ 30 นาที";
     } else {
-        $error_msg = "ไม่พบอีเมลนี้ในระบบ";
+        $_SESSION[$otp_rate_key]['count']++;
+
+        // 1. เช็คว่ามีอีเมลนี้ในระบบไหม
+        $check = mysqli_query($conn, "SELECT id, fullname FROM users WHERE email = '$email'");
+    
+        if (mysqli_num_rows($check) > 0) {
+            $user = mysqli_fetch_assoc($check);
+        
+            // 2. สร้างรหัส OTP 6 หลัก และวันหมดอายุ (15 นาที)
+            // Security: ใช้ random_int แทน rand เพื่อความปลอดภัยของ OTP
+            $otp = sprintf("%06d", random_int(100000, 999999));
+        
+            // 3. บันทึกลงฐานข้อมูล (คำนวณวันหมดอายุใน PHP เพื่อหลีกเลี่ยงปัญหาความเหลื่อมล้ำของนาฬิกาบน Hosting)
+            $expiry_str = date('Y-m-d H:i:s', time() + 900); // 15 นาที
+            $sql = "UPDATE users SET reset_token='$otp', reset_expiry='$expiry_str' WHERE email='$email'";
+        
+            if (mysqli_query($conn, $sql)) {
+                include 'mail_sender.php';
+                $_SESSION['reset_email'] = $email;
+            
+                // ส่งอีเมลจริง
+                $sent = send_password_reset_email($conn, $email, $otp);
+                if ($sent) {
+                    $otp_sent = true;
+                } else {
+                    // Security: บันทึก OTP ลง Server Log แทนการแสดงผลบนหน้าเว็บ
+                    error_log('DEBUG OTP for ' . $email . ': ' . $otp);
+                    $otp_sent = false;
+                }
+            } else {
+                error_log('OTP SQL Error: ' . mysqli_error($conn));
+            }
+        }
+        // Security: แสดงข้อความเดียวกันทั้งกรณีพบและไม่พบอีเมล (ป้องกัน User Enumeration)
+        $success_msg = 'หากอีเมลนี้มีอยู่ในระบบ ระบบจะส่งรหัส OTP ไปให้';
     }
 }
 ?>
@@ -151,37 +160,21 @@ if (isset($_POST['request_reset'])) {
 
 <?php if(isset($success_msg)): ?>
 <script>
-    <?php if(isset($otp_sent) && $otp_sent): ?>
     Swal.fire({
-        icon: 'success',
-        title: 'ส่ง OTP สำเร็จ',
-        text: 'ระบบได้ส่งรหัส OTP ไปยังอีเมล <?= htmlspecialchars($email) ?> เรียบร้อยแล้ว (รหัสมีอายุ 15 นาที)',
+        icon: 'info',
+        title: 'ส่งคำขอเรียบร้อย',
+        text: '<?= htmlspecialchars($success_msg, ENT_QUOTES, 'UTF-8') ?>',
         confirmButtonText: 'ไปหน้าตั้งรหัสผ่านใหม่',
         confirmButtonColor: '#7FB5FF',
         allowOutsideClick: false
     }).then(() => {
         window.location.href = 'reset_password.php';
     });
-    <?php else: ?>
-    Swal.fire({
-        icon: 'success',
-        title: 'ตรวจสอบ OTP (จำลอง)',
-        html: 'ระบบได้สร้างรหัส OTP รีเซ็ตรหัสผ่านแล้ว<br><br>' +
-              '<h2 class="text-primary fw-bold" style="letter-spacing: 4px;"><?= $debug_otp ?></h2>' +
-              '<br><span class="text-muted small">(บน Server จริง รหัสนี้จะถูกส่งเข้าอีเมลของท่าน)</span>',
-        confirmButtonText: 'ไปหน้าตั้งรหัสผ่านใหม่',
-        confirmButtonColor: '#7FB5FF',
-        allowOutsideClick: false,
-        showCloseButton: true
-    }).then(() => {
-        window.location.href = 'reset_password.php';
-    });
-    <?php endif; ?>
 </script>
 <?php endif; ?>
 
 <?php if(isset($error_msg)): ?>
-<script>Swal.fire({icon: 'error', title: 'ขออภัย', text: '<?= $error_msg ?>', confirmButtonColor: '#333'});</script>
+<script>Swal.fire({icon: 'error', title: 'ขออภัย', text: '<?= htmlspecialchars($error_msg, ENT_QUOTES, 'UTF-8') ?>', confirmButtonColor: '#333'});</script>
 <?php endif; ?>
 
 <script>

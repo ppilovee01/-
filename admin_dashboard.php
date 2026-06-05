@@ -239,7 +239,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                                             <div class="d-flex align-items-center">
                                                 <img src="<?= $item['image'] ?>" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover; margin-right: 12px;">
                                                 <div>
-                                                    <div class="fw-bold text-truncate" style="max-width: 150px;"><?= $item['name'] ?></div>
+                                                    <div class="fw-bold text-truncate" style="max-width: 150px;"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></div>
                                                     <div class="small text-muted" style="font-size: 0.75rem;">
                                                         จำหน่ายแล้ว <?= $item['total_qty'] ?> ชิ้น
                                                         <?php if($is_out): ?> <span class="badge bg-danger ms-1" style="font-size:0.6rem;">สินค้าหมด</span> <?php endif; ?>

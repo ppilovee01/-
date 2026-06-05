@@ -35,6 +35,20 @@ if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
             
             $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg', 'webp');
             if (in_array($fileExtension, $allowedfileExtensions)) {
+                // Validate actual file content (MIME type) — ป้องกัน webshell upload
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime = finfo_file($finfo, $_FILES['review_image']['tmp_name']);
+                finfo_close($finfo);
+                $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                if (!in_array($mime, $allowed_mimes)) {
+                    $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ประเภทไฟล์ไม่ถูกต้อง อนุญาตเฉพาะรูปภาพเท่านั้น', 'icon'=>'error'];
+                    header('Location: my_orders.php'); exit();
+                }
+                // Validate file size — จำกัดขนาดไฟล์สูงสุด 5MB
+                if ($_FILES['review_image']['size'] > 5 * 1024 * 1024) {
+                    $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ไฟล์รูปภาพมีขนาดใหญ่เกินไป (สูงสุด 5MB)', 'icon'=>'error'];
+                    header('Location: my_orders.php'); exit();
+                }
                 $newFileName = 'review_' . uniqid() . '.' . $fileExtension;
                 $uploadFileDir = 'uploads/';
                 if (!is_dir($uploadFileDir)) {
@@ -52,7 +66,7 @@ if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
              $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
              log_admin_action($conn, 'เขียนรีวิว', "ลูกค้าเขียนรีวิวให้คะแนนสินค้า ID #$pid คะแนน: $rating ดาว (เขียนรีวิวจากหน้าประวัติสั่งซื้อ)", $uid, $_SESSION['fullname']);
         } else {
-             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกรีวิว', 'icon'=>'error'];
         }
     }
     header("Location: my_orders.php");
@@ -354,12 +368,12 @@ date_default_timezone_set('Asia/Bangkok');
                         ?>
                         <div class="product-item">
                             <a href="product_detail.php?id=<?= $item['product_id'] ?>" class="text-decoration-none d-flex align-items-center" style="flex:1; min-width:0; color:inherit;">
-                                <img src="<?= $item['image'] ?>" class="product-img">
+                                <img src="<?= htmlspecialchars($item['image'], ENT_QUOTES, 'UTF-8') ?>" class="product-img" alt="<?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?>">
                                 <div style="flex:1; min-width:0;">
-                                    <div class="fw-bold text-dark text-truncate small"><?= $item['name'] ?></div>
+                                    <div class="fw-bold text-dark text-truncate small"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></div>
                                     <?php if(!empty($item['selected_option'])): ?>
                                         <small class="text-muted bg-light border px-2 py-0 rounded-pill d-inline-block mt-1 mb-1">
-                                            <?= $item['selected_option'] ?>
+                                            <?= htmlspecialchars($item['selected_option'], ENT_QUOTES, 'UTF-8') ?>
                                         </small>
                                         <br>
                                     <?php endif; ?>
@@ -432,7 +446,7 @@ date_default_timezone_set('Asia/Bangkok');
                         <?php endif; ?>
 
                         <?php if(!empty($row['payment_slip'])): ?>
-                            <span onclick="viewSlip('uploads/<?= $row['payment_slip'] ?>')" class="btn-action btn-view-slip me-2"><i class="bi bi-image"></i> สลิป</span>
+                            <span onclick="viewSlip('uploads/<?= htmlspecialchars($row['payment_slip'], ENT_QUOTES, 'UTF-8') ?>')" class="btn-action btn-view-slip me-2"><i class="bi bi-image"></i> สลิป</span>
                         <?php endif; ?>
                         
                         <?php if($status == 'pending'): ?>
@@ -696,9 +710,9 @@ date_default_timezone_set('Asia/Bangkok');
 
     <?php if(isset($_SESSION['swal'])): ?>
         Swal.fire({
-            icon: '<?= $_SESSION['swal']['icon'] ?>',
-            title: '<?= $_SESSION['swal']['title'] ?>',
-            text: '<?= $_SESSION['swal']['text'] ?>',
+            icon: <?= json_encode($_SESSION['swal']['icon']) ?>,
+            title: <?= json_encode($_SESSION['swal']['title']) ?>,
+            text: <?= json_encode($_SESSION['swal']['text']) ?>,
             confirmButtonColor: '#AEE2FF'
         });
     <?php unset($_SESSION['swal']); endif; ?>

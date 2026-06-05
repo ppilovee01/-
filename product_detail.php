@@ -56,6 +56,20 @@ if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
         
         $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg', 'webp');
         if (in_array($fileExtension, $allowedfileExtensions)) {
+            // Validate actual file content (MIME type) — ป้องกัน webshell upload
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = finfo_file($finfo, $_FILES['review_image']['tmp_name']);
+            finfo_close($finfo);
+            $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!in_array($mime, $allowed_mimes)) {
+                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ประเภทไฟล์ไม่ถูกต้อง อนุญาตเฉพาะรูปภาพเท่านั้น', 'icon'=>'error'];
+                header('Location: product_detail.php?id=' . intval($_GET['id'])); exit();
+            }
+            // Validate file size — จำกัดขนาดไฟล์สูงสุด 5MB
+            if ($_FILES['review_image']['size'] > 5 * 1024 * 1024) {
+                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ไฟล์รูปภาพมีขนาดใหญ่เกินไป (สูงสุด 5MB)', 'icon'=>'error'];
+                header('Location: product_detail.php?id=' . intval($_GET['id'])); exit();
+            }
             $newFileName = 'review_' . uniqid() . '.' . $fileExtension;
             $uploadFileDir = 'uploads/';
             
@@ -77,7 +91,7 @@ if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
          $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
          log_admin_action($conn, 'เขียนรีวิว', "ลูกค้าเขียนรีวิวให้คะแนนสินค้า ID #$id คะแนน: $rating ดาว (เขียนรีวิวจากหน้าสินค้า)", $uid, $_SESSION['fullname']);
     } else {
-         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>mysqli_error($conn), 'icon'=>'error'];
+         $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกรีวิว', 'icon'=>'error'];
     }
     header("Location: product_detail.php?id=$id"); exit();
 }
@@ -206,14 +220,14 @@ include 'header.php';
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="index.php" class="text-decoration-none text-muted">หน้าแรก</a></li>
             <li class="breadcrumb-item"><a href="index.php#shop" class="text-decoration-none text-muted">สินค้า</a></li>
-            <li class="breadcrumb-item active" aria-current="page"><?= $product['name'] ?></li>
+            <li class="breadcrumb-item active" aria-current="page"><?= htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8') ?></li>
         </ol>
     </nav>
 
     <div class="row g-5">
         <div class="col-lg-6 animate__animated animate__fadeInLeft">
             <div class="product-img-container">
-                <img src="<?= $product['image'] ?>" alt="<?= $product['name'] ?>" class="product-img">
+                <img src="<?= htmlspecialchars($product['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8') ?>" class="product-img">
             </div>
         </div>
 
@@ -272,7 +286,7 @@ include 'header.php';
                 </script>
             <?php endif; ?>
 
-            <h1 class="product-title display-6 mb-2"><?= $product['name'] ?></h1>
+            <h1 class="product-title display-6 mb-2"><?= htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8') ?></h1>
             
             <div class="d-flex align-items-center mb-4">
                 <div class="star-rating me-2">
@@ -311,11 +325,11 @@ include 'header.php';
                             $opt_values = explode(',', trim($parts[1]));
                 ?>
                 <div class="option-group">
-                    <label class="option-label"><?= $opt_name ?></label>
+                    <label class="option-label"><?= htmlspecialchars($opt_name, ENT_QUOTES, 'UTF-8') ?></label>
                     <div class="d-flex flex-wrap">
                         <?php foreach($opt_values as $k => $val): $val = trim($val); ?>
-                            <input type="radio" class="btn-check option-input" name="options[<?= $opt_name ?>]" id="opt_<?= $opt_name ?>_<?= $k ?>" value="<?= $val ?>" required>
-                            <label class="btn-option" for="opt_<?= $opt_name ?>_<?= $k ?>"><?= $val ?></label>
+                            <input type="radio" class="btn-check option-input" name="options[<?= htmlspecialchars($opt_name, ENT_QUOTES, 'UTF-8') ?>]" id="opt_<?= htmlspecialchars($opt_name, ENT_QUOTES, 'UTF-8') ?>_<?= $k ?>" value="<?= htmlspecialchars($val, ENT_QUOTES, 'UTF-8') ?>" required>
+                            <label class="btn-option" for="opt_<?= htmlspecialchars($opt_name, ENT_QUOTES, 'UTF-8') ?>_<?= $k ?>"><?= htmlspecialchars($val, ENT_QUOTES, 'UTF-8') ?></label>
                         <?php endforeach; ?>
                     </div>
                 </div>
@@ -359,7 +373,7 @@ include 'header.php';
         <div class="tab-content">
             <div class="tab-pane fade show active" id="desc">
                 <div class="text-secondary lh-lg" style="font-size: 1.05rem;">
-                    <?= nl2br($product['description']) ?>
+                    <?= nl2br(htmlspecialchars($product['description'], ENT_QUOTES, 'UTF-8')) ?>
                 </div>
             </div>
             
@@ -530,7 +544,7 @@ if (!empty($recommended_products)):
                     <?php $rec_fs = getActiveFlashSale($conn, $p['id']); ?>
                     <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
-                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($rec_fs !== null): ?>
                                 <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.65rem;">⚡ FLASH</div>
                             <?php endif; ?>
@@ -543,7 +557,7 @@ if (!empty($recommended_products)):
                     <div class="card-body d-flex flex-column text-center p-3 pt-2">
                         <h6 class="fw-bold mb-1 text-truncate mt-1">
                             <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
-                                <?= $p['name'] ?>
+                                <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         </h6>
                         <div class="small text-warning mb-2">
@@ -632,7 +646,7 @@ if (!empty($display_recently_viewed)):
                     </button>
                     <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
                         <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
-                            <img src="<?= $p['image'] ?>" alt="<?= $p['name'] ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                            <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php $rv_fs = getActiveFlashSale($conn, $p['id']); ?>
                             <?php if($rv_fs !== null): ?>
                                 <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.65rem;">⚡ FLASH</div>
@@ -645,7 +659,7 @@ if (!empty($display_recently_viewed)):
                     <div class="card-body d-flex flex-column text-center p-3">
                         <h6 class="fw-bold mb-1 text-truncate mt-1">
                             <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
-                                <?= $p['name'] ?>
+                                <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         </h6>
                         <div class="small text-warning mb-2">
@@ -671,9 +685,9 @@ endif;
 
 <script>
     Swal.fire({
-        icon: '<?= $_SESSION['swal']['icon'] ?>',
-        title: '<?= $_SESSION['swal']['title'] ?>',
-        text: '<?= $_SESSION['swal']['text'] ?>',
+        icon: <?= json_encode($_SESSION['swal']['icon']) ?>,
+        title: <?= json_encode($_SESSION['swal']['title']) ?>,
+        text: <?= json_encode($_SESSION['swal']['text']) ?>,
         confirmButtonColor: '#AEE2FF'
     });
 </script>

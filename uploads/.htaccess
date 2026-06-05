@@ -1,15 +1,18 @@
-# Disable script execution inside uploads directory
-<IfModule mod_authz_core.c>
-    <FilesMatch "\.(php|php5|php7|php8|phtml|pl|py|jsp|asp|htm|html|shtml|sh|cgi)$">
+# Prevent PHP execution in uploads directory (Security: Block webshell uploads)
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|pht|shtml|cgi|pl|py)$">
+    <IfModule mod_authz_core.c>
         Require all denied
-    </FilesMatch>
-</IfModule>
-<IfModule !mod_authz_core.c>
-    <FilesMatch "\.(php|php5|php7|php8|phtml|pl|py|jsp|asp|htm|html|shtml|sh|cgi)$">
+    </IfModule>
+    <IfModule !mod_authz_core.c>
         Order allow,deny
         Deny from all
-    </FilesMatch>
+    </IfModule>
+</FilesMatch>
+
+# Disable PHP engine in this directory
+<IfModule mod_php.c>
+    php_flag engine off
 </IfModule>
 
-# Turn off directory indexes
-Options -Indexes
+# Prevent directory browsing
+Options -Indexes -ExecCGI

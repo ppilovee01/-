@@ -1,7 +1,9 @@
 <?php
 // ตั้งค่าการเชื่อมต่อฐานข้อมูล Por Mae Bet Taled
-error_reporting(0);
+error_reporting(E_ALL);
 ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/logs/php_errors.log');
 date_default_timezone_set('Asia/Bangkok');
 
 // --- ฟังก์ชันโหลดไฟล์ .env สำหรับเก็บความลับของระบบ ---
@@ -89,6 +91,7 @@ function getMaskedValue($envKey, $dbValue) {
 // --- มาตรการป้องกันการแฮกเกอร์และความปลอดภัย HTTP Headers & Sessions ---
 ini_set('session.cookie_httponly', 1); // ป้องกันไม่ให้ JavaScript อ่านคุกกี้เซสชันได้ (ป้องกัน Session Hijacking จาก XSS)
 ini_set('session.use_only_cookies', 1); // บังคับให้ใช้คุกกี้ในการเก็บเซสชันเท่านั้น
+ini_set('session.cookie_samesite', 'Lax'); // ป้องกัน CSRF จาก Cross-site request (SameSite Cookie Policy)
 if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === 1 || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
     ini_set('session.cookie_secure', 1); // บังคับส่งคุกกี้ผ่าน HTTPS เท่านั้น
 }
@@ -101,6 +104,13 @@ if (!headers_sent()) {
     header("X-Frame-Options: DENY"); // ป้องกัน Clickjacking (การแอบฝังเว็บใน iframe)
     header("X-Content-Type-Options: nosniff"); // ป้องกัน MIME-type Sniffing
     header("Referrer-Policy: strict-origin-when-cross-origin"); // ป้องกันข้อมูลหน้าอ้างอิงรั่วไหล
+    header("Permissions-Policy: camera=(), microphone=(), geolocation=()"); // จำกัดการเข้าถึงอุปกรณ์
+    // Content-Security-Policy: อนุญาตเฉพาะแหล่ง CDN ที่ใช้งานจริง
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-ancestors 'none';");
+    // HSTS: บังคับใช้ HTTPS (เปิดเมื่อมีใบรับรอง SSL)
+    if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+        header("Strict-Transport-Security: max-age=31536000; includeSubDomains");
+    }
 }
 
 // --- สร้างและประมวลผล CSRF Token เพื่อความปลอดภัยของระบบ ---
@@ -163,7 +173,8 @@ if ($check_table && mysqli_num_rows($check_table) > 0) {
 
 // --- Helper to get active flash sale for a product ---
 function getActiveFlashSale($conn, $product_id) {
-    $q = mysqli_query($conn, "SELECT * FROM flash_sales WHERE product_id = '$product_id' AND NOW() BETWEEN start_time AND end_time LIMIT 1");
+    $product_id = intval($product_id); // ป้องกัน SQL Injection
+    $q = mysqli_query($conn, "SELECT * FROM flash_sales WHERE product_id = $product_id AND NOW() BETWEEN start_time AND end_time LIMIT 1");
     if ($q && mysqli_num_rows($q) > 0) {
         $fs = mysqli_fetch_assoc($q);
         if ($fs['flash_sold'] < $fs['flash_stock']) {
@@ -175,19 +186,21 @@ function getActiveFlashSale($conn, $product_id) {
 
 // --- Helper to get current active price (checks flash sale) ---
 function getCurrentPrice($conn, $product_id) {
+    $product_id = intval($product_id); // ป้องกัน SQL Injection
     $fs = getActiveFlashSale($conn, $product_id);
     if ($fs !== null) {
         return $fs['flash_price'];
     }
-    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = '$product_id'");
+    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = $product_id");
     $p = mysqli_fetch_assoc($pq);
     return $p['price'] ?? 0;
 }
 
 // --- Helper to get product total price with split flash/regular quota pricing ---
 function getProductTotalPrice($conn, $product_id, $qty) {
+    $product_id = intval($product_id); // ป้องกัน SQL Injection
     $fs = getActiveFlashSale($conn, $product_id);
-    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = '$product_id'");
+    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = $product_id");
     $p = mysqli_fetch_assoc($pq);
     $regular_price = floatval($p['price'] ?? 0);
 
@@ -207,8 +220,9 @@ function getProductTotalPrice($conn, $product_id, $qty) {
 
 // --- Helper to get formatted split price description text ---
 function getProductPriceText($conn, $product_id, $qty) {
+    $product_id = intval($product_id); // ป้องกัน SQL Injection
     $fs = getActiveFlashSale($conn, $product_id);
-    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = '$product_id'");
+    $pq = mysqli_query($conn, "SELECT price FROM products WHERE id = $product_id");
     $p = mysqli_fetch_assoc($pq);
     $regular_price = floatval($p['price'] ?? 0);
 
@@ -434,8 +448,8 @@ function sendLineNotify($conn, $message) {
         
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2); // ตรวจสอบ SSL Certificate (ป้องกัน MITM Attack)
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         $headers = [
@@ -462,8 +476,8 @@ function sendLineNotify($conn, $message) {
     if (!empty($token)) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://notify-api.line.me/api/notify");
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2); // ตรวจสอบ SSL Certificate (ป้องกัน MITM Attack)
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, "message=" . urlencode($message));
         $headers = array(
