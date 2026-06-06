@@ -160,6 +160,8 @@ $extra_css = "
     .btn-review:hover { background: var(--slate-dark); color: white; }
     .btn-track { background: #e0f2fe; color: #0ea5e9; border: 1px solid #bae6fd; }
     .btn-track:hover { background: #0ea5e9; color: white; }
+    .btn-reorder { border: 1px solid var(--blue-hover); color: #060913; background: var(--blue-main); margin-left: 10px; font-weight: 600; }
+    .btn-reorder:hover { background: var(--blue-hover); border-color: var(--blue-hover); color: white; }
 
     .tracking-box { background: #fdf2f8; border: 1px dashed var(--blue-hover); border-radius: 10px; padding: 10px; text-align: center; margin-top: 15px; }
     .tracking-number { font-size: 1rem; font-weight: 700; color: var(--blue-hover); letter-spacing: 1px; }
@@ -245,6 +247,16 @@ $extra_css = "
     }
     body.dark-theme .tracking-number {
         color: var(--blue-main) !important;
+    }
+    body.dark-theme .btn-reorder {
+        border-color: var(--blue-main) !important;
+        color: #060913 !important;
+        background: var(--blue-main) !important;
+    }
+    body.dark-theme .btn-reorder:hover {
+        background: var(--blue-hover) !important;
+        border-color: var(--blue-hover) !important;
+        color: white !important;
     }
 </style>
 ";
@@ -431,6 +443,8 @@ date_default_timezone_set('Asia/Bangkok');
                     </div>
 
                     <div class="text-end">
+                        <span onclick="reorder(<?= $row['id'] ?>)" class="btn-action btn-reorder me-2"><i class="bi bi-arrow-repeat"></i> สั่งซื้ออีกครั้ง</span>
+                        
                         <a href="print_invoice.php?id=<?= $row['id'] ?>" target="_blank" class="btn-action btn-view-slip me-2 text-decoration-none">
                             <i class="bi bi-printer"></i> ใบเสร็จ
                         </a>
@@ -573,6 +587,60 @@ date_default_timezone_set('Asia/Bangkok');
 <script>
     function viewSlip(url){ new bootstrap.Modal(document.getElementById('slipModal')).show(); document.getElementById('slipImage').src = url; }
     function confirmCancel(id){ Swal.fire({title:'ยืนยันยกเลิก?',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',confirmButtonText:'ยกเลิกออเดอร์'}).then((r)=>{if(r.isConfirmed) window.location.href='?cancel_my_order='+id+'&csrf_token=<?= get_csrf_token() ?>';}) }
+    
+    let isReordering = false;
+    function reorder(orderId) {
+        if (isReordering) return;
+        isReordering = true;
+        
+        Swal.fire({
+            title: 'กำลังเตรียมสินค้า...',
+            text: 'กรุณารอสักครู่ ระบบกำลังนำสินค้าเข้าตะกร้า',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        const fd = new FormData();
+        fd.append('action', 'reorder');
+        fd.append('order_id', orderId);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
+        
+        fetch('ajax.php', { method: 'POST', body: fd })
+        .then(res => res.json())
+        .then(data => {
+            isReordering = false;
+            Swal.close();
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'สำเร็จ!',
+                    text: data.message,
+                    confirmButtonColor: '#AEE2FF',
+                    timer: 2000
+                }).then(() => {
+                    // โหลดตะกร้าสไลด์ด้านข้างใหม่และสั่งเปิด
+                    if (typeof window.loadCartDrawer === 'function' && typeof window.toggleCartDrawer === 'function') {
+                        window.loadCartDrawer();
+                        const drawer = document.getElementById('cartDrawer');
+                        if (drawer && !drawer.classList.contains('show')) {
+                            window.toggleCartDrawer();
+                        }
+                    }
+                });
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', data.message, 'error');
+            }
+        })
+        .catch(err => {
+            isReordering = false;
+            Swal.close();
+            console.error(err);
+            Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+        });
+    }
     
     function formatThaiDate(dateObj) {
         const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];

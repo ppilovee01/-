@@ -25,7 +25,7 @@ $response = ['status' => 'error', 'message' => 'เกิดข้อผิด�
 // ==========================================
 // 1. ตรวจสอบสิทธิ์สำหรับแอกชันที่ต้องการสิทธิ์สมาชิก
 // ==========================================
-$member_actions = ['update_profile', 'change_password', 'add_address', 'delete_address', 'toggle_wishlist'];
+$member_actions = ['update_profile', 'change_password', 'add_address', 'delete_address', 'toggle_wishlist', 'reorder', 'wishlist_to_cart'];
 if (in_array($action, $member_actions) && !isset($_SESSION['user_id'])) {
     $response = ['status' => 'error', 'message' => 'กรุณาเข้าสู่ระบบก่อน'];
     ob_end_clean();
@@ -132,6 +132,108 @@ elseif ($action == 'remove_item') {
             'final_total' => number_format($cart_data['final'], 2),
             'cart_count' => count_cart_items()
         ];
+    }
+}
+
+// 2.3.1 สั่งซื้อสินค้าซ้ำด่วน (Quick Re-Order)
+elseif ($action == 'reorder') {
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    
+    // ตรวจสอบสิทธิ์ว่าออเดอร์นั้นเป็นของผู้ใช้นี้จริงหรือไม่ (ป้องกัน IDOR)
+    $order_q = mysqli_query($conn, "SELECT id FROM orders WHERE id = '$order_id' AND user_id = '$user_id'");
+    if (mysqli_num_rows($order_q) == 0) {
+        $response = ['status' => 'error', 'message' => 'ไม่พบข้อมูลคำสั่งซื้อที่ถูกต้อง'];
+        ob_end_clean(); echo json_encode($response); exit();
+    }
+    
+    // ดึงรายการสินค้าเดิม
+    $items_q = mysqli_query($conn, "SELECT * FROM order_items WHERE order_id = '$order_id'");
+    $added_count = 0;
+    $skipped_names = [];
+    
+    if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
+    
+    while ($item = mysqli_fetch_assoc($items_q)) {
+        $pid = $item['product_id'];
+        $qty = intval($item['quantity']);
+        $opts = $item['selected_option'] ?? '';
+        
+        // ดึงชื่อและเช็คสต๊อกล่าสุดจากสินค้า
+        $p_q = mysqli_query($conn, "SELECT name, stock FROM products WHERE id = '$pid'");
+        $prod = mysqli_fetch_assoc($p_q);
+        
+        if ($prod) {
+            if ($prod['stock'] >= $qty) {
+                $cartKey = $pid . ($opts ? '_' . md5($opts) : '');
+                
+                if (isset($_SESSION['cart'][$cartKey])) {
+                    if (is_array($_SESSION['cart'][$cartKey])) {
+                        $_SESSION['cart'][$cartKey]['qty'] += $qty;
+                    } else {
+                        $_SESSION['cart'][$cartKey] += $qty;
+                    }
+                } else {
+                    $_SESSION['cart'][$cartKey] = ['id' => $pid, 'qty' => $qty, 'options' => $opts];
+                }
+                $added_count++;
+            } else {
+                $skipped_names[] = $prod['name'];
+            }
+        }
+    }
+    
+    if ($added_count > 0) {
+        $msg = 'เพิ่มสินค้าเข้าตะกร้าเรียบร้อยแล้ว ' . $added_count . ' รายการ';
+        if (!empty($skipped_names)) {
+            $msg .= ' (บางชิ้นหมดสต๊อก: ' . implode(', ', $skipped_names) . ')';
+        }
+        $response = [
+            'status' => 'success',
+            'message' => $msg,
+            'cart_count' => count_cart_items()
+        ];
+    } else {
+        $response = [
+            'status' => 'error',
+            'message' => 'ไม่สามารถสั่งซื้อซ้ำได้ เนื่องจากสินค้าในออเดอร์นี้หมดสต๊อกทั้งหมดแล้ว'
+        ];
+    }
+}
+
+// 2.3.2 ย้ายสินค้าจากรายการโปรดเข้าตะกร้า (Wishlist to Cart)
+elseif ($action == 'wishlist_to_cart') {
+    $pid = isset($_POST['product_id']) ? mysqli_real_escape_string($conn, $_POST['product_id']) : '';
+    $opts = isset($_POST['options']) ? $_POST['options'] : '';
+    $qty = isset($_POST['qty']) ? intval($_POST['qty']) : 1;
+    
+    $q = mysqli_query($conn, "SELECT name, stock FROM products WHERE id='$pid'");
+    $prod = mysqli_fetch_assoc($q);
+    
+    if ($prod && $prod['stock'] >= $qty) {
+        if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
+        
+        $cartKey = $pid . ($opts ? '_' . md5($opts) : '');
+        
+        if (isset($_SESSION['cart'][$cartKey])) {
+            if (is_array($_SESSION['cart'][$cartKey])) {
+                $_SESSION['cart'][$cartKey]['qty'] += $qty;
+            } else {
+                $_SESSION['cart'][$cartKey] += $qty;
+            }
+        } else {
+            $_SESSION['cart'][$cartKey] = ['id' => $pid, 'qty' => $qty, 'options' => $opts];
+        }
+        
+        // ลบออกจากรายการโปรด
+        mysqli_query($conn, "DELETE FROM wishlist WHERE user_id='$user_id' AND product_id='$pid'");
+        
+        $response = [
+            'status' => 'success',
+            'message' => 'ย้ายสินค้า ' . htmlspecialchars($prod['name'], ENT_QUOTES, 'UTF-8') . ' ลงตะกร้าแล้ว',
+            'cart_count' => count_cart_items()
+        ];
+    } else {
+        $response = ['status' => 'error', 'message' => 'ขออภัย สินค้ามีจำนวนไม่พอในสต๊อก'];
     }
 }
 

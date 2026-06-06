@@ -679,19 +679,50 @@ $points_spend_rate = intval($shop['points_spend_rate'] ?? 1);
                             </div>
                             <div class="p-4">
                                 <div class="row g-3" id="address-list-container">
-                                    <?php $aq = mysqli_query($conn, "SELECT * FROM user_addresses WHERE user_id='$user_id' ORDER BY id DESC"); 
-                                    if(mysqli_num_rows($aq)>0): $fst=true; while($ad=mysqli_fetch_assoc($aq)): ?>
+                                    <?php 
+                                    // ค้นหาที่อยู่จากออเดอร์ล่าสุดของลูกค้ารายนี้เพื่อเป็นค่าเริ่มต้น
+                                    $last_order_addr = '';
+                                    if (isset($_SESSION['user_id'])) {
+                                        $lo_q = mysqli_query($conn, "SELECT address FROM orders WHERE user_id = '{$_SESSION['user_id']}' AND address IS NOT NULL AND status != 'cancelled' ORDER BY id DESC LIMIT 1");
+                                        if ($lo_q && mysqli_num_rows($lo_q) > 0) {
+                                            $last_order_addr = mysqli_fetch_assoc($lo_q)['address'];
+                                        }
+                                    }
+
+                                    $aq = mysqli_query($conn, "SELECT * FROM user_addresses WHERE user_id='$user_id' ORDER BY id DESC"); 
+                                    $addresses = [];
+                                    $default_addr_id = null;
+                                    if(mysqli_num_rows($aq) > 0) {
+                                        while($ad = mysqli_fetch_assoc($aq)) {
+                                            $addresses[] = $ad;
+                                            // ประกอบที่อยู่เพื่อเช็คกับออเดอร์ล่าสุด
+                                            $constructed = $ad['recipient_name']." (".$ad['phone'].")\n".$ad['address_line1']." ".$ad['subdistrict']." ".$ad['district']." ".$ad['province']." ".$ad['zipcode'];
+                                            // นำมาเปรียบเทียบ (ลบช่องว่างส่วนเกินหรือขึ้นบรรทัดใหม่เพื่อให้เทียบกันได้แม่นยำ)
+                                            if (trim(preg_replace('/\s+/', ' ', $constructed)) === trim(preg_replace('/\s+/', ' ', $last_order_addr))) {
+                                                $default_addr_id = $ad['id'];
+                                            }
+                                        }
+                                        // หากไม่พบที่อยู่จากออเดอร์ล่าสุด ให้เลือกที่อยู่ที่พึ่งเพิ่มเข้ามาล่าสุดเป็นค่าเริ่มต้น
+                                        if ($default_addr_id === null && !empty($addresses)) {
+                                            $default_addr_id = $addresses[0]['id'];
+                                        }
+                                    }
+                                    
+                                    if(!empty($addresses)): 
+                                        foreach($addresses as $ad): 
+                                            $is_checked = ($ad['id'] == $default_addr_id);
+                                    ?>
                                     <div class="col-md-6 address-item-col">
                                         <label class="w-100 h-100">
-                                            <input type="radio" name="selected_address" value="<?= $ad['id'] ?>" class="d-none" <?=$fst?'checked':''?>>
+                                            <input type="radio" name="selected_address" value="<?= $ad['id'] ?>" class="d-none" <?= $is_checked ? 'checked' : '' ?>>
                                             <div class="option-card">
                                                 <i class="bi bi-check-circle-fill check-icon"></i>
-                                                <div class="fw-bold text-dark mb-1"><?=$ad['recipient_name']?> <span class="text-muted fw-normal small">(<?=$ad['phone']?>)</span></div>
-                                                <div class="text-muted small text-truncate"><?=$ad['address_line1']?>...</div>
+                                                <div class="fw-bold text-dark mb-1"><?=htmlspecialchars($ad['recipient_name'], ENT_QUOTES, 'UTF-8')?> <span class="text-muted fw-normal small">(<?=htmlspecialchars($ad['phone'], ENT_QUOTES, 'UTF-8')?>)</span></div>
+                                                <div class="text-muted small text-truncate"><?=htmlspecialchars($ad['address_line1'], ENT_QUOTES, 'UTF-8')?>...</div>
                                             </div>
                                         </label>
                                     </div>
-                                    <?php $fst=false; endwhile; else: ?>
+                                    <?php endforeach; else: ?>
                                         <div id="no-address-msg" class="text-center py-3 text-muted">ยังไม่มีที่อยู่ กรุณาเพิ่มที่อยู่ใหม่</div>
                                     <?php endif; ?>
                                 </div>

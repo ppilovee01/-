@@ -151,3 +151,9 @@
 [05-Jun-2026 22:39:39 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 92
 [05-Jun-2026 22:39:39 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 93
 [05-Jun-2026 22:39:39 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 94
+[06-Jun-2026 00:06:27 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 92
+[06-Jun-2026 00:06:27 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 93
+[06-Jun-2026 00:06:27 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 94
+[06-Jun-2026 00:06:57 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 92
+[06-Jun-2026 00:06:57 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 93
+[06-Jun-2026 00:06:57 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\FitGear\db.php on line 94

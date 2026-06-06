@@ -1125,6 +1125,16 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                             mobileBottomCartBadge.classList.add('hidden');
                         }
                     }
+                    
+                    // Hide cart drawer footer when cart is empty
+                    const footerEl = document.getElementById('cart-drawer-footer');
+                    if (footerEl) {
+                        if (newCount === 0) {
+                            footerEl.style.setProperty('display', 'none', 'important');
+                        } else {
+                            footerEl.style.setProperty('display', 'block', 'important');
+                        }
+                    }
 
                     // Trigger animations if count changed
                     if (prevCount !== newCount && newCount > 0) {
@@ -1588,7 +1598,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             <div>กำลังโหลดสินค้า...</div>
         </div>
     </div>
-    <div class="cart-drawer-footer" id="cart-drawer-footer">
+    <div class="cart-drawer-footer" id="cart-drawer-footer" style="<?= $cart_count == 0 ? 'display: none !important;' : '' ?>">
         <div class="d-flex justify-content-between mb-1" style="font-size: 0.88rem;">
             <span class="text-muted">ยอดรวมสินค้า:</span>
             <span class="text-dark fw-semibold" id="cart-drawer-subtotal-val">฿0.00</span>
@@ -1608,7 +1618,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
             <span class="d-none" id="cart-drawer-subtotal">฿0.00</span> <!-- Legacy fallback compatibility -->
         </div>
         <div class="d-grid gap-2">
-            <a href="cart.php" class="btn btn-outline-secondary rounded-pill">ดูตะกร้าสินค้าทั้งหมด</a>
+            <button type="button" onclick="window.toggleCartDrawer();" class="btn btn-outline-secondary rounded-pill">เลือกสินค้าต่อ</button>
             <a href="cart.php?action=checkout" id="cart-drawer-checkout-btn" class="btn btn-blue rounded-pill text-white fw-bold">ดำเนินการชำระเงิน</a>
         </div>
     </div>
