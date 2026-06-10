@@ -53,11 +53,15 @@ This document acts as a persistent memory checkpoint for the AI agent to prevent
 *   **Slip Verification Debug Data:** Remove debug/raw response details in JSON return payload in `verify_slip.php`; write debug details to `error_log` instead.
 *   **Server-Side Price Calculation (`cart.php`):** Do not trust client-submitted hidden inputs for total price, discount, or final price. Always calculate the cart totals and apply discounts/coupons server-side using database lookups.
 
-### 3. Admin Pages (`admin.php`, `admin_dashboard.php`, `admin_orders.php`, `admin_payments.php`, `admin_users.php`)
+### 3. Admin Pages (`admin.php`, `admin_dashboard.php`, `admin_orders.php`, `admin_payments.php`, `admin_users.php`, `admin_contact.php`, `admin_banners.php`, `admin_about.php`, `admin_feedback.php`)
 *   **XSS Protection:** Sanitize all output fields from database (product names, category names, payment types, etc.).
 *   **File Upload Validation:** Check MIME type for product image uploads.
 *   **Input Validation:** Restrict role input in `admin_users.php` to allowed roles (`user`, `admin`).
 *   **No mysqli_error Leakage:** Ensure no raw database errors leak in the admin UI.
+*   **Audit Logging:** Log all administrative write/delete actions using `log_admin_action()` (e.g. updating pages, deleting feedback/banners/messages).
+*   **Shop Contact & Social Links:** Manage shop contact details (phone, email, address) and social link settings (Facebook, Line, Instagram) dynamically via the `shop_settings` database table instead of hardcoding.
+*   **Contact Center Batch Operations & Templates:** Support batch delete, read, and unread operations in `admin_contact.php` with real-time UI/badge updates, template response insertion, and SMTP configurations validation.
+
 
 ### 4. Auth Pages (`login.php`, `forgot_password.php`, `reset_password.php`, `logout.php`)
 *   **Rate Limiting:** Implement session-based login rate limiting (max 5 attempts per 15 minutes) and OTP request rate limiting (max 3 requests per 30 minutes).

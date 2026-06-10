@@ -85,12 +85,13 @@ if (isset($_POST['update_settings'])) {
         header("Location: admin_flash_sale.php");
         exit();
     } else {
+        error_log("[admin_flash_sale.php] update_settings error: " . mysqli_error($conn));
         if (isset($_POST['ajax'])) {
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => "บันทึกข้อมูลล้มเหลว: " . mysqli_error($conn)]);
+            echo json_encode(['status' => 'error', 'message' => "บันทึกข้อมูลล้มเหลวเนื่องจากข้อผิดพลาดภายในระบบ"]);
             exit();
         }
-        $error_msg = "บันทึกข้อมูลล้มเหลว: " . mysqli_error($conn);
+        $error_msg = "บันทึกข้อมูลล้มเหลวเนื่องจากข้อผิดพลาดภายในระบบ";
     }
 }
 
@@ -152,12 +153,13 @@ if (isset($_POST['add'])) {
                 header("Location: admin_flash_sale.php");
                 exit();
             } else {
+                error_log("[admin_flash_sale.php] add_campaign error: " . mysqli_error($conn));
                 if (isset($_POST['ajax'])) {
                     header('Content-Type: application/json');
-                    echo json_encode(['status' => 'error', 'message' => 'ไม่สามารถบันทึกข้อมูลได้: ' . mysqli_error($conn)]);
+                    echo json_encode(['status' => 'error', 'message' => "ไม่สามารถบันทึกข้อมูลได้เนื่องจากข้อผิดพลาดภายในระบบ"]);
                     exit();
                 }
-                $error_msg = "ไม่สามารถบันทึกข้อมูลได้: " . mysqli_error($conn);
+                $error_msg = "ไม่สามารถบันทึกข้อมูลได้เนื่องจากข้อผิดพลาดภายในระบบ";
             }
         }
     }
@@ -373,12 +375,13 @@ if (isset($_POST['update'])) {
                 header("Location: admin_flash_sale.php");
                 exit();
             } else {
+                error_log("[admin_flash_sale.php] edit_campaign error: " . mysqli_error($conn));
                 if (isset($_POST['ajax'])) {
                     header('Content-Type: application/json');
-                    echo json_encode(['status' => 'error', 'message' => "อัปเดตแคมเปญล้มเหลว: " . mysqli_error($conn)]);
+                    echo json_encode(['status' => 'error', 'message' => "อัปเดตแคมเปญล้มเหลวเนื่องจากข้อผิดพลาดภายในระบบ"]);
                     exit();
                 }
-                $error_msg = "อัปเดตแคมเปญล้มเหลว: " . mysqli_error($conn);
+                $error_msg = "อัปเดตแคมเปญล้มเหลวเนื่องจากข้อผิดพลาดภายในระบบ";
             }
         }
     }

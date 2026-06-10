@@ -48,6 +48,7 @@ if (isset($_POST['save_about'])) {
     $sql = "UPDATE about_content SET title='$title', description='$desc', image='$image_path' WHERE id=1";
     
     if (mysqli_query($conn, $sql)) {
+        log_admin_action($conn, 'แก้ไขหน้าเกี่ยวกับเรา', "แก้ไขหน้าเกี่ยวกับเรา สำเร็จ (หัวข้อ: $title)");
         if (isset($_POST['ajax'])) {
             header('Content-Type: application/json');
             echo json_encode([
@@ -60,7 +61,8 @@ if (isset($_POST['save_about'])) {
         header("Location: admin_about.php?status=success");
         exit();
     } else {
-        $err = "เกิดข้อผิดพลาด: " . mysqli_error($conn);
+        error_log("[admin_about.php] save_about error: " . mysqli_error($conn));
+        $err = "เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง";
         if (isset($_POST['ajax'])) {
             header('Content-Type: application/json');
             echo json_encode(['status' => 'error', 'message' => $err]);

@@ -19,6 +19,9 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     $email = mysqli_real_escape_string($conn, $_POST['shop_email']);
     $remark = mysqli_real_escape_string($conn, $_POST['print_remark']);
+    $facebook_url = mysqli_real_escape_string($conn, $_POST['facebook_url'] ?? '#');
+    $line_url = mysqli_real_escape_string($conn, $_POST['line_url'] ?? '#');
+    $instagram_url = mysqli_real_escape_string($conn, $_POST['instagram_url'] ?? '#');
     $smtp_host = mysqli_real_escape_string($conn, $_POST['smtp_host']);
     $smtp_port = intval($_POST['smtp_port']);
     $smtp_secure = mysqli_real_escape_string($conn, $_POST['smtp_secure']);
@@ -105,7 +108,7 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     }
     $claude_api_key = mysqli_real_escape_string($conn, $claude_api_key_raw);
     
-    // 1. อัปเดตข้อมูลข้อความ
+    // 1. อัปเดตข้อมูลข้อความ (ไม่เก็บความลับ/API key ในฐานข้อมูล)
     $sql = "UPDATE shop_settings SET 
             shop_name='$name', 
             address='$addr', 
@@ -115,7 +118,6 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             smtp_host='$smtp_host', 
             smtp_port='$smtp_port', 
             smtp_user='$smtp_user', 
-            smtp_pass='$smtp_pass', 
             smtp_secure='$smtp_secure', 
             welcome_promo_enabled='$welcome_promo_enabled', 
             welcome_promo_coupon='$welcome_promo_coupon', 
@@ -123,18 +125,10 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             shipping_free_threshold='$shipping_free_threshold',
             points_earn_rate='$points_earn_rate',
             points_spend_rate='$points_spend_rate',
-            line_notify_token='$line_notify_token',
-            line_channel_access_token='$line_channel_access_token',
-            line_user_id='$line_user_id',
-            discord_webhook_url='$discord_webhook_url',
-            telegram_bot_token='$telegram_bot_token',
-            telegram_chat_id='$telegram_chat_id',
-            slack_webhook_url='$slack_webhook_url',
-            custom_webhook_url='$custom_webhook_url',
             slip_ai_provider='$slip_ai_provider',
-            openai_api_key='$openai_api_key',
-            gemini_api_key='$gemini_api_key',
-            claude_api_key='$claude_api_key',
+            facebook_url='$facebook_url',
+            line_url='$line_url',
+            instagram_url='$instagram_url',
             notification_sound='" . mysqli_real_escape_string($conn, $_POST['notification_sound'] ?? 'chime') . "'
             WHERE id=1";
     mysqli_query($conn, $sql);
@@ -173,6 +167,15 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     if (($shop['shop_email'] ?? '') !== $email) {
         $changes[] = ['field' => 'อีเมลร้านค้า', 'old' => $shop['shop_email'] ?? '', 'new' => $email];
     }
+    if (($shop['facebook_url'] ?? '') !== $facebook_url) {
+        $changes[] = ['field' => 'Facebook Link', 'old' => $shop['facebook_url'] ?? '', 'new' => $facebook_url];
+    }
+    if (($shop['line_url'] ?? '') !== $line_url) {
+        $changes[] = ['field' => 'Line Link', 'old' => $shop['line_url'] ?? '', 'new' => $line_url];
+    }
+    if (($shop['instagram_url'] ?? '') !== $instagram_url) {
+        $changes[] = ['field' => 'Instagram Link', 'old' => $shop['instagram_url'] ?? '', 'new' => $instagram_url];
+    }
     if (($shop['print_remark'] ?? '') !== $remark) {
         $changes[] = ['field' => 'หมายเหตุท้ายใบเสร็จ', 'old' => $shop['print_remark'] ?? '', 'new' => $remark];
     }
@@ -188,7 +191,7 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     if (($shop['smtp_user'] ?? '') !== $smtp_user) {
         $changes[] = ['field' => 'SMTP Username', 'old' => $shop['smtp_user'] ?? '', 'new' => $smtp_user];
     }
-    if (($shop['smtp_pass'] ?? '') !== $smtp_pass) {
+    if (getSecretValue('SMTP_PASS', '') !== $smtp_pass_raw) {
         $changes[] = ['field' => 'SMTP Password', 'old' => '******', 'new' => '(เปลี่ยนรหัสผ่าน)'];
     }
     if (intval($shop['welcome_promo_enabled'] ?? 0) !== $welcome_promo_enabled) {
@@ -209,40 +212,40 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     if (intval($shop['points_spend_rate'] ?? 0) !== $points_spend_rate) {
         $changes[] = ['field' => 'มูลค่าคะแนนสะสม (บาท/แต้ม)', 'old' => ($shop['points_spend_rate'] ?? 0) . ' บาท/แต้ม', 'new' => $points_spend_rate . ' บาท/แต้ม'];
     }
-    if (($shop['line_notify_token'] ?? '') !== $line_notify_token) {
+    if (getSecretValue('LINE_NOTIFY_TOKEN', '') !== $line_notify_token_raw) {
         $changes[] = ['field' => 'LINE Notify Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
     }
-    if (($shop['line_channel_access_token'] ?? '') !== $line_channel_access_token) {
+    if (getSecretValue('LINE_CHANNEL_ACCESS_TOKEN', '') !== $line_channel_access_token_raw) {
         $changes[] = ['field' => 'LINE Channel Access Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
     }
-    if (($shop['line_user_id'] ?? '') !== $line_user_id) {
+    if (getSecretValue('LINE_USER_ID', '') !== $line_user_id_raw) {
         $changes[] = ['field' => 'LINE User ID', 'old' => '******', 'new' => '(เปลี่ยน User ID)'];
     }
-    if (($shop['discord_webhook_url'] ?? '') !== $discord_webhook_url) {
+    if (getSecretValue('DISCORD_WEBHOOK_URL', '') !== $discord_webhook_url_raw) {
         $changes[] = ['field' => 'Discord Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
     }
-    if (($shop['telegram_bot_token'] ?? '') !== $telegram_bot_token) {
+    if (getSecretValue('TELEGRAM_BOT_TOKEN', '') !== $telegram_bot_token_raw) {
         $changes[] = ['field' => 'Telegram Bot Token', 'old' => '******', 'new' => '(เปลี่ยน Token)'];
     }
-    if (($shop['telegram_chat_id'] ?? '') !== $telegram_chat_id) {
+    if (getSecretValue('TELEGRAM_CHAT_ID', '') !== $telegram_chat_id_raw) {
         $changes[] = ['field' => 'Telegram Chat ID', 'old' => '******', 'new' => '(เปลี่ยน Chat ID)'];
     }
-    if (($shop['slack_webhook_url'] ?? '') !== $slack_webhook_url) {
+    if (getSecretValue('SLACK_WEBHOOK_URL', '') !== $slack_webhook_url_raw) {
         $changes[] = ['field' => 'Slack Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
     }
-    if (($shop['custom_webhook_url'] ?? '') !== $custom_webhook_url) {
+    if (getSecretValue('CUSTOM_WEBHOOK_URL', '') !== $custom_webhook_url_raw) {
         $changes[] = ['field' => 'Custom Webhook URL', 'old' => '******', 'new' => '(เปลี่ยน URL)'];
     }
     if (($shop['slip_ai_provider'] ?? '') !== $slip_ai_provider) {
         $changes[] = ['field' => 'ผู้ให้บริการ Slip AI', 'old' => $shop['slip_ai_provider'] ?? '', 'new' => $slip_ai_provider];
     }
-    if (($shop['openai_api_key'] ?? '') !== $openai_api_key) {
+    if (getSecretValue('OPENAI_API_KEY', '') !== $openai_api_key_raw) {
         $changes[] = ['field' => 'OpenAI API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
     }
-    if (($shop['gemini_api_key'] ?? '') !== $gemini_api_key) {
+    if (getSecretValue('GEMINI_API_KEY', '') !== $gemini_api_key_raw) {
         $changes[] = ['field' => 'Gemini API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
     }
-    if (($shop['claude_api_key'] ?? '') !== $claude_api_key) {
+    if (getSecretValue('CLAUDE_API_KEY', '') !== $claude_api_key_raw) {
         $changes[] = ['field' => 'Claude API Key', 'old' => '******', 'new' => '(เปลี่ยน Key)'];
     }
     $sound = mysqli_real_escape_string($conn, $_POST['notification_sound'] ?? 'chime');
@@ -400,6 +403,21 @@ if ($coupons_query) {
                     <div class="mb-3">
                         <label class="form-label fw-bold">ที่อยู่ร้านค้า (สำหรับจัดส่ง)</label>
                         <textarea name="address" class="form-control" rows="3" placeholder="ระบุที่อยู่ที่ต้องการให้ปรากฏในใบเสร็จหรือใบปะหน้า" required><?= htmlspecialchars($shop['address']) ?></textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold"><i class="bi bi-facebook text-primary me-1"></i> Facebook Link</label>
+                            <input type="text" name="facebook_url" class="form-control" value="<?= htmlspecialchars($shop['facebook_url'] ?? '#') ?>" placeholder="ลิงก์ Facebook ของร้าน">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold"><i class="bi bi-line text-success me-1"></i> Line Link</label>
+                            <input type="text" name="line_url" class="form-control" value="<?= htmlspecialchars($shop['line_url'] ?? '#') ?>" placeholder="ลิงก์ Line ของร้าน">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold"><i class="bi bi-instagram text-danger me-1"></i> Instagram Link</label>
+                            <input type="text" name="instagram_url" class="form-control" value="<?= htmlspecialchars($shop['instagram_url'] ?? '#') ?>" placeholder="ลิงก์ Instagram ของร้าน">
+                        </div>
                     </div>
 
                     <div class="mb-4">

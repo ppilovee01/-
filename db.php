@@ -89,14 +89,13 @@ function getMaskedValue($envKey, $dbValue) {
 }
 
 // --- มาตรการป้องกันการแฮกเกอร์และความปลอดภัย HTTP Headers & Sessions ---
-ini_set('session.cookie_httponly', 1); // ป้องกันไม่ให้ JavaScript อ่านคุกกี้เซสชันได้ (ป้องกัน Session Hijacking จาก XSS)
-ini_set('session.use_only_cookies', 1); // บังคับให้ใช้คุกกี้ในการเก็บเซสชันเท่านั้น
-ini_set('session.cookie_samesite', 'Lax'); // ป้องกัน CSRF จาก Cross-site request (SameSite Cookie Policy)
-if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === 1 || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
-    ini_set('session.cookie_secure', 1); // บังคับส่งคุกกี้ผ่าน HTTPS เท่านั้น
-}
-
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1); // ป้องกันไม่ให้ JavaScript อ่านคุกกี้เซสชันได้ (ป้องกัน Session Hijacking จาก XSS)
+    ini_set('session.use_only_cookies', 1); // บังคับให้ใช้คุกกี้ในการเก็บเซสชันเท่านั้น
+    ini_set('session.cookie_samesite', 'Lax'); // ป้องกัน CSRF จาก Cross-site request (SameSite Cookie Policy)
+    if (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === 1 || isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) {
+        ini_set('session.cookie_secure', 1); // บังคับส่งคุกกี้ผ่าน HTTPS เท่านั้น
+    }
     session_start();
 }
 
@@ -162,11 +161,41 @@ $current_favicon = "assets/default_icon.png";
 
 $check_table = mysqli_query($conn, "SHOW TABLES LIKE 'shop_settings'");
 if ($check_table && mysqli_num_rows($check_table) > 0) {
+    // Auto-migrate social and messaging columns if missing
+    foreach (['facebook_url', 'line_url', 'instagram_url', 'line_channel_access_token', 'line_user_id'] as $col) {
+        $check_col = mysqli_query($conn, "SHOW COLUMNS FROM shop_settings LIKE '$col'");
+        if ($check_col && mysqli_num_rows($check_col) == 0) {
+            if ($col === 'line_channel_access_token') {
+                mysqli_query($conn, "ALTER TABLE shop_settings ADD COLUMN line_channel_access_token VARCHAR(255) DEFAULT NULL");
+            } elseif ($col === 'line_user_id') {
+                mysqli_query($conn, "ALTER TABLE shop_settings ADD COLUMN line_user_id VARCHAR(100) DEFAULT NULL");
+            } else {
+                mysqli_query($conn, "ALTER TABLE shop_settings ADD COLUMN $col VARCHAR(255) DEFAULT '#'");
+            }
+        }
+    }
+    
     $shop_info_query = mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1");
     if ($shop_info_query && mysqli_num_rows($shop_info_query) > 0) {
         $shop_info = mysqli_fetch_assoc($shop_info_query);
         if (!empty($shop_info['shop_icon'])) {
             $current_favicon = "uploads/" . $shop_info['shop_icon'];
+        }
+    }
+}
+
+$check_table_contact = mysqli_query($conn, "SHOW TABLES LIKE 'contact_messages'");
+if ($check_table_contact && mysqli_num_rows($check_table_contact) > 0) {
+    foreach (['reply_message', 'replied_at', 'replied_by'] as $col) {
+        $check_col = mysqli_query($conn, "SHOW COLUMNS FROM contact_messages LIKE '$col'");
+        if ($check_col && mysqli_num_rows($check_col) == 0) {
+            if ($col === 'reply_message') {
+                mysqli_query($conn, "ALTER TABLE contact_messages ADD COLUMN reply_message TEXT DEFAULT NULL");
+            } elseif ($col === 'replied_at') {
+                mysqli_query($conn, "ALTER TABLE contact_messages ADD COLUMN replied_at TIMESTAMP NULL DEFAULT NULL");
+            } elseif ($col === 'replied_by') {
+                mysqli_query($conn, "ALTER TABLE contact_messages ADD COLUMN replied_by VARCHAR(100) DEFAULT NULL");
+            }
         }
     }
 }

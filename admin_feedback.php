@@ -17,7 +17,16 @@ if (isset($_GET['delete'])) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
     $id = intval($_GET['delete']);
+    
+    // ดึงข้อมูลความคิดเห็นก่อนลบเพื่อนำมาบันทึก Log
+    $fb_q = mysqli_query($conn, "SELECT f.message, u.fullname FROM feedback f JOIN users u ON f.user_id = u.id WHERE f.id=$id");
+    $fb_info = mysqli_fetch_assoc($fb_q);
+    $fb_name = $fb_info['fullname'] ?? 'ไม่ระบุชื่อ';
+    $fb_msg = $fb_info['message'] ?? 'ไม่มีข้อความ';
+    
     mysqli_query($conn, "DELETE FROM feedback WHERE id=$id");
+    log_admin_action($conn, 'ลบความคิดเห็นลูกค้า', "ลบความคิดเห็นลูกค้า ID #$id (ผู้ส่ง: $fb_name, ข้อความ: $fb_msg) สำเร็จ");
+    
     if (isset($_GET['ajax'])) {
         header('Content-Type: application/json');
         echo json_encode(['status' => 'success', 'message' => 'ลบข้อความความคิดเห็นเรียบร้อยแล้ว']);

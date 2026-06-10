@@ -246,6 +246,19 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a class="nav-link <?= $current_page == 'admin_settings.php' ? 'active' : '' ?>" href="admin_settings.php"><i class="bi bi-gear-fill"></i> ตั้งค่าร้านค้า</a>
         <a class="nav-link <?= $current_page == 'admin_logs.php' ? 'active' : '' ?>" href="admin_logs.php"><i class="bi bi-clock-history"></i> ประวัติการทำงาน</a>
         <a class="nav-link <?= $current_page == 'admin_reviews.php' ? 'active' : '' ?>" href="admin_reviews.php"><i class="bi bi-chat-square-quote me-2"></i> รีวิวสินค้า</a>
+        <?php
+        $unread_contacts_count = 0;
+        if (isset($conn)) {
+            $q_unread_contacts = mysqli_query($conn, "SELECT COUNT(*) as count FROM contact_messages WHERE status = 'unread'");
+            if ($q_unread_contacts) {
+                $unread_contacts_count = mysqli_fetch_assoc($q_unread_contacts)['count'] ?? 0;
+            }
+        }
+        ?>
+        <a class="nav-link <?= $current_page == 'admin_contact.php' ? 'active' : '' ?>" href="admin_contact.php">
+            <i class="bi bi-envelope me-2"></i> ข้อความติดต่อ
+            <span id="unread-badge" class="badge bg-danger ms-auto rounded-pill <?= $unread_contacts_count > 0 ? '' : 'd-none' ?>" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 700;">ใหม่ <?= $unread_contacts_count ?></span>
+        </a>
         <a class="nav-link <?= $current_page == 'admin_about.php' ? 'active' : '' ?>" href="admin_about.php"><i class="bi bi-info-circle me-2"></i> เกี่ยวกับเรา</a>
         <a class="nav-link <?= $current_page == 'index.php' ? 'active' : '' ?>" href="index.php"><i class="bi bi-hand-index me-2"></i> หน้าแรก</a>
         <hr class="text-muted opacity-25">

@@ -330,4 +330,83 @@ function send_password_reset_email($conn, $email, $otp) {
         return false;
     }
 }
+
+function send_custom_reply($conn, $to_email, $to_name, $original_subject, $reply_content) {
+    // 1. ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
+    $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
+    $smtp_user = getenv('SMTP_USER') ?: ($shop['smtp_user'] ?? '');
+    $smtp_pass = getenv('SMTP_PASS') ?: ($shop['smtp_pass'] ?? '');
+    if (empty($smtp_user) || empty($smtp_pass)) {
+        return "กรุณาตั้งค่าระบบอีเมล SMTP ในเมนูตั้งค่าร้านค้าก่อนใช้งานระบบตอบกลับ";
+    }
+
+    $mail = new PHPMailer(true);
+
+    try {
+        // Server settings
+        $mail->CharSet = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Timeout    = 5;
+        $mail->Host       = getenv('SMTP_HOST') ?: ($shop['smtp_host'] ?? '');
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $smtp_user;
+        $mail->Password   = str_replace(' ', '', $smtp_pass);
+        
+        $secure = strtolower(getenv('SMTP_SECURE') ?: ($shop['smtp_secure'] ?? 'tls'));
+        if ($secure === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($secure === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mail->SMTPAutoTLS = false;
+            $mail->SMTPSecure = '';
+        }
+        
+        $mail->Port       = getenv('SMTP_PORT') !== false ? intval(getenv('SMTP_PORT')) : intval($shop['smtp_port'] ?? 587);
+
+        // Recipients
+        $mail->setFrom($smtp_user, $shop['shop_name'] ?? 'Shop');
+        $mail->addAddress($to_email, $to_name);
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = "Re: " . $original_subject . " - " . ($shop['shop_name'] ?? 'Shop');
+        
+        // HTML Body template
+        $mail_body = "
+        <div style='font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 20px; color: #1e293b; line-height: 1.6;'>
+            <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 30px rgba(174, 226, 255, 0.15); border: 1px solid #e2e8f0; overflow: hidden;'>
+                <!-- Header -->
+                <div style='background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); padding: 30px; text-align: center; color: #ffffff;'>
+                    <h2 style='margin: 0; font-size: 1.5rem; font-weight: 800;'>ตอบกลับข้อความติดต่อ</h2>
+                    <p style='margin: 5px 0 0 0; font-size: 0.9rem; opacity: 0.9;'>{$shop['shop_name']}</p>
+                </div>
+                
+                <div style='padding: 30px;'>
+                    <p style='font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: #1e293b;'>สวัสดีคุณ {$to_name},</p>
+                    <p style='color: #475569;'>ทางทีมงานแอดมินของ <b>{$shop['shop_name']}</b> ได้ทำการตรวจสอบข้อความติดต่อของคุณในหัวข้อ \"<b>{$original_subject}</b>\" เรียบร้อยแล้วครับ</p>
+                    
+                    <div style='background-color: #f8fafc; border-left: 4px solid #7FB5FF; border-radius: 4px; padding: 20px; margin: 25px 0; color: #1e293b;'>
+                        <div style='font-weight: 700; font-size: 0.9rem; color: #64748b; margin-bottom: 10px;'>✉️ ข้อความตอบกลับจากแอดมิน:</div>
+                        <div style='white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6;'>{$reply_content}</div>
+                    </div>
+                    
+                    <p style='color: #64748b; font-size: 0.9rem;'>หากคุณมีความคิดเห็นหรือคำถามเพิ่มเติม สามารถตอบกลับอีเมลนี้หรือติดต่อเราได้ตามข้อมูลการติดต่อด้านล่างครับ</p>
+                    
+                    <!-- Footer Note -->
+                    <div style='text-align: center; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 25px; margin-top: 30px;'>
+                        <p style='margin: 0 0 5px 0;'>เบอร์โทรติดต่อ: {$shop['phone']} • อีเมล: {$shop['shop_email']}</p>
+                        <p style='margin: 0;'>ขอแสดงความนับถือ, {$shop['shop_name']}</p>
+                    </div>
+                </div>
+            </div>
+        </div>";
+
+        $mail->Body = $mail_body;
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return "PHPMailer error: " . $mail->ErrorInfo;
+    }
+}
 ?>

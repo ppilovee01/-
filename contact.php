@@ -14,6 +14,16 @@ $extra_css = "
 include 'header.php';
 ?>
 
+<?php
+$shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id=1"));
+$shop_address = $shop['address'] ?? 'สกลนคร, ประเทศไทย';
+$shop_email = $shop['shop_email'] ?? 'Por Mae Bet Taled@gmail.com';
+$shop_phone = $shop['phone'] ?? '091-992-2031';
+$facebook_url = !empty($shop['facebook_url']) ? $shop['facebook_url'] : '#';
+$line_url = !empty($shop['line_url']) ? $shop['line_url'] : '#';
+$instagram_url = !empty($shop['instagram_url']) ? $shop['instagram_url'] : '#';
+?>
+
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-8">
@@ -21,13 +31,13 @@ include 'header.php';
                 <div class="row g-0">
                     <div class="col-md-5 bg-dark text-white p-5 d-flex flex-column justify-content-center">
                         <h4 class="fw-bold mb-4">ข้อมูลติดต่อ</h4>
-                        <div class="mb-3"><i class="bi bi-geo-alt me-2"></i> สกลนคร, ประเทศไทย</div>
-                        <div class="mb-3"><i class="bi bi-envelope me-2"></i> Por Mae Bet Taled@gmail.com</div>
-                        <div class="mb-3"><i class="bi bi-telephone me-2"></i> 091-992-2031</div>
+                        <div class="mb-3"><i class="bi bi-geo-alt me-2"></i> <?= htmlspecialchars($shop_address) ?></div>
+                        <div class="mb-3"><i class="bi bi-envelope me-2"></i> <?= htmlspecialchars($shop_email) ?></div>
+                        <div class="mb-3"><i class="bi bi-telephone me-2"></i> <?= htmlspecialchars($shop_phone) ?></div>
                         <div class="mt-4 d-flex gap-3">
-                            <a href="#" class="text-white"><i class="bi bi-facebook fs-4"></i></a>
-                            <a href="#" class="text-white"><i class="bi bi-line fs-4"></i></a>
-                            <a href="#" class="text-white"><i class="bi bi-instagram fs-4"></i></a>
+                            <a href="<?= htmlspecialchars($facebook_url) ?>" target="_blank" class="text-white"><i class="bi bi-facebook fs-4"></i></a>
+                            <a href="<?= htmlspecialchars($line_url) ?>" target="_blank" class="text-white"><i class="bi bi-line fs-4"></i></a>
+                            <a href="<?= htmlspecialchars($instagram_url) ?>" target="_blank" class="text-white"><i class="bi bi-instagram fs-4"></i></a>
                         </div>
                     </div>
                     <div class="col-md-7 p-5">

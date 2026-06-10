@@ -33,6 +33,7 @@ if (isset($_POST['upload_banner'])) {
                 $path = "uploads/" . $new_name;
                 mysqli_query($conn, "INSERT INTO banners (image) VALUES ('$path')");
                 $new_id = mysqli_insert_id($conn);
+                log_admin_action($conn, 'อัปโหลดแบนเนอร์', "อัปโหลดแบนเนอร์ใหม่ ID #$new_id สำเร็จ พาธรูปภาพ: $path");
                 if (isset($_POST['ajax'])) {
                     header('Content-Type: application/json');
                     echo json_encode([
@@ -82,6 +83,7 @@ if (isset($_GET['delete'])) {
         $row = mysqli_fetch_assoc($q);
         if (file_exists($row['image'])) { unlink($row['image']); }
         mysqli_query($conn, "DELETE FROM banners WHERE id=$id");
+        log_admin_action($conn, 'ลบแบนเนอร์', "ลบแบนเนอร์ ID #$id สำเร็จ พาธรูปภาพ: {$row['image']}");
     }
     if (isset($_GET['ajax'])) {
         header('Content-Type: application/json');
