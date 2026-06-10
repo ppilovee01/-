@@ -234,9 +234,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         ?>
         <a class="nav-link <?= $current_page == 'admin_orders.php' ? 'active' : '' ?>" href="admin_orders.php">
             <i class="bi bi-clipboard-check"></i> รายการสั่งซื้อ
-            <?php if($pending_orders_count > 0): ?>
-                <span class="badge bg-danger ms-auto rounded-pill" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 700;"><?= $pending_orders_count ?></span>
-            <?php endif; ?>
+            <span id="sidebar-pending-orders-badge" class="badge bg-danger ms-auto rounded-pill <?= $pending_orders_count > 0 ? '' : 'd-none' ?>" style="font-size: 0.7rem; padding: 4px 8px; font-weight: 700;"><?= $pending_orders_count ?></span>
         </a>
         <a class="nav-link <?= $current_page == 'admin_payments.php' ? 'active' : '' ?>" href="admin_payments.php"><i class="bi bi-credit-card"></i> ช่องทางชำระเงิน</a>
         <a class="nav-link <?= $current_page == 'admin_coupons.php' ? 'active' : '' ?>" href="admin_coupons.php"><i class="bi bi-ticket-perforated"></i> จัดการคูปอง</a>
@@ -458,3 +456,742 @@ $current_page = basename($_SERVER['PHP_SELF']);
         }
     });
 </script>
+
+<?php
+// Get notification sound setting
+$shop_sound = 'chime';
+if (isset($conn)) {
+    $q_sound = mysqli_query($conn, "SELECT notification_sound FROM shop_settings WHERE id = 1");
+    if ($q_sound && mysqli_num_rows($q_sound) > 0) {
+        $shop_sound = mysqli_fetch_assoc($q_sound)['notification_sound'] ?? 'chime';
+    }
+}
+?>
+
+<!-- Admin Premium Real-time Notification Bell Widget -->
+<div class="admin-bell-container">
+    <div class="admin-bell-btn" id="adminBellBtn" onclick="toggleAdminNotifications(event)" title="การแจ้งเตือน">
+        <i class="bi bi-bell-fill" style="font-size: 1.25rem;"></i>
+        <span class="admin-bell-badge d-none" id="adminBellBadge">0</span>
+    </div>
+    
+    <div class="admin-bell-dropdown" id="adminBellDropdown">
+        <div class="admin-bell-header">
+            <span class="d-flex align-items-center"><i class="bi bi-bell me-2"></i>การแจ้งเตือนแอดมิน</span>
+            <button onclick="testAdminSound(event)" class="btn btn-link p-0 text-decoration-none text-muted small ms-auto me-2" style="font-size: 0.72rem; border: none; background: transparent; cursor: pointer; display: inline-flex; align-items: center;" title="ทดสอบเสียงระบบ"><i class="bi bi-volume-up-fill me-1"></i>ทดสอบเสียง</button>
+            <div class="d-flex gap-2">
+                <button onclick="markAllAdminRead(event)" class="btn btn-link p-0 text-decoration-none text-primary small" style="font-size: 0.72rem; border: none; background: transparent; cursor: pointer;">อ่านทั้งหมด</button>
+                <span class="text-muted" style="font-size: 0.72rem;">|</span>
+                <button onclick="clearAllAdminNotifications(event)" class="btn btn-link p-0 text-decoration-none text-danger small" style="font-size: 0.72rem; border: none; background: transparent; cursor: pointer;">ล้างทั้งหมด</button>
+            </div>
+        </div>
+        <div class="admin-bell-body" id="adminBellList">
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-bell-slash fs-3 mb-2 d-block opacity-25"></i>
+                ไม่มีการแจ้งเตือนใหม่
+            </div>
+        </div>
+        <div class="admin-bell-footer">
+            <a href="admin_logs.php" class="text-decoration-none text-secondary small" style="font-size: 0.8rem;">
+                ดูประวัติการทำงานทั้งหมด <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Floating Toast Notification Container -->
+<div class="admin-toast-container" id="adminToastContainer"></div>
+
+<style>
+    /* CSS for Bell Widget */
+    .admin-bell-container {
+        position: fixed;
+        top: 15px;
+        right: 25px;
+        z-index: 1060;
+        font-family: 'Kanit', sans-serif;
+    }
+    
+    @media (max-width: 767px) {
+        .admin-bell-container {
+            top: 11px;
+            right: 75px;
+        }
+    }
+    
+    .admin-bell-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: white;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+        color: #475569;
+    }
+    
+    .admin-bell-btn:hover {
+        background: #f8fafc;
+        color: #7FB5FF;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(127, 181, 255, 0.2);
+    }
+    
+    .admin-bell-badge {
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        background: #ef4444;
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        padding: 0 4px;
+        box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);
+    }
+    
+    .admin-bell-dropdown {
+        position: absolute;
+        top: 48px;
+        right: 0;
+        width: 320px;
+        background: white;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 1070;
+        animation: adminFadeIn 0.2s ease;
+    }
+    
+    @keyframes adminFadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .admin-bell-dropdown.show {
+        display: flex;
+    }
+    
+    @media (max-width: 576px) {
+        .admin-bell-dropdown {
+            right: -70px;
+            width: 290px;
+        }
+    }
+    
+    .admin-bell-header {
+        padding: 14px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.88rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+    
+    .admin-bell-body {
+        max-height: 280px;
+        overflow-y: auto;
+    }
+    
+    .admin-bell-footer {
+        padding: 12px;
+        border-top: 1px solid #f1f5f9;
+        text-align: center;
+        background: #f8fafc;
+    }
+    
+    .admin-notif-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f8fafc;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .admin-notif-item:hover {
+        background: #f1f5f9;
+    }
+    
+    .admin-notif-item.unread {
+        background: #f0f7ff;
+        border-left: 3px solid #7FB5FF;
+    }
+    
+    .admin-notif-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1rem;
+    }
+    
+    .admin-notif-icon.order { background: #e0f2fe; color: #0284c7; }
+    .admin-notif-icon.review { background: #fef9c3; color: #ca8a04; }
+    .admin-notif-icon.contact { background: #ccfbf1; color: #0d9488; }
+    .admin-notif-icon.default { background: #f1f5f9; color: #475569; }
+    
+    .admin-notif-content {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    
+    .admin-notif-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.82rem;
+        margin-bottom: 2px;
+        display: block;
+    }
+    
+    .admin-notif-msg {
+        color: #64748b;
+        font-size: 0.78rem;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .admin-notif-time {
+        font-size: 0.7rem;
+        color: #94a3b8;
+        display: block;
+        margin-top: 4px;
+    }
+    
+    /* Shake keyframes */
+    @keyframes admin-bell-shake {
+        0% { transform: rotate(0); }
+        15% { transform: rotate(15deg); }
+        30% { transform: rotate(-15deg); }
+        45% { transform: rotate(10deg); }
+        60% { transform: rotate(-10deg); }
+        75% { transform: rotate(5deg); }
+        85% { transform: rotate(-5deg); }
+        100% { transform: rotate(0); }
+    }
+    
+    .admin-bell-shake {
+        animation: admin-bell-shake 0.8s ease-in-out;
+    }
+
+    /* CSS for Toast Alerts */
+    .admin-toast-container {
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        z-index: 2100;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+        font-family: 'Kanit', sans-serif;
+    }
+    
+    .admin-toast {
+        pointer-events: auto;
+        width: 300px;
+        background: white;
+        border-radius: 12px;
+        border-left: 5px solid #7FB5FF;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        padding: 12px 16px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        transform: translateX(350px);
+        opacity: 0;
+    }
+    
+    .admin-toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .admin-toast.order { border-left-color: #0284c7; }
+    .admin-toast.review { border-left-color: #ca8a04; }
+    .admin-toast.contact { border-left-color: #0d9488; }
+    .admin-toast.default { border-left-color: #64748b; }
+    
+    .admin-toast-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1rem;
+    }
+    
+    .admin-toast-icon.order { background: #e0f2fe; color: #0284c7; }
+    .admin-toast-icon.review { background: #fef9c3; color: #ca8a04; }
+    .admin-toast-icon.contact { background: #ccfbf1; color: #0d9488; }
+    .admin-toast-icon.default { background: #f1f5f9; color: #475569; }
+    
+    .admin-toast-body {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    
+    .admin-toast-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.82rem;
+        margin-bottom: 2px;
+        display: block;
+    }
+    
+    .admin-toast-msg {
+        color: #64748b;
+        font-size: 0.78rem;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+
+<script>
+(function() {
+    const soundType = <?= json_encode($shop_sound) ?>;
+    let maxSeenId = parseInt(localStorage.getItem('admin_max_seen_id')) || 0;
+    let isPolling = false;
+    let audioActivated = false;
+
+    // Open/Close Dropdown
+    window.toggleAdminNotifications = function(e) {
+        if (e) e.stopPropagation();
+        const dropdown = document.getElementById('adminBellDropdown');
+        dropdown.classList.toggle('show');
+        if (dropdown.classList.contains('show')) {
+            loadAdminNotifications();
+            activateAudioContext();
+        }
+    };
+
+    // Close on click outside
+    document.addEventListener('click', function(e) {
+        const container = document.querySelector('.admin-bell-container');
+        if (container && !container.contains(e.target)) {
+            const dropdown = document.getElementById('adminBellDropdown');
+            if (dropdown) dropdown.classList.remove('show');
+        }
+    });
+
+    // Activate AudioContext upon first user gesture
+    function activateAudioContext() {
+        if (audioActivated) return;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                const ctx = new AudioContext();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+                audioActivated = true;
+            }
+        } catch (e) {
+            console.warn('Failed to activate AudioContext:', e);
+        }
+    }
+    document.addEventListener('click', activateAudioContext, { once: true });
+    document.addEventListener('keydown', activateAudioContext, { once: true });
+
+    // Web Audio API Sound Generator
+    function playSoundAlert() {
+        if (soundType === 'mute') return;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const now = ctx.currentTime;
+            
+            if (soundType === 'chime') {
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(659.25, now);
+                gain1.gain.setValueAtTime(0.1, now);
+                gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.5);
+                
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880.00, now + 0.1);
+                gain2.gain.setValueAtTime(0.15, now + 0.1);
+                gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.1);
+                osc2.stop(now + 0.7);
+            } else if (soundType === 'glass') {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1500, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (soundType === 'beep') {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.setValueAtTime(0.1, now + 0.15);
+                gain.gain.linearRampToValueAtTime(0.0001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (soundType === 'piano') {
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, index) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.05);
+                    gain.gain.setValueAtTime(0.08, now + index * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + index * 0.05);
+                    osc.stop(now + 1.0);
+                });
+            }
+        } catch (e) {
+            console.warn('AudioContext playback failed:', e);
+        }
+    }
+
+    // Sound Test Button Click handler
+    window.testAdminSound = function(e) {
+        if (e) e.stopPropagation();
+        activateAudioContext();
+        playSoundAlert();
+        triggerShake();
+    };
+
+    // Trigger Shake Animation
+    function triggerShake() {
+        const bellBtn = document.getElementById('adminBellBtn');
+        if (bellBtn) {
+            bellBtn.classList.remove('admin-bell-shake');
+            void bellBtn.offsetWidth; // Trigger reflow
+            bellBtn.classList.add('admin-bell-shake');
+        }
+    }
+
+    // Get Notification Icon depending on URL/Title
+    function getNotificationIconClass(url) {
+        if (!url) return 'default bi-bell';
+        if (url.includes('admin_orders')) return 'order bi-box-seam';
+        if (url.includes('admin_reviews')) return 'review bi-star-fill';
+        if (url.includes('admin_contact')) return 'contact bi-envelope';
+        return 'default bi-bell';
+    }
+
+    // Display beautiful toast alert
+    function showToastNotification(title, message, url) {
+        const container = document.getElementById('adminToastContainer');
+        if (!container) return;
+        
+        const toast = document.createElement('div');
+        const iconClass = getNotificationIconClass(url);
+        const typeClass = iconClass.split(' ')[0];
+        const iconBiClass = iconClass.split(' ')[1];
+        
+        toast.className = `admin-toast ${typeClass}`;
+        
+        toast.innerHTML = `
+            <div class="admin-toast-icon ${typeClass}">
+                <i class="bi ${iconBiClass}"></i>
+            </div>
+            <div class="admin-toast-body">
+                <span class="admin-toast-title">${title}</span>
+                <p class="admin-toast-msg">${message}</p>
+            </div>
+        `;
+        
+        toast.onclick = function() {
+            if (url && url !== '#') {
+                window.location.href = url;
+            } else {
+                toast.remove();
+            }
+        };
+        
+        container.appendChild(toast);
+        
+        // Trigger show animation
+        void toast.offsetWidth; // Force reflow
+        toast.classList.add('show');
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 5000);
+    }
+
+    // Fetch notifications
+    function loadAdminNotifications() {
+        fetch('ajax.php?action=get_notifications')
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                updateBadgeCount(res.unread_count);
+                
+                const list = document.getElementById('adminBellList');
+                if (res.notifications.length === 0) {
+                    list.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-bell-slash fs-3 mb-2 d-block opacity-25"></i>
+                            ไม่มีการแจ้งเตือนในขณะนี้
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                res.notifications.forEach(item => {
+                    const unreadClass = item.is_read ? '' : 'unread';
+                    const iconClass = getNotificationIconClass(item.url);
+                    const link = item.url ? item.url : '#';
+                    html += `
+                        <div class="admin-notif-item ${unreadClass}" onclick="handleAdminNotificationClick(event, ${item.id}, '${link}')">
+                            <div class="admin-notif-icon ${iconClass.split(' ')[0]}">
+                                <i class="bi ${iconClass.split(' ')[1]}"></i>
+                            </div>
+                            <div class="admin-notif-content">
+                                <span class="admin-notif-title">${item.title}</span>
+                                <p class="admin-notif-msg">${item.message}</p>
+                                <span class="admin-notif-time">${item.time_ago}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                list.innerHTML = html;
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    // Update red badge count
+    function updateBadgeCount(count) {
+        const badge = document.getElementById('adminBellBadge');
+        if (badge) {
+            badge.innerText = count;
+            if (count > 0) {
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+        }
+    }
+
+    // Handle Item Click
+    window.handleAdminNotificationClick = function(e, id, url) {
+        if (e) e.stopPropagation();
+        let fd = new FormData();
+        fd.append('action', 'mark_read');
+        fd.append('notification_id', id);
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
+        
+        fetch('ajax.php', { method: 'POST', body: fd })
+        .then(() => {
+            if (url && url !== '#') {
+                window.location.href = url;
+            } else {
+                loadAdminNotifications();
+                pollNewNotifications();
+            }
+        })
+        .catch(() => {
+            if (url && url !== '#') window.location.href = url;
+        });
+    };
+
+    // Mark All Read
+    window.markAllAdminRead = function(e) {
+        if (e) e.stopPropagation();
+        let fd = new FormData();
+        fd.append('action', 'mark_read');
+        fd.append('csrf_token', '<?= get_csrf_token() ?>');
+        
+        fetch('ajax.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                updateBadgeCount(0);
+                loadAdminNotifications();
+                pollNewNotifications(); // Update sidebar badges too
+            }
+        });
+    };
+
+    // Clear All
+    window.clearAllAdminNotifications = function(e) {
+        if (e) e.stopPropagation();
+        Swal.fire({
+            title: 'ยืนยันล้างประวัติการแจ้งเตือน?',
+            text: "คุณต้องการลบการแจ้งเตือนแอดมินทั้งหมดใช่หรือไม่?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#7FB5FF',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'ล้างข้อมูล',
+            cancelButtonText: 'ยกเลิก'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                let fd = new FormData();
+                fd.append('action', 'clear_notifications');
+                fd.append('csrf_token', '<?= get_csrf_token() ?>');
+                fetch('ajax.php', { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        updateBadgeCount(0);
+                        loadAdminNotifications();
+                        pollNewNotifications();
+                    }
+                });
+            }
+        });
+    };
+
+    // Background Poll (runs every 10 seconds)
+    function pollNewNotifications() {
+        if (isPolling) return;
+        isPolling = true;
+        
+        fetch('ajax.php?action=get_notifications')
+        .then(r => r.json())
+        .then(res => {
+            isPolling = false;
+            if (res.status === 'success') {
+                updateBadgeCount(res.unread_count);
+                
+                // Track if there's any new notification ID
+                let hasNew = false;
+                let localMax = maxSeenId;
+                
+                res.notifications.forEach(item => {
+                    const itemId = parseInt(item.id);
+                    if (itemId > maxSeenId) {
+                        hasNew = true;
+                        if (itemId > localMax) {
+                            localMax = itemId;
+                        }
+                    }
+                });
+                
+                if (hasNew) {
+                    // Show Toast Alert for the latest new item
+                    const latestItem = res.notifications.find(item => parseInt(item.id) === localMax);
+                    if (latestItem) {
+                        showToastNotification(latestItem.title, latestItem.message, latestItem.url);
+                    }
+                    
+                    maxSeenId = localMax;
+                    localStorage.setItem('admin_max_seen_id', maxSeenId);
+                    playSoundAlert();
+                    triggerShake();
+                    
+                    // Load into list if dropdown is currently open
+                    const dropdown = document.getElementById('adminBellDropdown');
+                    if (dropdown && dropdown.classList.contains('show')) {
+                        loadAdminNotifications();
+                    }
+                }
+                
+                // --- Dynamic Sidebar Badge Syncing ---
+                // 1. Update pending orders badge in the sidebar
+                const orderBadge = document.getElementById('sidebar-pending-orders-badge');
+                if (orderBadge) {
+                    const pendingOrdersCount = res.notifications.filter(item => !item.is_read && item.url && item.url.includes('admin_orders')).length;
+                    if (pendingOrdersCount > 0) {
+                        orderBadge.classList.remove('d-none');
+                        orderBadge.innerText = pendingOrdersCount;
+                    } else {
+                        orderBadge.classList.add('d-none');
+                    }
+                }
+                
+                // 2. Unread contact messages
+                const contactBadge = document.getElementById('unread-badge');
+                if (contactBadge) {
+                    const unreadContactsCount = res.notifications.filter(item => !item.is_read && item.url && item.url.includes('admin_contact')).length;
+                    if (unreadContactsCount > 0) {
+                        contactBadge.classList.remove('d-none');
+                        contactBadge.innerText = 'ใหม่ ' + unreadContactsCount;
+                    } else {
+                        contactBadge.classList.add('d-none');
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            isPolling = false;
+            console.error(err);
+        });
+    }
+
+    // Initialize
+    // Fetch once on load to get the initial maxSeenId without triggering sound
+    fetch('ajax.php?action=get_notifications')
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            updateBadgeCount(res.unread_count);
+            let localMax = maxSeenId;
+            res.notifications.forEach(item => {
+                const itemId = parseInt(item.id);
+                if (itemId > localMax) {
+                    localMax = itemId;
+                }
+            });
+            maxSeenId = localMax;
+            localStorage.setItem('admin_max_seen_id', maxSeenId);
+        }
+        
+        // Start periodic polling every 10 seconds
+        setInterval(pollNewNotifications, 10000);
+    });
+})();
+</script>
+

@@ -446,6 +446,10 @@ elseif ($action == 'send_contact') {
 
     $sql = "INSERT INTO contact_messages (name, email, subject, message) VALUES ('$name', '$email', '$subject', '$message')";
     if (mysqli_query($conn, $sql)) {
+        $notif_title = mysqli_real_escape_string($conn, "มีข้อความติดต่อใหม่");
+        $notif_msg = mysqli_real_escape_string($conn, "คุณ $name ได้ส่งข้อความติดต่อหัวข้อ '$subject'");
+        $notif_url = "admin_contact.php";
+        mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$notif_title', '$notif_msg', '$notif_url', 0, 1)");
         $response = ['status' => 'success', 'message' => 'ส่งข้อความเรียบร้อย เราจะติดต่อกลับโดยเร็วที่สุด'];
     } else {
         // Security Fix: ไม่แสดง mysqli_error ให้ผู้ใช้เห็น ป้องกันการรั่วไหลของข้อมูล DB

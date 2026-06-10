@@ -153,6 +153,7 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
     updateEnv('SMTP_PASS', $smtp_pass_raw, $env_path);
     updateEnv('SMTP_SECURE', trim($_POST['smtp_secure'] ?? 'tls'), $env_path);
     updateEnv('NOTIFICATION_SOUND', trim($_POST['notification_sound'] ?? 'chime'), $env_path);
+    updateEnv('CUSTOM_SOUND_URL', trim($_POST['custom_sound_url'] ?? ''), $env_path);
     
     $changes = [];
     if (($shop['shop_name'] ?? '') !== $name) {
@@ -277,7 +278,23 @@ if (isset($_POST['save_settings']) || isset($_POST['test_smtp'])) {
             if (!is_dir("uploads")) mkdir("uploads");
             
             if (move_uploaded_file($_FILES['shop_icon']['tmp_name'], "uploads/" . $new_icon)) {
-                mysqli_query($conn, "UPDATE shop_settings SET shop_icon='$new_icon' WHERE id=1");
+    }
+
+    // 2.1 อัปเดตไฟล์เสียงระบบกำหนดเอง (ถ้ามีการอัปโหลดใหม่)
+    if (isset($_FILES['custom_sound_file']) && $_FILES['custom_sound_file']['error'] == 0) {
+        $ext = pathinfo($_FILES['custom_sound_file']['name'], PATHINFO_EXTENSION);
+        $allowed_audio = ['mp3', 'wav', 'ogg', 'aac', 'm4a'];
+        if (in_array(strtolower($ext), $allowed_audio)) {
+            $new_sound_name = "custom_alarm." . strtolower($ext);
+            if (!is_dir("uploads")) {
+                mkdir("uploads", 0755, true);
+            }
+            // Delete any existing custom_alarm files with different extensions to avoid conflict
+            foreach ($allowed_audio as $all_ext) {
+                @unlink("uploads/custom_alarm." . $all_ext);
+            }
+            if (move_uploaded_file($_FILES['custom_sound_file']['tmp_name'], "uploads/" . $new_sound_name)) {
+                updateEnv('CUSTOM_SOUND_PATH', "uploads/" . $new_sound_name, $env_path);
             }
         }
     }
@@ -672,15 +689,41 @@ if ($coupons_query) {
 
                         <!-- เสียงแจ้งเตือนออเดอร์ใหม่ (Real-Time Sound Settings) -->
                         <div class="col-12 mb-3">
-                            <label class="form-label small fw-bold text-muted">🔊 เสียงแจ้งเตือนเมื่อมีออเดอร์ใหม่ (Dashboard Real-Time Sound)</label>
-                            <select name="notification_sound" id="notificationSoundSelect" class="form-select" onchange="previewNotificationSound(this.value)">
+                            <label class="form-label small fw-bold text-muted">🔊 เสียงแจ้งเตือนเมื่อมีกิจกรรมใหม่ (Real-Time Sound Settings)</label>
+                            <select name="notification_sound" id="notificationSoundSelect" class="form-select mb-2" onchange="previewNotificationSound(this.value); toggleCustomSoundField(this.value)">
                                 <option value="chime" <?= ($shop['notification_sound'] ?? 'chime') == 'chime' ? 'selected' : '' ?>>กระดิ่งพาสเทล / Chime (Default)</option>
                                 <option value="glass" <?= ($shop['notification_sound'] ?? 'chime') == 'glass' ? 'selected' : '' ?>>เสียงแก้วใส / Crystal Glass</option>
                                 <option value="beep" <?= ($shop['notification_sound'] ?? 'chime') == 'beep' ? 'selected' : '' ?>>เสียงบี๊บแจ้งเตือน / Digital Beep</option>
                                 <option value="piano" <?= ($shop['notification_sound'] ?? 'chime') == 'piano' ? 'selected' : '' ?>>เสียงคอร์ดเปียโน / Piano Chord</option>
+                                <option value="custom" <?= ($shop['notification_sound'] ?? 'chime') == 'custom' ? 'selected' : '' ?>>🎵 เสียงกำหนดเอง / Custom Sound (อัพโหลด/ระบุลิงก์)</option>
                                 <option value="mute" <?= ($shop['notification_sound'] ?? 'chime') == 'mute' ? 'selected' : '' ?>>🔇 ปิดเสียงแจ้งเตือน / Mute</option>
                             </select>
-                            <div class="form-text">เมื่อลูกค้าสั่งซื้อเข้ามาใหม่ เสียงที่เลือกจะเล่นบนหน้าจัดการออเดอร์ (เลือกเสียงแล้วทดลองฟังได้ทันที)</div>
+                            <div class="form-text">เมื่อลูกค้ารีวิว สั่งซื้อ หรือส่งข้อความเข้ามาใหม่ เสียงที่เลือกจะเล่นเตือนแอดมินทันที</div>
+                        </div>
+
+                        <!-- ตัวเลือกสำหรับกำหนดไฟล์เสียงเอง (Custom Sound Input) -->
+                        <div class="col-12 mb-3 <?= ($shop['notification_sound'] ?? 'chime') == 'custom' ? '' : 'd-none' ?>" id="customSoundContainer">
+                            <div class="card bg-light border-0 rounded-3 p-3">
+                                <label class="form-label small fw-bold text-dark mb-2"><i class="bi bi-file-earmark-music text-primary me-1"></i>อัพโหลดไฟล์เสียง หรือ ระบุลิงก์ไฟล์เสียงภายนอก</label>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted mb-1">อัพโหลดไฟล์เสียงระบบ (.mp3, .wav, .ogg, .aac, .m4a)</label>
+                                        <input type="file" name="custom_sound_file" class="form-control" accept="audio/*">
+                                        <?php 
+                                        $uploaded_sounds = glob("uploads/custom_alarm.*");
+                                        if (!empty($uploaded_sounds) && file_exists($uploaded_sounds[0])):
+                                            $sound_ext = pathinfo($uploaded_sounds[0], PATHINFO_EXTENSION);
+                                        ?>
+                                            <div class="form-text text-success mt-1"><i class="bi bi-check-circle-fill"></i> มีไฟล์เสียงอัพโหลดอยู่ในระบบแล้ว: <code><?= htmlspecialchars($uploaded_sounds[0]) ?></code></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted mb-1">หรือระบุลิงก์ URL เสียงภายนอก (Audio URL Link)</label>
+                                        <input type="url" name="custom_sound_url" id="customSoundUrlInput" class="form-control" value="<?= htmlspecialchars(getSecretValue('CUSTOM_SOUND_URL', $shop['custom_sound_url'] ?? '')) ?>" placeholder="เช่น https://example.com/sound.mp3">
+                                        <div class="form-text">หากใช้งานทั้งสองแบบ ระบบจะยึดไฟล์เสียงที่คุณอัพโหลดขึ้นไปเป็นหลัก</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -795,6 +838,37 @@ if ($coupons_query) {
 
     function previewNotificationSound(soundType) {
         if (soundType === 'mute') return;
+        
+        if (soundType === 'custom') {
+            try {
+                let audioUrl = '';
+                const hasUploadedFile = <?php
+                    $uploaded_sounds = glob("uploads/custom_alarm.*");
+                    echo (!empty($uploaded_sounds) && file_exists($uploaded_sounds[0])) ? 'true' : 'false';
+                ?>;
+                if (hasUploadedFile) {
+                    audioUrl = '<?php
+                        $uploaded_sounds = glob("uploads/custom_alarm.*");
+                        echo !empty($uploaded_sounds) ? $uploaded_sounds[0] : '';
+                    ?>?v=' + Date.now();
+                } else {
+                    const urlInput = document.getElementById('customSoundUrlInput');
+                    if (urlInput && urlInput.value) {
+                        audioUrl = urlInput.value;
+                    }
+                }
+                if (audioUrl) {
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(err => console.warn('Custom audio preview failed:', err));
+                } else {
+                    previewNotificationSound('chime');
+                }
+            } catch (e) {
+                console.warn('Custom audio preview failed:', e);
+            }
+            return;
+        }
+
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
@@ -863,6 +937,15 @@ if ($coupons_query) {
             }
         } catch (e) {
             console.warn('AudioContext failed:', e);
+        }
+    }
+
+    function toggleCustomSoundField(value) {
+        const container = document.getElementById('customSoundContainer');
+        if (value === 'custom') {
+            container.classList.remove('d-none');
+        } else {
+            container.classList.add('d-none');
         }
     }
 

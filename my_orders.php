@@ -65,6 +65,16 @@ if (isset($_POST['submit_modal_review']) && isset($_SESSION['user_id'])) {
         if(mysqli_query($conn, $sql_review)) {
              $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'ขอบคุณสำหรับการรีวิว!', 'icon'=>'success'];
              log_admin_action($conn, 'เขียนรีวิว', "ลูกค้าเขียนรีวิวให้คะแนนสินค้า ID #$pid คะแนน: $rating ดาว (เขียนรีวิวจากหน้าประวัติสั่งซื้อ)", $uid, $_SESSION['fullname']);
+             
+             // Admin notification
+             $cust_name = mysqli_real_escape_string($conn, $_SESSION['fullname'] ?? 'ลูกค้า');
+             $product_q = mysqli_query($conn, "SELECT name FROM products WHERE id = '$pid'");
+             $product_name = mysqli_fetch_assoc($product_q)['name'] ?? 'สินค้า';
+             $product_name_escaped = mysqli_real_escape_string($conn, $product_name);
+             $notif_title = mysqli_real_escape_string($conn, "มีรีวิวสินค้าใหม่");
+             $notif_msg = mysqli_real_escape_string($conn, "คุณ $cust_name ได้เขียนรีวิวให้สินค้า '$product_name_escaped' คะแนน: $rating ดาว");
+             $notif_url = "admin_reviews.php";
+             mysqli_query($conn, "INSERT INTO notifications (user_id, title, message, url, is_read, is_admin) VALUES (NULL, '$notif_title', '$notif_msg', '$notif_url', 0, 1)");
         } else {
              $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกรีวิว', 'icon'=>'error'];
         }
