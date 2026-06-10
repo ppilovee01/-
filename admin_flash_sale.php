@@ -1,4 +1,5 @@
 <?php
+ob_start();
 session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
@@ -878,6 +879,7 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                             <?php
                             if ($ajax_fetch_mob) {
                                 $mobile_html = ob_get_clean();
+                                ob_end_clean(); // Discard outer buffer
                                 header('Content-Type: application/json');
                                 echo json_encode(['status' => 'success', 'html' => $desktop_html, 'mobile_html' => $mobile_html]);
                                 exit();

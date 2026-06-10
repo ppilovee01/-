@@ -1,4 +1,5 @@
 <?php
+ob_start();
 session_start();
 include 'db.php';
 
@@ -49,6 +50,10 @@ if (isset($_POST['clear_logs'])) {
 }
 
 // 3. จัดการตัวกรองและการค้นหา
+$log_type = isset($_GET['log_type']) ? mysqli_real_escape_string($conn, $_GET['log_type']) : 'human';
+if (!in_array($log_type, ['human', 'system'])) {
+    $log_type = 'human';
+}
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, trim($_GET['search'])) : '';
 $action_filter = isset($_GET['action_filter']) ? mysqli_real_escape_string($conn, $_GET['action_filter']) : '';
 $role_filter = isset($_GET['role_filter']) ? mysqli_real_escape_string($conn, $_GET['role_filter']) : '';
@@ -57,6 +62,18 @@ $date_end = isset($_GET['date_end']) ? mysqli_real_escape_string($conn, $_GET['d
 
 // สร้างคำสั่ง SQL ค้นหา
 $where_clauses = ["1=1"];
+
+if ($log_type === 'system') {
+    $where_clauses[] = "l.admin_id IS NULL";
+} else {
+    $where_clauses[] = "l.admin_id IS NOT NULL";
+    
+    if ($role_filter === 'admin') {
+        $where_clauses[] = "u.role = 'admin'";
+    } elseif ($role_filter === 'user') {
+        $where_clauses[] = "u.role = 'user'";
+    }
+}
 
 if ($search !== '') {
     $where_clauses[] = "(l.admin_name LIKE '%$search%' OR l.action_type LIKE '%$search%' OR l.details LIKE '%$search%' OR l.ip_address LIKE '%$search%')";
@@ -69,13 +86,6 @@ if ($date_start !== '') {
 }
 if ($date_end !== '') {
     $where_clauses[] = "DATE(l.created_at) <= '$date_end'";
-}
-if ($role_filter === 'admin') {
-    $where_clauses[] = "u.role = 'admin'";
-} elseif ($role_filter === 'user') {
-    $where_clauses[] = "u.role = 'user'";
-} elseif ($role_filter === 'system') {
-    $where_clauses[] = "(l.admin_id IS NULL OR u.role IS NULL)";
 }
 
 $where_sql = implode(" AND ", $where_clauses);
@@ -296,9 +306,24 @@ function render_log_details($details_json_or_text, $row_id) {
                 </button>
             </div>
 
+            <!-- แท็บแยกประวัติบุคคลและระบบ -->
+            <ul class="nav nav-tabs mb-4" id="log-tabs" style="border-bottom: 2px solid #cbd5e1;">
+                <li class="nav-item">
+                    <button class="nav-link <?= $log_type === 'human' ? 'active fw-bold' : '' ?>" type="button" onclick="switchLogTab('human')" style="border: none; border-bottom: 3px solid <?= $log_type === 'human' ? '#7FB5FF' : 'transparent' ?>; color: <?= $log_type === 'human' ? '#1e293b' : '#64748b' ?>; background: transparent; padding: 12px 20px; font-size: 0.95rem; transition: all 0.2s;">
+                        <i class="bi bi-people-fill me-2"></i> ประวัติผู้ใช้และแอดมิน (Human Logs)
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link <?= $log_type === 'system' ? 'active fw-bold' : '' ?>" type="button" onclick="switchLogTab('system')" style="border: none; border-bottom: 3px solid <?= $log_type === 'system' ? '#7FB5FF' : 'transparent' ?>; color: <?= $log_type === 'system' ? '#1e293b' : '#64748b' ?>; background: transparent; padding: 12px 20px; font-size: 0.95rem; transition: all 0.2s;">
+                        <i class="bi bi-robot me-2"></i> ประวัติกิจกรรมระบบอัตโนมัติ (System Logs)
+                    </button>
+                </li>
+            </ul>
+
             <!-- ค้นหาและตัวกรอง -->
             <div class="card filter-card p-4 mb-4">
                 <form id="filter-form" method="GET" action="admin_logs.php" class="row g-3" onsubmit="submitFilterForm(event)">
+                    <input type="hidden" name="log_type" id="log_type_input" value="<?= htmlspecialchars($log_type) ?>">
                     <div class="col-md-3">
                         <label class="form-label text-muted small fw-bold">ค้นหาคำค้น</label>
                         <div class="input-group">
@@ -307,13 +332,12 @@ function render_log_details($details_json_or_text, $row_id) {
                         </div>
                     </div>
                     
-                    <div class="col-md-2">
+                    <div class="col-md-2" id="role-filter-col" style="<?= $log_type === 'system' ? 'display: none;' : '' ?>">
                         <label class="form-label text-muted small fw-bold">บทบาท</label>
                         <select name="role_filter" class="form-select bg-light">
                             <option value="">-- ทั้งหมด --</option>
                             <option value="admin" <?= $role_filter === 'admin' ? 'selected' : '' ?>>เฉพาะแอดมิน</option>
                             <option value="user" <?= $role_filter === 'user' ? 'selected' : '' ?>>เฉพาะลูกค้า</option>
-                            <option value="system" <?= $role_filter === 'system' ? 'selected' : '' ?>>เฉพาะระบบ</option>
                         </select>
                     </div>
 
@@ -492,7 +516,7 @@ function render_log_details($details_json_or_text, $row_id) {
                         <ul class="pagination pagination-sm m-0">
                                             <!-- ปุ่มก่อนหน้า -->
                                             <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                                                <a class="page-link" href="?page=<?= $page - 1 ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><i class="bi bi-chevron-left"></i></a>
+                                                <a class="page-link" href="?page=<?= $page - 1 ?>&log_type=<?= urlencode($log_type) ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><i class="bi bi-chevron-left"></i></a>
                                             </li>
                                             
                                             <!-- หมายเลขหน้า -->
@@ -502,13 +526,13 @@ function render_log_details($details_json_or_text, $row_id) {
                                             for ($i = $start_p; $i <= $end_p; $i++): 
                                             ?>
                                                 <li class="page-item <?= $page == $i ? 'active' : '' ?>">
-                                                    <a class="page-link" href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><?= $i ?></a>
+                                                    <a class="page-link" href="?page=<?= $i ?>&log_type=<?= urlencode($log_type) ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><?= $i ?></a>
                                                 </li>
                                             <?php endfor; ?>
                                             
                                             <!-- ปุ่มถัดไป -->
                                             <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                                                <a class="page-link" href="?page=<?= $page + 1 ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><i class="bi bi-chevron-right"></i></a>
+                                                <a class="page-link" href="?page=<?= $page + 1 ?>&log_type=<?= urlencode($log_type) ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><i class="bi bi-chevron-right"></i></a>
                                             </li>
                                         </ul>
                     </nav>
@@ -516,6 +540,7 @@ function render_log_details($details_json_or_text, $row_id) {
                 <?php
                 if ($ajax_fetch) {
                     $html = ob_get_clean();
+                    ob_end_clean(); // Discard outer buffer
                     header('Content-Type: application/json');
                     echo json_encode(['status' => 'success', 'html' => $html]);
                     exit();
@@ -655,11 +680,74 @@ window.addEventListener('popstate', function() {
     syncFilterFormFromURL();
 });
 
+function switchLogTab(type) {
+    const logTypeInput = document.getElementById('log_type_input');
+    if (logTypeInput) {
+        logTypeInput.value = type;
+    }
+    
+    // Toggle role filter column visibility
+    const roleCol = document.getElementById('role-filter-col');
+    if (roleCol) {
+        if (type === 'system') {
+            roleCol.style.display = 'none';
+            // Clear role filter value when switching to system
+            const roleSelect = roleCol.querySelector('select[name="role_filter"]');
+            if (roleSelect) roleSelect.value = '';
+        } else {
+            roleCol.style.display = 'block';
+        }
+    }
+    
+    // Update active tab styles
+    const tabs = document.querySelectorAll('#log-tabs .nav-link');
+    tabs.forEach(tab => {
+        tab.classList.remove('active', 'fw-bold');
+        tab.style.borderBottomColor = 'transparent';
+        tab.style.color = '#64748b';
+    });
+    
+    // Find clicked tab button and style it
+    const activeTab = Array.from(tabs).find(t => t.getAttribute('onclick').includes(type));
+    if (activeTab) {
+        activeTab.classList.add('active', 'fw-bold');
+        activeTab.style.borderBottomColor = '#7FB5FF';
+        activeTab.style.color = '#1e293b';
+    }
+    
+    // Submit the form to fetch logs
+    submitFilterForm();
+}
+
 function syncFilterFormFromURL() {
     const form = document.getElementById('filter-form');
     if (!form) return;
     
     const params = new URLSearchParams(window.location.search);
+    
+    const logType = params.get('log_type') || 'human';
+    const logTypeInput = document.getElementById('log_type_input');
+    if (logTypeInput) logTypeInput.value = logType;
+    
+    // Update active tab styles on popstate
+    const tabs = document.querySelectorAll('#log-tabs .nav-link');
+    tabs.forEach(tab => {
+        tab.classList.remove('active', 'fw-bold');
+        tab.style.borderBottomColor = 'transparent';
+        tab.style.color = '#64748b';
+    });
+    
+    const activeTab = Array.from(tabs).find(t => t.getAttribute('onclick').includes(logType));
+    if (activeTab) {
+        activeTab.classList.add('active', 'fw-bold');
+        activeTab.style.borderBottomColor = '#7FB5FF';
+        activeTab.style.color = '#1e293b';
+    }
+    
+    const roleCol = document.getElementById('role-filter-col');
+    if (roleCol) {
+        roleCol.style.display = logType === 'system' ? 'none' : 'block';
+    }
     
     const searchInput = form.querySelector('input[name="search"]');
     if (searchInput) searchInput.value = params.get('search') || '';
