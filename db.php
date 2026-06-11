@@ -469,7 +469,7 @@ function checkAndGenerateAutoFlashSale($conn) {
             log_admin_action($conn, 'ระบบสุ่ม Flash Sale อัตโนมัติ', [
                 'title' => "สร้างแคมเปญ Flash Sale อัตโนมัติสำเร็จสำหรับสินค้า '$p_name'",
                 'details' => "สินค้า: $p_name (ID #$pid), ราคา: ฿$flash_price (ส่วนลด $discount_pct% แบบ {$s['auto_flash_type']}), โควตา: $flash_stock ชิ้น, เริ่มต้น: $target_start, สิ้นสุด: $target_end"
-            ]);
+            ], 0, 'ระบบ');
 
             checkAndGenerateAutoFlashSale($conn);
         }

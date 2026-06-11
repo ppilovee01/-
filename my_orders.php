@@ -296,7 +296,21 @@ date_default_timezone_set('Asia/Bangkok');
             <h3 class="fw-bold mb-4">📦 ประวัติคำสั่งซื้อ</h3>
 
             <?php 
-            $sql = "SELECT * FROM orders WHERE user_id = '$user_id' ORDER BY id DESC";
+            // Calculate total rows first
+            $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM orders WHERE user_id = '$user_id'");
+            $count_row = mysqli_fetch_assoc($count_query);
+            $total_rows = intval($count_row['total']);
+
+            // Pagination calculations
+            $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 10;
+            $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+            $total_pages = ceil($total_rows / $limit);
+            if ($page > $total_pages && $total_pages > 0) {
+                $page = $total_pages;
+            }
+            $offset = ($page - 1) * $limit;
+
+            $sql = "SELECT * FROM orders WHERE user_id = '$user_id' ORDER BY id DESC LIMIT $limit OFFSET $offset";
             $res = mysqli_query($conn, $sql);
 
             if (mysqli_num_rows($res) > 0):
@@ -487,6 +501,9 @@ date_default_timezone_set('Asia/Bangkok');
                     <a href="index.php" class="btn btn-sm btn-outline-danger rounded-pill mt-3 px-4">ไปช้อปปิ้งเลย</a>
                 </div>
             <?php endif; ?>
+
+            <!-- การแบ่งหน้า (Pagination) -->
+            <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
         </div>
     </div>
 </div>
@@ -794,6 +811,13 @@ date_default_timezone_set('Asia/Bangkok');
             confirmButtonColor: '#AEE2FF'
         });
     <?php unset($_SESSION['swal']); endif; ?>
+
+    function changePageLimit(el) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('limit', el.value);
+        urlParams.set('page', '1');
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
+    }
 </script>
 </body>
 </html>

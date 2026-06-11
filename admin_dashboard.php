@@ -198,7 +198,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                 <!-- กราฟเส้นแนวโน้มยอดขาย -->
                 <div class="col-12 col-lg-6">
                     <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                        <h5 class="fw-bold mb-4">📈 สถิติยอดขาย 7 วันล่าสุด</h5>
+                        <h5 class="fw-bold mb-4" id="sales-chart-title">📈 สถิติยอดขาย 7 วันล่าสุด</h5>
                         <div style="position: relative; height: 300px; width: 100%;">
                             <canvas id="salesChart"></canvas>
                         </div>
@@ -208,7 +208,7 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                 <!-- กราฟวงกลมยอดขายตามหมวดหมู่ -->
                 <div class="col-12 col-lg-6">
                     <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                        <h5 class="fw-bold mb-4">🍕 สัดส่วนยอดขายตามหมวดหมู่</h5>
+                        <h5 class="fw-bold mb-4" id="category-chart-title">🍕 สัดส่วนยอดขายตามหมวดหมู่</h5>
                         <div style="position: relative; height: 300px; width: 100%; display: flex; align-items: center; justify-content: center;">
                             <div id="categoryChartPlaceholder" class="<?= empty($cat_names) ? '' : 'd-none' ?> text-muted small">
                                 ยังไม่มีข้อมูลการขายสินค้าตามหมวดหมู่ในช่วงเวลานี้
@@ -426,6 +426,30 @@ while ($ap = mysqli_fetch_assoc($ap_res)) {
                     
                     // Update Best Sellers Table
                     document.getElementById('best-sellers-container').innerHTML = data.top5_html;
+
+                    // Update Chart Titles Dynamically based on preset
+                    let titleSuffix = "";
+                    if (preset === '7days') {
+                        titleSuffix = "7 วันล่าสุด";
+                    } else if (preset === '30days') {
+                        titleSuffix = "30 วันล่าสุด";
+                    } else if (preset === 'this_month') {
+                        titleSuffix = "เดือนนี้";
+                    } else if (preset === 'this_year') {
+                        titleSuffix = "ปีนี้";
+                    } else if (preset === 'custom') {
+                        const formatDate = (dateStr) => {
+                            if (!dateStr) return '';
+                            const d = new Date(dateStr);
+                            return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+                        };
+                        titleSuffix = `${formatDate(startDate)} ถึง ${formatDate(endDate)}`;
+                    }
+                    
+                    const salesTitleEl = document.getElementById('sales-chart-title');
+                    const categoryTitleEl = document.getElementById('category-chart-title');
+                    if (salesTitleEl) salesTitleEl.innerHTML = `📈 สถิติยอดขาย ${titleSuffix}`;
+                    if (categoryTitleEl) categoryTitleEl.innerHTML = `🍕 สัดส่วนยอดขายตามหมวดหมู่ ${titleSuffix}`;
                     
                     // Update Sales Chart
                     window.salesChartInstance.data.labels = data.chart_dates;

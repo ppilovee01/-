@@ -64,9 +64,9 @@ $date_end = isset($_GET['date_end']) ? mysqli_real_escape_string($conn, $_GET['d
 $where_clauses = ["1=1"];
 
 if ($log_type === 'system') {
-    $where_clauses[] = "l.admin_id IS NULL";
+    $where_clauses[] = "(l.admin_id IS NULL OR l.admin_id = 0)";
 } else {
-    $where_clauses[] = "l.admin_id IS NOT NULL";
+    $where_clauses[] = "(l.admin_id IS NOT NULL AND l.admin_id != 0)";
     
     if ($role_filter === 'admin') {
         $where_clauses[] = "u.role = 'admin'";

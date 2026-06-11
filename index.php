@@ -33,6 +33,10 @@ if (!isset($_SESSION['welcome_popup_shown'])) {
 // --- Helper for Filters URL Generation ---
 function buildFilterUrl($paramsToUpdate) {
     $currentParams = $_GET;
+    // Reset page to 1 whenever filters change, unless page is explicitly updated
+    if (!isset($paramsToUpdate['page'])) {
+        unset($currentParams['page']);
+    }
     foreach ($paramsToUpdate as $key => $val) {
         if ($val === null) {
             unset($currentParams[$key]);
@@ -515,6 +519,27 @@ if (!empty($upcoming_by_round)):
     $in_stock = isset($_GET['in_stock']) ? intval($_GET['in_stock']) : 0;
     $sort = isset($_GET['sort']) ? mysqli_real_escape_string($conn, $_GET['sort']) : 'newest';
 
+    // Calculate total rows first (performant COUNT query)
+    $count_sql = "SELECT COUNT(*) as total FROM products p WHERE 1=1 ";
+    if ($search) $count_sql .= "AND p.name LIKE '%$search%' ";
+    if ($cat_id) $count_sql .= "AND p.category_id = '$cat_id' ";
+    if ($min_price !== null) $count_sql .= "AND p.price >= $min_price ";
+    if ($max_price !== null) $count_sql .= "AND p.price <= $max_price ";
+    if ($in_stock) $count_sql .= "AND p.stock > 0 ";
+    
+    $count_result = mysqli_query($conn, $count_sql);
+    $count_row = mysqli_fetch_assoc($count_result);
+    $total_found = intval($count_row['total']);
+
+    // Pagination calculations
+    $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+    $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+    $total_pages = ceil($total_found / $limit);
+    if ($page > $total_pages && $total_pages > 0) {
+        $page = $total_pages;
+    }
+    $offset = ($page - 1) * $limit;
+
     $sql = "SELECT p.*, c.name as cat_name,
             (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id) as avg_rating,
             (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id) as review_count 
@@ -536,8 +561,7 @@ if (!empty($upcoming_by_round)):
         $order_by = "ORDER BY COALESCE(avg_rating, 0) DESC, p.id DESC";
     }
 
-    $result = mysqli_query($conn, $sql . $order_by);
-    $total_found = mysqli_num_rows($result);
+    $result = mysqli_query($conn, $sql . $order_by . " LIMIT $limit OFFSET $offset");
     ?>
 
     <div class="mb-4">
@@ -701,6 +725,9 @@ if (!empty($upcoming_by_round)):
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- การแบ่งหน้า (Pagination) -->
+    <?= render_pagination_controls($total_found, $limit, $page, $offset) ?>
 </section>
 
 
@@ -947,14 +974,18 @@ endif;
 </style>
 
 <script>
+    function changePageLimit(el) {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('limit', el.value);
+        urlParams.set('page', '1');
+        window.location.href = window.location.pathname + '?' + urlParams.toString() + '#shop';
+    }
+
     function applySorting(sortVal) {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.set('sort', sortVal);
-        if(urlParams.toString()) {
-            window.location.href = 'index.php?' + urlParams.toString() + '#shop';
-        } else {
-            window.location.href = 'index.php#shop';
-        }
+        urlParams.set('page', '1');
+        window.location.href = 'index.php?' + urlParams.toString() + '#shop';
     }
 
     const scrollContainer = document.getElementById('categoryMenu');
