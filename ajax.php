@@ -1,12 +1,13 @@
 <?php
+// ปิด display_errors เพื่อไม่ให้ขัดขวางการส่ง JSON แต่เปิด log_errors ไว้บันทึก Log
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_WARNING);
+
 ob_start();
 session_start();
 include 'db.php';
 date_default_timezone_set('Asia/Bangkok');
-
-// ปิด Error เพื่อให้ส่ง JSON ได้สมบูรณ์
-error_reporting(0);
-ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -1002,6 +1003,47 @@ elseif ($action == 'claim_welcome_coupon') {
     } else {
         $response = ['status' => 'error', 'message' => 'คูปองใช้งานไม่ได้หรือหมดอายุแล้ว'];
     }
+}
+
+// 4.9 ดึงข้อมูลลูกค้าที่ไม่ออนไลน์นานตามช่วงเวลาที่กำหนดสำหรับแอดมิน (Get Inactive Users)
+elseif ($action == 'get_inactive_users') {
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+        $response = ['status' => 'error', 'message' => 'ไม่มีสิทธิ์เข้าถึง'];
+        ob_end_clean(); echo json_encode($response); exit();
+    }
+    
+    $days = isset($_GET['days']) ? intval($_GET['days']) : 30;
+    if ($days <= 0) $days = 30;
+
+    $q_recipients = mysqli_query($conn, "
+        SELECT id, fullname, email, username, last_login, created_at 
+        FROM users 
+        WHERE role = 'user' 
+          AND email IS NOT NULL 
+          AND email != '' 
+          AND (last_login < DATE_SUB(NOW(), INTERVAL $days DAY) 
+               OR (last_login IS NULL AND created_at < DATE_SUB(NOW(), INTERVAL $days DAY)))
+        ORDER BY fullname ASC
+    ");
+    
+    $users = [];
+    if ($q_recipients) {
+        while ($r = mysqli_fetch_assoc($q_recipients)) {
+            $last_login_txt = 'ไม่เคยเข้าใช้งาน';
+            if (!empty($r['last_login'])) {
+                $last_login_txt = date('d/m/Y H:i', strtotime($r['last_login']));
+            }
+            $users[] = [
+                'id' => $r['id'],
+                'fullname' => $r['fullname'],
+                'email' => $r['email'],
+                'username' => $r['username'],
+                'last_login' => $last_login_txt
+            ];
+        }
+    }
+    
+    $response = ['status' => 'success', 'users' => $users];
 }
 
 // ==========================================

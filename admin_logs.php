@@ -91,7 +91,7 @@ if ($date_end !== '') {
 $where_sql = implode(" AND ", $where_clauses);
 
 // 4. ทำระบบแบ่งหน้า (Pagination)
-$limit = 20; // แสดงหน้าละ 20 รายการ
+$limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20; // แสดงหน้าละ 20 รายการ หรือตามที่เลือก
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $limit;
 
@@ -324,6 +324,7 @@ function render_log_details($details_json_or_text, $row_id) {
             <div class="card filter-card p-4 mb-4">
                 <form id="filter-form" method="GET" action="admin_logs.php" class="row g-3" onsubmit="submitFilterForm(event)">
                     <input type="hidden" name="log_type" id="log_type_input" value="<?= htmlspecialchars($log_type) ?>">
+                    <input type="hidden" name="limit" id="limit_input" value="<?= $limit ?>">
                     <div class="col-md-3">
                         <label class="form-label text-muted small fw-bold">ค้นหาคำค้น</label>
                         <div class="input-group">
@@ -508,35 +509,7 @@ function render_log_details($details_json_or_text, $row_id) {
                 </div>
 
                 <!-- การแบ่งหน้า (Pagination) -->
-                <?php if ($total_pages > 1): ?>
-                    <nav class="d-flex justify-content-between align-items-center mt-4 px-3">
-                        <div class="small text-muted">
-                            แสดงข้อมูลแถว <?= $offset + 1 ?> - <?= min($offset + $limit, $total_rows) ?> จากทั้งหมด <?= number_format($total_rows) ?> รายการ
-                        </div>
-                        <ul class="pagination pagination-sm m-0">
-                                            <!-- ปุ่มก่อนหน้า -->
-                                            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                                                <a class="page-link" href="?page=<?= $page - 1 ?>&log_type=<?= urlencode($log_type) ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><i class="bi bi-chevron-left"></i></a>
-                                            </li>
-                                            
-                                            <!-- หมายเลขหน้า -->
-                                            <?php 
-                                            $start_p = max(1, $page - 2);
-                                            $end_p = min($total_pages, $page + 2);
-                                            for ($i = $start_p; $i <= $end_p; $i++): 
-                                            ?>
-                                                <li class="page-item <?= $page == $i ? 'active' : '' ?>">
-                                                    <a class="page-link" href="?page=<?= $i ?>&log_type=<?= urlencode($log_type) ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><?= $i ?></a>
-                                                </li>
-                                            <?php endfor; ?>
-                                            
-                                            <!-- ปุ่มถัดไป -->
-                                            <li class="page-item <?= $page >= $total_pages ? 'disabled' : '' ?>">
-                                                <a class="page-link" href="?page=<?= $page + 1 ?>&log_type=<?= urlencode($log_type) ?>&search=<?= urlencode($search) ?>&action_filter=<?= urlencode($action_filter) ?>&role_filter=<?= urlencode($role_filter) ?>&date_start=<?= urlencode($date_start) ?>&date_end=<?= urlencode($date_end) ?>"><i class="bi bi-chevron-right"></i></a>
-                                            </li>
-                                        </ul>
-                    </nav>
-                <?php endif; ?>
+                <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
                 <?php
                 if ($ajax_fetch) {
                     $html = ob_get_clean();

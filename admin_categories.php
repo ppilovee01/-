@@ -202,7 +202,18 @@ if (isset($_POST['edit_cat'])) {
                                 </thead>
                                 <tbody id="categories-tbody">
                                     <?php 
-                                    $res = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) as prod_count FROM categories c ORDER BY c.id DESC");
+                                    $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+                                    $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                                    
+                                    $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM categories");
+                                    $total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+                                    $total_pages = ceil($total_rows / $limit);
+                                    if ($total_pages > 0 && $page > $total_pages) {
+                                        $page = $total_pages;
+                                    }
+                                    $offset = ($page - 1) * $limit;
+
+                                    $res = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) as prod_count FROM categories c ORDER BY c.id DESC LIMIT $limit OFFSET $offset");
                                     if(mysqli_num_rows($res) > 0): while($row = mysqli_fetch_assoc($res)): 
                                     ?>
                                     <!-- Desktop View -->
@@ -236,6 +247,8 @@ if (isset($_POST['edit_cat'])) {
                                 </tbody>
                             </table>
                         </div>
+                        <!-- การแบ่งหน้า (Pagination) -->
+                        <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
                     </div>
                 </div>
             </div>

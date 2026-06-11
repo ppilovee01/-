@@ -85,7 +85,11 @@ if (isset($_SESSION['user_id'])) {
 
 // --- Query Data ---
 $banners = [];
-$res = mysqli_query($conn, "SELECT * FROM banners ORDER BY id DESC");
+$res = mysqli_query($conn, "SELECT * FROM banners 
+    WHERE status = 'active' 
+      AND (start_date IS NULL OR start_date <= NOW()) 
+      AND (end_date IS NULL OR end_date >= NOW()) 
+    ORDER BY sort_order ASC, id DESC");
 while ($b = mysqli_fetch_assoc($res)) $banners[] = $b;
 
 $categories = [];
@@ -244,7 +248,13 @@ include 'header.php';
             <div class="carousel-inner">
                 <?php foreach($banners as $index => $b): ?>
                     <div class="carousel-item <?= $index==0?'active':'' ?>">
-                        <img src="<?= htmlspecialchars($b['image'], ENT_QUOTES, 'UTF-8') ?>" class="d-block w-100 rounded-4" alt="Banner">
+                        <?php if (!empty($b['link_url'])): ?>
+                            <a href="<?= htmlspecialchars($b['link_url'], ENT_QUOTES, 'UTF-8') ?>">
+                        <?php endif; ?>
+                        <img src="<?= htmlspecialchars($b['image'], ENT_QUOTES, 'UTF-8') ?>" class="d-block w-100 rounded-4" alt="<?= htmlspecialchars($b['title'] ?? 'Banner', ENT_QUOTES, 'UTF-8') ?>" title="<?= htmlspecialchars($b['title'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <?php if (!empty($b['link_url'])): ?>
+                            </a>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>

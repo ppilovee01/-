@@ -6,76 +6,150 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') { header("Locati
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        if (isset($_POST['ajax'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
-            exit();
-        }
-        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+        exit();
     }
 }
 
+// 1. POST: เพิ่มแบนเนอร์ใหม่
 if (isset($_POST['upload_banner'])) {
     if (isset($_FILES['banner_img']) && $_FILES['banner_img']['error'] == 0) {
         $ext = pathinfo($_FILES['banner_img']['name'], PATHINFO_EXTENSION);
         $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         if (!in_array(strtolower($ext), $allowed)) {
-            if (isset($_POST['ajax'])) {
-                header('Content-Type: application/json');
-                echo json_encode(['status' => 'error', 'message' => 'รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp)']);
-                exit();
-            }
-            $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp)', 'icon'=>'error'];
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'รองรับเฉพาะไฟล์รูปภาพ (jpg, jpeg, png, gif, webp)']);
+            exit();
         } else {
             $new_name = "banner_" . uniqid() . "." . strtolower($ext);
             if (!is_dir("uploads")) mkdir("uploads");
             if (move_uploaded_file($_FILES['banner_img']['tmp_name'], "uploads/" . $new_name)) {
                 $path = "uploads/" . $new_name;
-                mysqli_query($conn, "INSERT INTO banners (image) VALUES ('$path')");
-                $new_id = mysqli_insert_id($conn);
-                log_admin_action($conn, 'อัปโหลดแบนเนอร์', "อัปโหลดแบนเนอร์ใหม่ ID #$new_id สำเร็จ พาธรูปภาพ: $path");
-                if (isset($_POST['ajax'])) {
+                
+                $title = isset($_POST['title']) ? mysqli_real_escape_string($conn, trim($_POST['title'])) : null;
+                $link_url = isset($_POST['link_url']) ? mysqli_real_escape_string($conn, trim($_POST['link_url'])) : null;
+                $sort_order = isset($_POST['sort_order']) ? intval($_POST['sort_order']) : 0;
+                $start_date = !empty($_POST['start_date']) ? "'" . mysqli_real_escape_string($conn, $_POST['start_date']) . "'" : "NULL";
+                $end_date = !empty($_POST['end_date']) ? "'" . mysqli_real_escape_string($conn, $_POST['end_date']) . "'" : "NULL";
+
+                $title_val = $title !== null && $title !== '' ? "'$title'" : "NULL";
+                $link_url_val = $link_url !== null && $link_url !== '' ? "'$link_url'" : "NULL";
+
+                $sql = "INSERT INTO banners (image, title, link_url, sort_order, start_date, end_date, status) 
+                        VALUES ('$path', $title_val, $link_url_val, $sort_order, $start_date, $end_date, 'active')";
+                
+                if (mysqli_query($conn, $sql)) {
+                    $new_id = mysqli_insert_id($conn);
+                    log_admin_action($conn, 'อัปโหลดแบนเนอร์', "อัปโหลดแบนเนอร์ใหม่ ID #$new_id สำเร็จ พาธรูปภาพ: $path");
+                    
                     header('Content-Type: application/json');
                     echo json_encode([
                         'status' => 'success',
                         'message' => 'อัปโหลดแบนเนอร์เรียบร้อย!',
                         'banner' => [
                             'id' => $new_id,
-                            'image' => $path
+                            'image' => $path,
+                            'title' => $title ? htmlspecialchars($title) : 'ไม่มีชื่อแบนเนอร์',
+                            'link_url' => $link_url ? htmlspecialchars($link_url) : '',
+                            'status' => 'active',
+                            'sort_order' => $sort_order,
+                            'start_date' => !empty($_POST['start_date']) ? $_POST['start_date'] : null,
+                            'end_date' => !empty($_POST['end_date']) ? $_POST['end_date'] : null
                         ],
                         'csrf_token' => get_csrf_token()
                     ]);
                     exit();
-                }
-                $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'อัปโหลดแบนเนอร์เรียบร้อย!', 'icon'=>'success'];
-            } else { 
-                if (isset($_POST['ajax'])) {
+                } else {
                     header('Content-Type: application/json');
-                    echo json_encode(['status' => 'error', 'message' => 'อัปโหลดไฟล์ล้มเหลว']);
+                    echo json_encode(['status' => 'error', 'message' => 'บันทึกข้อมูลล้มเหลว: ' . mysqli_error($conn)]);
                     exit();
                 }
-                $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'อัปโหลดไฟล์ล้มเหลว', 'icon'=>'error'];
+            } else { 
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'error', 'message' => 'อัปโหลดไฟล์ล้มเหลว']);
+                exit();
             }
         }
     } else { 
-        if (isset($_POST['ajax'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => 'กรุณาเลือกไฟล์รูปภาพ']);
-            exit();
-        }
-        $_SESSION['swal'] = ['title'=>'แจ้งเตือน', 'text'=>'กรุณาเลือกไฟล์รูปภาพ', 'icon'=>'warning'];
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => 'กรุณาเลือกไฟล์รูปภาพ']);
+        exit();
     }
-    header("Location: admin_banners.php"); exit();
 }
 
+// 2. POST: แก้ไขข้อมูลแบนเนอร์
+if (isset($_POST['update_banner'])) {
+    $id = intval($_POST['id']);
+    
+    // ตรวจสอบความถูกต้องของแบนเนอร์
+    $check_q = mysqli_query($conn, "SELECT id FROM banners WHERE id=$id");
+    if (!$check_q || mysqli_num_rows($check_q) === 0) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => 'ไม่พบข้อมูลแบนเนอร์ที่ต้องการแก้ไข']);
+        exit();
+    }
+
+    $title = isset($_POST['title']) ? mysqli_real_escape_string($conn, trim($_POST['title'])) : null;
+    $link_url = isset($_POST['link_url']) ? mysqli_real_escape_string($conn, trim($_POST['link_url'])) : null;
+    $sort_order = isset($_POST['sort_order']) ? intval($_POST['sort_order']) : 0;
+    $start_date = !empty($_POST['start_date']) ? "'" . mysqli_real_escape_string($conn, $_POST['start_date']) . "'" : "NULL";
+    $end_date = !empty($_POST['end_date']) ? "'" . mysqli_real_escape_string($conn, $_POST['end_date']) . "'" : "NULL";
+    $status = (isset($_POST['status']) && $_POST['status'] === 'active') ? 'active' : 'inactive';
+
+    $title_val = $title !== null && $title !== '' ? "'$title'" : "NULL";
+    $link_url_val = $link_url !== null && $link_url !== '' ? "'$link_url'" : "NULL";
+
+    $sql = "UPDATE banners SET 
+                title = $title_val, 
+                link_url = $link_url_val, 
+                sort_order = $sort_order, 
+                start_date = $start_date, 
+                end_date = $end_date,
+                status = '$status'
+            WHERE id = $id";
+            
+    if (mysqli_query($conn, $sql)) {
+        log_admin_action($conn, 'แก้ไขแบนเนอร์', "แก้ไขข้อมูลแบนเนอร์ ID #$id สำเร็จ");
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'success', 
+            'message' => 'แก้ไขแบนเนอร์เรียบร้อยแล้ว!',
+            'csrf_token' => get_csrf_token()
+        ]);
+        exit();
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => 'แก้ไขข้อมูลล้มเหลว: ' . mysqli_error($conn)]);
+        exit();
+    }
+}
+
+// 3. POST: สลับสถานะแสดงผล (เปิด/ปิด)
+if (isset($_POST['toggle_status'])) {
+    $id = intval($_POST['id']);
+    $q = mysqli_query($conn, "SELECT status FROM banners WHERE id=$id");
+    if ($q && mysqli_num_rows($q) > 0) {
+        $row = mysqli_fetch_assoc($q);
+        $new_status = ($row['status'] === 'active') ? 'inactive' : 'active';
+        mysqli_query($conn, "UPDATE banners SET status='$new_status' WHERE id=$id");
+        log_admin_action($conn, 'สลับสถานะแบนเนอร์', "สลับสถานะแบนเนอร์ ID #$id เป็น $new_status");
+        
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'success', 'new_status' => $new_status, 'csrf_token' => get_csrf_token()]);
+        exit();
+    }
+    header('Content-Type: application/json');
+    echo json_encode(['status' => 'error', 'message' => 'ไม่พบข้อมูลแบนเนอร์']);
+    exit();
+}
+
+// 4. GET: ลบแบนเนอร์ (เรียกผ่าน AJAX)
 if (isset($_GET['delete'])) {
     if (!verify_csrf_token($_GET['csrf_token'] ?? '')) {
-        if (isset($_GET['ajax'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
-            exit();
-        }
-        die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => 'คำขอไม่ถูกต้องหรือหมดเวลาเซสชัน (Invalid CSRF Token)']);
+        exit();
     }
     $id = intval($_GET['delete']);
     $q = mysqli_query($conn, "SELECT image FROM banners WHERE id=$id");
@@ -84,13 +158,14 @@ if (isset($_GET['delete'])) {
         if (file_exists($row['image'])) { unlink($row['image']); }
         mysqli_query($conn, "DELETE FROM banners WHERE id=$id");
         log_admin_action($conn, 'ลบแบนเนอร์', "ลบแบนเนอร์ ID #$id สำเร็จ พาธรูปภาพ: {$row['image']}");
-    }
-    if (isset($_GET['ajax'])) {
+        
         header('Content-Type: application/json');
         echo json_encode(['status' => 'success', 'message' => 'ลบแบนเนอร์เรียบร้อยแล้ว']);
         exit();
     }
-    header("Location: admin_banners.php"); exit();
+    header('Content-Type: application/json');
+    echo json_encode(['status' => 'error', 'message' => 'ไม่พบข้อมูลแบนเนอร์']);
+    exit();
 }
 ?>
 
@@ -107,16 +182,30 @@ if (isset($_GET['delete'])) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { font-family: 'Kanit'; background: #f8f9fa; }
-        .banner-preview { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; }
+        .banner-preview { width: 100%; height: 170px; object-fit: cover; border-top-left-radius: 16px; border-top-right-radius: 16px; }
         .btn-gradient { background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); color: white; border: none; }
         .btn-gradient:hover { color: white; opacity: 0.9; }
         .banner-card { transition: all 0.3s ease; }
+        .form-control, .form-select {
+            border: 2px solid #f1f5f9;
+            background-color: #f8fafc;
+            border-radius: 10px !important;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #7FB5FF;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(127, 181, 255, 0.15);
+        }
     </style>
 </head>
 <body>
 
 <div class="container-fluid">
     <div class="row">
+        <!-- Sidebar Drawer -->
         <div class="col-md-2 p-0 border-end bg-white">
             <button class="btn btn-light w-100 d-md-none border-bottom p-3 fw-bold text-primary text-start" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
                 <i class="bi bi-list me-2"></i> เมนูจัดการ
@@ -128,36 +217,134 @@ if (isset($_GET['delete'])) {
             </div>
         </div>
 
+        <!-- Main Content Area -->
         <div class="col-md-10 p-4 p-md-5">
-            <h2 class="fw-bold mb-4">จัดการแบนเนอร์</h2>
+            <h2 class="fw-bold mb-4"><i class="bi bi-images text-primary me-2"></i>จัดการแบนเนอร์สไลด์หน้าแรก</h2>
 
+            <!-- Card: Add Banner Form -->
             <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                <form id="upload-banner-form" method="POST" enctype="multipart/form-data" onsubmit="submitUploadBanner(event)" class="d-flex flex-column flex-md-row gap-3 align-items-end">
+                <h5 class="fw-bold mb-3"><i class="bi bi-cloud-arrow-up-fill text-primary me-2"></i>เพิ่มแบนเนอร์ใหม่</h5>
+                <form id="upload-banner-form" method="POST" enctype="multipart/form-data" onsubmit="submitUploadBanner(event)">
                     <?= get_csrf_input() ?>
-                    <div class="flex-grow-1 w-100">
-                        <label class="form-label fw-bold">อัปโหลดรูปใหม่</label>
-                        <input type="file" name="banner_img" class="form-control" accept="image/*" required>
-                        <div class="form-text">แนะนำขนาด 1200 x 400 pixel</div>
+                    <div class="row g-3">
+                        <!-- File Upload -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">รูปภาพแบนเนอร์ <span class="text-danger">*</span></label>
+                            <input type="file" name="banner_img" class="form-control" accept="image/*" required>
+                            <div class="form-text">แนะนำขนาด 1200 x 400 px (สูงสุด 3MB)</div>
+                        </div>
+                        
+                        <!-- Title -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">ชื่อ/หัวข้อแบนเนอร์ (อ้างอิงภายใน)</label>
+                            <input type="text" name="title" class="form-control" placeholder="เช่น แบนเนอร์โปรโมชั่น Mid Year Sale">
+                        </div>
+
+                        <!-- Link URL -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">ลิงก์ปลายทาง (เมื่อกดคลิกแบนเนอร์)</label>
+                            <input type="url" name="link_url" class="form-control" placeholder="เช่น https://... หรือ product_detail.php?id=5">
+                        </div>
+
+                        <!-- Sort Order -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">ลำดับการแสดงผล</label>
+                            <input type="number" name="sort_order" class="form-control" value="0" min="0">
+                        </div>
+
+                        <!-- Start Date -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">เริ่มแสดง (เลือกได้)</label>
+                            <input type="datetime-local" name="start_date" class="form-control">
+                        </div>
+
+                        <!-- End Date -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">สิ้นสุดแสดง (เลือกได้)</label>
+                            <input type="datetime-local" name="end_date" class="form-control">
+                        </div>
                     </div>
-                    <button type="submit" name="upload_banner" class="btn btn-gradient px-4 rounded-3 w-100 w-md-auto">
-                        <i class="bi bi-cloud-upload-fill me-2"></i> อัปโหลด
-                    </button>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" name="upload_banner" class="btn btn-gradient px-4 rounded-3 py-2 fw-semibold">
+                            <i class="bi bi-cloud-upload-fill me-2"></i> บันทึกข้อมูลและอัปโหลด
+                        </button>
+                    </div>
                 </form>
             </div>
 
-            <div class="row g-4" id="banners-grid">
+            <!-- Banners Display Grid -->
+            <div class="row g-4 mb-4" id="banners-grid">
                 <?php 
-                $res = mysqli_query($conn, "SELECT * FROM banners ORDER BY id DESC");
+                $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+                $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                
+                $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM banners");
+                $total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+                $total_pages = ceil($total_rows / $limit);
+                if ($total_pages > 0 && $page > $total_pages) {
+                    $page = $total_pages;
+                }
+                $offset = ($page - 1) * $limit;
+
+                $res = mysqli_query($conn, "SELECT * FROM banners ORDER BY sort_order ASC, id DESC LIMIT $limit OFFSET $offset");
                 if (mysqli_num_rows($res) > 0): while($row = mysqli_fetch_assoc($res)): 
                 ?>
-                <div class="col-6 col-md-4 col-lg-3 banner-card" id="banner-card-<?= $row['id'] ?>">
-                    <div class="card border-0 shadow-sm h-100 rounded-4 overflow-hidden position-relative group-action">
-                        <img src="<?= $row['image'] ?>" class="banner-preview">
-                        <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                            <small class="text-muted">ID: <?= $row['id'] ?></small>
-                            <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-sm btn-outline-danger rounded-circle">
-                                <i class="bi bi-trash-fill"></i>
-                            </button>
+                <div class="col-12 col-md-6 col-lg-4 banner-card" id="banner-card-<?= $row['id'] ?>">
+                    <div class="card border-0 shadow-sm h-100 rounded-4 overflow-hidden position-relative d-flex flex-column">
+                        <div style="position: relative;">
+                            <img src="<?= $row['image'] ?>" class="banner-preview">
+                            <!-- Floating Status Badge -->
+                            <span class="position-absolute top-0 end-0 m-2 badge <?= $row['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>" id="status-badge-<?= $row['id'] ?>">
+                                <?= $row['status'] === 'active' ? 'กำลังแสดง' : 'ปิดการแสดง' ?>
+                            </span>
+                        </div>
+                        
+                        <div class="card-body p-3 d-flex flex-column flex-grow-1">
+                            <h6 class="fw-bold mb-1 text-dark text-truncate" id="card-title-<?= $row['id'] ?>">
+                                <?= htmlspecialchars($row['title'] ?? 'ไม่มีชื่อแบนเนอร์') ?>
+                            </h6>
+                            <div class="text-muted small mb-2 text-truncate" style="font-size: 0.8rem;" id="card-link-container-<?= $row['id'] ?>">
+                                <i class="bi bi-link-45deg me-1"></i> ลิงก์: 
+                                <?php if (!empty($row['link_url'])): ?>
+                                    <a href="<?= htmlspecialchars($row['link_url']) ?>" target="_blank" class="text-decoration-none text-link" id="card-link-<?= $row['id'] ?>"><?= htmlspecialchars($row['link_url']) ?></a>
+                                <?php else: ?>
+                                    <span class="text-muted" id="card-link-<?= $row['id'] ?>">ไม่ได้กำหนด</span>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div class="mt-auto border-top pt-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.78rem;">
+                                    <span><i class="bi bi-sort-numeric-down me-1"></i> ลำดับ: <strong class="text-primary" id="card-sort-<?= $row['id'] ?>"><?= $row['sort_order'] ?></strong></span>
+                                    <span class="text-muted text-end" id="card-schedule-<?= $row['id'] ?>">
+                                        <i class="bi bi-calendar3 me-1"></i>
+                                        <?php 
+                                        if (!empty($row['start_date']) || !empty($row['end_date'])) {
+                                            $start = !empty($row['start_date']) ? date('d/m/Y H:i', strtotime($row['start_date'])) : 'เริ่มเลย';
+                                            $end = !empty($row['end_date']) ? date('d/m/Y H:i', strtotime($row['end_date'])) : 'ไม่มีหมดอายุ';
+                                            echo "<span title='$start ถึง $end' class='text-primary fw-semibold'>มีกำหนดเวลา</span>";
+                                        } else {
+                                            echo "แสดงตลอดเวลา";
+                                        }
+                                        ?>
+                                    </span>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <!-- Toggle Status Switch -->
+                                    <div class="form-check form-switch d-flex align-items-center ps-0 me-auto">
+                                        <input class="form-check-input ms-0 cursor-pointer" type="checkbox" role="switch" id="status-switch-<?= $row['id'] ?>" <?= $row['status'] === 'active' ? 'checked' : '' ?> onchange="toggleBannerStatus(<?= $row['id'] ?>)">
+                                        <label class="form-check-label small text-muted ms-2 cursor-pointer" for="status-switch-<?= $row['id'] ?>">แสดงผล</label>
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-sm btn-outline-primary px-3 rounded-pill" onclick='openEditModal(<?= json_encode($row) ?>)'>
+                                        <i class="bi bi-pencil-fill me-1"></i> แก้ไข
+                                    </button>
+                                    <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= get_csrf_token() ?>')" class="btn btn-sm btn-outline-danger rounded-circle">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -168,7 +355,66 @@ if (isset($_GET['delete'])) {
                 </div>
                 <?php endif; ?>
             </div>
+            
+            <!-- Pagination -->
+            <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
+        </div>
+    </div>
+</div>
 
+<!-- Modal: Edit Banner Form -->
+<div class="modal fade" id="editBannerModal" tabindex="-1" aria-labelledby="editBannerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" id="editBannerModalLabel"><i class="bi bi-pencil-square text-primary me-2"></i>แก้ไขข้อมูลแบนเนอร์</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="edit-banner-form" onsubmit="submitEditBanner(event)">
+                <?= get_csrf_input() ?>
+                <div class="modal-body py-3">
+                    <input type="hidden" name="id" id="edit_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">ชื่อ/หัวข้อแบนเนอร์ (อ้างอิงภายใน)</label>
+                        <input type="text" name="title" id="edit_title" class="form-control" placeholder="ชื่ออ้างอิงภายใน">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">ลิงก์ปลายทาง (URL)</label>
+                        <input type="url" name="link_url" id="edit_link_url" class="form-control" placeholder="เช่น https://... หรือ product_detail.php?id=5">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">ลำดับการแสดงผล</label>
+                            <input type="number" name="sort_order" id="edit_sort_order" class="form-control" min="0">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">สถานะ</label>
+                            <select name="status" id="edit_status" class="form-select">
+                                <option value="active">เปิดการแสดงผล (Active)</option>
+                                <option value="inactive">ปิดการแสดงผล (Inactive)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">เริ่มแสดง (เลือกได้)</label>
+                            <input type="datetime-local" name="start_date" id="edit_start_date" class="form-control">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-semibold">สิ้นสุดแสดง (เลือกได้)</label>
+                            <input type="datetime-local" name="end_date" id="edit_end_date" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">บันทึกการแก้ไข</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -188,7 +434,69 @@ if (isset($_GET['delete'])) {
     });
 
     let currentCsrfToken = '<?= get_csrf_token() ?>';
+    const editModal = new bootstrap.Modal(document.getElementById('editBannerModal'));
 
+    // แปลงรูปแบบวันที่จาก MySQL (YYYY-MM-DD HH:MM:SS) -> datetime-local (YYYY-MM-DDTHH:MM)
+    function formatDatetimeLocal(mysqlStr) {
+        if (!mysqlStr) return '';
+        return mysqlStr.replace(' ', 'T').substring(0, 16);
+    }
+
+    // เปิดหน้าต่างแกไข
+    function openEditModal(banner) {
+        document.getElementById('edit_id').value = banner.id;
+        document.getElementById('edit_title').value = banner.title || '';
+        document.getElementById('edit_link_url').value = banner.link_url || '';
+        document.getElementById('edit_sort_order').value = banner.sort_order || 0;
+        document.getElementById('edit_status').value = banner.status || 'active';
+        document.getElementById('edit_start_date').value = formatDatetimeLocal(banner.start_date);
+        document.getElementById('edit_end_date').value = formatDatetimeLocal(banner.end_date);
+        editModal.show();
+    }
+
+    // ส่งข้อมูลบันทึกการแก้ไข (Update Banner)
+    function submitEditBanner(e) {
+        e.preventDefault();
+        const form = document.getElementById('edit-banner-form');
+        const formData = new FormData(form);
+        formData.append('update_banner', '1');
+        formData.append('csrf_token', currentCsrfToken);
+
+        fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                currentCsrfToken = data.csrf_token;
+                document.querySelectorAll('input[name="csrf_token"]').forEach(el => el.value = currentCsrfToken);
+                editModal.hide();
+                
+                Toast.fire({
+                    icon: 'success',
+                    title: data.message
+                });
+                
+                // โหลดหน้าจอใหม่เพื่อให้ลำดับการเรียงและเงื่อนไขการฟิลเตอร์รีเฟรชข้อมูลที่ถูกต้องตาม MySQL order
+                setTimeout(() => { location.reload(); }, 1000);
+            } else {
+                Toast.fire({
+                    icon: 'error',
+                    title: data.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+        });
+    }
+
+    // อัปโหลดแบนเนอร์ใหม่
     function submitUploadBanner(e) {
         e.preventDefault();
         const form = document.getElementById('upload-banner-form');
@@ -208,7 +516,7 @@ if (isset($_GET['delete'])) {
         .then(res => res.json())
         .then(data => {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i> อัปโหลด';
+            submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i> บันทึกข้อมูลและอัปโหลด';
 
             if (data.status === 'success') {
                 form.reset();
@@ -220,27 +528,8 @@ if (isset($_GET['delete'])) {
                     title: data.message
                 });
 
-                // Remove placeholder if exists
-                const placeholder = document.getElementById('no-banners-placeholder');
-                if (placeholder) placeholder.remove();
-
-                // Prepend card to grid
-                const grid = document.getElementById('banners-grid');
-                const div = document.createElement('div');
-                div.id = 'banner-card-' + data.banner.id;
-                div.className = 'col-6 col-md-4 col-lg-3 banner-card animate__animated animate__fadeIn';
-                div.innerHTML = `
-                    <div class="card border-0 shadow-sm h-100 rounded-4 overflow-hidden position-relative group-action">
-                        <img src="${data.banner.image}" class="banner-preview">
-                        <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                            <small class="text-muted">ID: ${data.banner.id}</small>
-                            <button onclick="confirmDelete(${data.banner.id}, '${currentCsrfToken}')" class="btn btn-sm btn-outline-danger rounded-circle">
-                                <i class="bi bi-trash-fill"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                grid.insertBefore(div, grid.firstChild);
+                // โหลดหน้าใหม่เพื่อให้แบนเนอร์เรียงลำดับ sort_order ได้ตรงจริงตามดาต้าเบส
+                setTimeout(() => { location.reload(); }, 1000);
             } else {
                 Toast.fire({
                     icon: 'error',
@@ -250,7 +539,7 @@ if (isset($_GET['delete'])) {
         })
         .catch(err => {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i> อัปโหลด';
+            submitBtn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i> บันทึกข้อมูลและอัปโหลด';
             console.error(err);
             Toast.fire({
                 icon: 'error',
@@ -259,6 +548,60 @@ if (isset($_GET['delete'])) {
         });
     }
 
+    // สลับเปิด/ปิดการแสดงผลแบนเนอร์
+    function toggleBannerStatus(id) {
+        const formData = new FormData();
+        formData.append('toggle_status', '1');
+        formData.append('id', id);
+        formData.append('csrf_token', currentCsrfToken);
+
+        fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                currentCsrfToken = data.csrf_token;
+                document.querySelectorAll('input[name="csrf_token"]').forEach(el => el.value = currentCsrfToken);
+                
+                const badge = document.getElementById('status-badge-' + id);
+                if (badge) {
+                    if (data.new_status === 'active') {
+                        badge.innerText = 'กำลังแสดง';
+                        badge.className = 'position-absolute top-0 end-0 m-2 badge bg-success';
+                    } else {
+                        badge.innerText = 'ปิดการแสดง';
+                        badge.className = 'position-absolute top-0 end-0 m-2 badge bg-secondary';
+                    }
+                }
+                
+                Toast.fire({
+                    icon: 'success',
+                    title: 'สลับสถานะแสดงผลเรียบร้อยแล้ว'
+                });
+            } else {
+                Toast.fire({
+                    icon: 'error',
+                    title: data.message || 'สลับสถานะล้มเหลว'
+                });
+                // รีเซ็ตเช็คบ็อกซ์กลับสภาพเดิม
+                const chk = document.getElementById('status-switch-' + id);
+                if (chk) chk.checked = !chk.checked;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Toast.fire({
+                icon: 'error',
+                title: 'การเชื่อมต่อล้มเหลว'
+            });
+            const chk = document.getElementById('status-switch-' + id);
+            if (chk) chk.checked = !chk.checked;
+        });
+    }
+
+    // ยืนยันการลบ
     function confirmDelete(id, token) {
         Swal.fire({
             title: 'ลบแบนเนอร์?',
@@ -270,7 +613,7 @@ if (isset($_GET['delete'])) {
             cancelButtonText: 'ยกเลิก'
         }).then((result) => {
             if (result.isConfirmed) {
-                fetch(window.location.pathname + `?delete=${id}&csrf_token=${token}&ajax=1`)
+                fetch(window.location.pathname + `?delete=${id}&csrf_token=${token}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {

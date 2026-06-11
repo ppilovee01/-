@@ -139,12 +139,23 @@ if (isset($_GET['delete'])) {
                         </thead>
                         <tbody id="reviews-tbody">
                             <?php 
+                            $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+                            $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                            
+                            $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM product_reviews r JOIN products p ON r.product_id = p.id JOIN users u ON r.user_id = u.id");
+                            $total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+                            $total_pages = ceil($total_rows / $limit);
+                            if ($total_pages > 0 && $page > $total_pages) {
+                                $page = $total_pages;
+                            }
+                            $offset = ($page - 1) * $limit;
+
                             // ดึงรีวิว + ชื่อสินค้า + ชื่อคนรีวิว (เลี่ยงคอลัมน์ image ชนกัน)
                             $sql = "SELECT r.*, r.image as review_image, p.name as product_name, p.image as product_image, u.fullname 
                                     FROM product_reviews r 
                                     JOIN products p ON r.product_id = p.id 
                                     JOIN users u ON r.user_id = u.id 
-                                    ORDER BY r.created_at DESC";
+                                    ORDER BY r.created_at DESC LIMIT $limit OFFSET $offset";
                             $res = mysqli_query($conn, $sql);
                             
                             if(mysqli_num_rows($res) > 0):
@@ -220,6 +231,8 @@ if (isset($_GET['delete'])) {
                         </tbody>
                     </table>
                 </div>
+                <!-- การแบ่งหน้า (Pagination) -->
+                <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
             </div>
         </div>
     </div>

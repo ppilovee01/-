@@ -361,10 +361,21 @@ if (isset($_POST['update'])) {
                                 </thead>
                                 <tbody id="coupons-tbody">
                                     <?php 
+                                    $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+                                    $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                                    
+                                    $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM coupons");
+                                    $total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+                                    $total_pages = ceil($total_rows / $limit);
+                                    if ($total_pages > 0 && $page > $total_pages) {
+                                        $page = $total_pages;
+                                    }
+                                    $offset = ($page - 1) * $limit;
+
                                     $res = mysqli_query($conn, "SELECT *, 
                                         (expiry_date < NOW()) as is_expired,
                                         (start_date IS NOT NULL AND start_date > NOW()) as not_started
-                                        FROM coupons ORDER BY id DESC"); 
+                                        FROM coupons ORDER BY id DESC LIMIT $limit OFFSET $offset"); 
                                     while($row = mysqli_fetch_assoc($res)):
                                         $is_expired = $row['is_expired'];
                                         $not_started = $row['not_started'];
@@ -464,6 +475,8 @@ if (isset($_POST['update'])) {
                                 </tbody>
                             </table>
                         </div>
+                        <!-- การแบ่งหน้า (Pagination) -->
+                        <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
                     </div>
                 </div>
             </div>

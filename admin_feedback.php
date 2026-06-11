@@ -75,9 +75,20 @@ if (isset($_GET['delete'])) {
 
             <div class="row g-4" id="feedbacks-container">
                 <?php 
+                $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+                $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                
+                $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM feedback f JOIN users u ON f.user_id = u.id");
+                $total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+                $total_pages = ceil($total_rows / $limit);
+                if ($total_pages > 0 && $page > $total_pages) {
+                    $page = $total_pages;
+                }
+                $offset = ($page - 1) * $limit;
+
                 $sql = "SELECT f.*, u.fullname, u.email FROM feedback f 
                         JOIN users u ON f.user_id = u.id 
-                        ORDER BY f.id DESC";
+                        ORDER BY f.id DESC LIMIT $limit OFFSET $offset";
                 $result = mysqli_query($conn, $sql);
 
                 if (mysqli_num_rows($result) > 0):
@@ -114,6 +125,8 @@ if (isset($_GET['delete'])) {
                     </div>
                 <?php endif; ?>
             </div>
+            <!-- การแบ่งหน้า (Pagination) -->
+            <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
         </div>
     </div>
 </div>

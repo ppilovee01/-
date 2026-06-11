@@ -200,6 +200,37 @@ if ($check_table_contact && mysqli_num_rows($check_table_contact) > 0) {
     }
 }
 
+// Auto-migrate users table (add last_login column if missing)
+$check_table_users = mysqli_query($conn, "SHOW TABLES LIKE 'users'");
+if ($check_table_users && mysqli_num_rows($check_table_users) > 0) {
+    $check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'last_login'");
+    if ($check_col && mysqli_num_rows($check_col) == 0) {
+        mysqli_query($conn, "ALTER TABLE users ADD COLUMN last_login DATETIME DEFAULT NULL AFTER created_at");
+        mysqli_query($conn, "UPDATE users SET last_login = created_at WHERE last_login IS NULL");
+    }
+}
+
+// Auto-migrate banners table (add missing columns)
+$check_table_banners = mysqli_query($conn, "SHOW TABLES LIKE 'banners'");
+if ($check_table_banners && mysqli_num_rows($check_table_banners) > 0) {
+    $required_cols = [
+        'title' => "ALTER TABLE banners ADD COLUMN title VARCHAR(255) DEFAULT NULL",
+        'link_url' => "ALTER TABLE banners ADD COLUMN link_url VARCHAR(255) DEFAULT NULL",
+        'status' => "ALTER TABLE banners ADD COLUMN status ENUM('active','inactive') DEFAULT 'active'",
+        'sort_order' => "ALTER TABLE banners ADD COLUMN sort_order INT DEFAULT 0",
+        'start_date' => "ALTER TABLE banners ADD COLUMN start_date DATETIME DEFAULT NULL",
+        'end_date' => "ALTER TABLE banners ADD COLUMN end_date DATETIME DEFAULT NULL"
+    ];
+    foreach ($required_cols as $col => $alter_sql) {
+        $check_col = mysqli_query($conn, "SHOW COLUMNS FROM banners LIKE '$col'");
+        if ($check_col && mysqli_num_rows($check_col) == 0) {
+            mysqli_query($conn, $alter_sql);
+        }
+    }
+}
+
+
+
 // --- Helper to get active flash sale for a product ---
 function getActiveFlashSale($conn, $product_id) {
     $product_id = intval($product_id); // ป้องกัน SQL Injection
@@ -546,5 +577,93 @@ function log_admin_action($conn, $action_type, $details, $user_id = null, $fulln
     $sql = "INSERT INTO admin_logs (admin_id, admin_name, action_type, details, ip_address) 
             VALUES ($admin_id_val, '$admin_name_esc', '$action_type_esc', '$details_esc', '$ip_address_esc')";
     mysqli_query($conn, $sql);
+}
+
+// --- Helper to render pagination controls matching mockup style ---
+function render_pagination_controls($total_rows, $limit, $page, $offset, $js_func = 'changePageLimit') {
+    $total_pages = ceil($total_rows / $limit);
+    if ($total_rows <= 0) return '';
+    
+    // build dropdown options
+    $limit_options = [10, 20, 50, 100];
+    $options_html = '';
+    foreach ($limit_options as $opt) {
+        $selected = ($limit == $opt) ? 'selected' : '';
+        $options_html .= "<option value=\"$opt\" $selected>$opt</option>";
+    }
+    
+    // calculate start and end rows
+    $start_row = $total_rows > 0 ? $offset + 1 : 0;
+    $end_row = min($offset + $limit, $total_rows);
+    
+    // Build query params for links
+    $params = $_GET;
+    unset($params['page']); // page will be set dynamically per link
+    unset($params['ajax_fetch']); // make sure ajax_fetch doesn't persist to final url
+    unset($params['ajax']);
+    
+    $prev_disabled = $page <= 1 ? 'disabled' : '';
+    $prev_page = max(1, $page - 1);
+    $params['page'] = $prev_page;
+    $prev_url = '?' . http_build_query($params);
+    
+    $next_disabled = $page >= $total_pages ? 'disabled' : '';
+    $next_page = min($total_pages, $page + 1);
+    $params['page'] = $next_page;
+    $next_url = '?' . http_build_query($params);
+    
+    $pages_html = '';
+    $start_p = max(1, $page - 2);
+    $end_p = min($total_pages, $page + 2);
+    for ($i = $start_p; $i <= $end_p; $i++) {
+        $active = ($page == $i) ? 'active' : '';
+        $params['page'] = $i;
+        $url = '?' . http_build_query($params);
+        $pages_html .= "
+            <li class=\"page-item $active\">
+                <a class=\"page-link\" href=\"$url\">$i</a>
+            </li>";
+    }
+    
+    // Custom style overrides to ensure the pagination is extremely elegant and matching the pastel design
+    $pagination_css = "
+    <style>
+        .pagination .page-link {
+            border: 1px solid #dee2e6;
+            color: #7FB5FF;
+            transition: all 0.2s ease;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #7FB5FF !important;
+            border-color: #7FB5FF !important;
+            color: white !important;
+        }
+        .pagination .page-item.disabled .page-link {
+            color: #6c757d;
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+        }
+    </style>";
+    
+    return $pagination_css . "
+    <nav class=\"d-flex flex-column flex-md-row justify-content-between align-items-center mt-4 px-3 gap-3 w-100\">
+        <div class=\"d-flex align-items-center gap-2 text-muted small flex-wrap\">
+            <span>แสดงผล</span>
+            <select id=\"page-limit-select\" class=\"form-select form-select-sm rounded-3\" style=\"width: 70px;\" onchange=\"{$js_func}(this)\">
+                $options_html
+            </select>
+            <span>รายการต่อหน้า (แถว " . number_format($start_row) . " - " . number_format($end_row) . " จากทั้งหมด " . number_format($total_rows) . " รายการ)</span>
+        </div>
+        " . ($total_pages > 1 ? "
+        <ul class=\"pagination pagination-sm m-0\">
+            <li class=\"page-item $prev_disabled\">
+                <a class=\"page-link\" href=\"$prev_url\"><i class=\"bi bi-chevron-left\"></i></a>
+            </li>
+            $pages_html
+            <li class=\"page-item $next_disabled\">
+                <a class=\"page-link\" href=\"$next_url\"><i class=\"bi bi-chevron-right\"></i></a>
+            </li>
+        </ul>" : "") . "
+    </nav>";
 }
 ?>

@@ -345,9 +345,33 @@ if (isset($_GET['edit'])) {
     }
 }
 
-// ดึงข้อมูลสินค้าทั้งหมดเก็บใส่ Array เตรียมไว้
+// ดึงข้อมูลสินค้าทั้งหมดเก็บใส่ Array เตรียมไว้ (พร้อมการแบ่งหน้าและค้นหาจากฐานข้อมูล)
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$category_filter = isset($_GET['category_filter']) ? trim($_GET['category_filter']) : '';
+$limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
+$where_clauses = [];
+if ($search !== '') {
+    $s = mysqli_real_escape_string($conn, $search);
+    $where_clauses[] = "p.name LIKE '%$s%'";
+}
+if ($category_filter !== '') {
+    $c_name_esc = mysqli_real_escape_string($conn, $category_filter);
+    $where_clauses[] = "c.name = '$c_name_esc'";
+}
+$where_sql = count($where_clauses) > 0 ? " WHERE " . implode(" AND ", $where_clauses) : "";
+
+$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM products p LEFT JOIN categories c ON p.category_id = c.id" . $where_sql);
+$total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+$total_pages = ceil($total_rows / $limit);
+if ($total_pages > 0 && $page > $total_pages) {
+    $page = $total_pages;
+}
+$offset = ($page - 1) * $limit;
+
 $products_list = [];
-$sql = "SELECT p.*, c.name as cat_name, (SELECT COUNT(*) FROM product_lots WHERE product_id = p.id AND stock > 0) as active_lots FROM products p LEFT JOIN categories c ON p.category_id = c.id ORDER BY p.id DESC"; 
+$sql = "SELECT p.*, c.name as cat_name, (SELECT COUNT(*) FROM product_lots WHERE product_id = p.id AND stock > 0) as active_lots FROM products p LEFT JOIN categories c ON p.category_id = c.id" . $where_sql . " ORDER BY p.id DESC LIMIT $limit OFFSET $offset"; 
 $res = mysqli_query($conn, $sql); 
 if($res) {
     while($row = mysqli_fetch_assoc($res)) {
@@ -482,17 +506,21 @@ if($res) {
                 <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center flex-grow-1 flex-md-grow-0" style="max-width: 600px;">
                     <div class="input-group shadow-sm rounded-3 overflow-hidden">
                         <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="productSearchInput" class="form-control bg-white border-start-0 py-2" placeholder="ค้นหาชื่อสินค้า..." onkeyup="filterProducts()">
+                        <input type="text" id="productSearchInput" class="form-control bg-white border-start-0 py-2" placeholder="ค้นหาชื่อสินค้า..." value="<?= htmlspecialchars($search) ?>" onkeydown="if(event.key === 'Enter') submitProductFilter()">
                     </div>
-                    <select id="categoryFilterSelect" class="form-select bg-white py-2 shadow-sm rounded-3" onchange="filterProducts()" style="min-width: 160px;">
-                        <option value="">ทุกหมวดหมู่</option>
+                    <select id="categoryFilterSelect" class="form-select bg-white py-2 shadow-sm rounded-3" onchange="submitProductFilter()" style="min-width: 160px;">
+                        <option value="" <?= $category_filter === '' ? 'selected' : '' ?>>ทุกหมวดหมู่</option>
                         <?php 
                         $cat_q = mysqli_query($conn, "SELECT * FROM categories ORDER BY name ASC");
                         while($c = mysqli_fetch_assoc($cat_q)) {
-                            echo "<option value='" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "</option>";
+                            $selected = ($category_filter === $c['name']) ? 'selected' : '';
+                            echo "<option value='" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "' $selected>" . htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') . "</option>";
                         }
                         ?>
                     </select>
+                    <?php if ($search !== '' || $category_filter !== ''): ?>
+                        <button type="button" class="btn btn-outline-secondary rounded-3 py-2 px-3 shadow-sm" onclick="clearProductFilters()"><i class="bi bi-x-circle"></i></button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -564,6 +592,8 @@ if($res) {
                         </tbody>
                     </table>
                 </div>
+                <!-- การแบ่งหน้า (Pagination) -->
+                <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
             </div>
         </div>
     </div>
@@ -838,38 +868,35 @@ if($res) {
 <script>
     let newLotCount = 0;
     
-    // คัดกรองและค้นหาตารางสินค้าแบบเรียลไทม์
-    function filterProducts() {
-        const query = document.getElementById('productSearchInput').value.toLowerCase().trim();
+    // คัดกรองและค้นหาตารางสินค้าผ่านการโหลดหน้าแบบส่งพารามิเตอร์เซิร์ฟเวอร์
+    function submitProductFilter() {
+        const search = document.getElementById('productSearchInput').value.trim();
         const category = document.getElementById('categoryFilterSelect').value;
-        const rows = document.querySelectorAll('.product-row');
-        let visibleCount = 0;
         
-        rows.forEach(row => {
-            const name = row.getAttribute('data-name');
-            const cat = row.getAttribute('data-category');
-            
-            const matchesQuery = name.includes(query);
-            const matchesCategory = category === '' || cat === category;
-            
-            if (matchesQuery && matchesCategory) {
-                row.style.setProperty('display', '', 'important');
-                visibleCount++;
-            } else {
-                row.style.setProperty('display', 'none', 'important');
-            }
-        });
-
-        // ซ่อนข้อความไม่มีสินค้าถ้ายังมีสินค้าที่ค้นเจอ
-        const noProductRow = document.getElementById('no-products-row');
-        if (noProductRow) {
-            if (visibleCount === 0) {
-                noProductRow.style.setProperty('display', '', 'important');
-            } else {
-                noProductRow.style.setProperty('display', 'none', 'important');
-            }
+        const params = new URLSearchParams(window.location.search);
+        if (search) {
+            params.set('search', search);
+        } else {
+            params.delete('search');
         }
+        if (category) {
+            params.set('category_filter', category);
+        } else {
+            params.delete('category_filter');
+        }
+        params.set('page', '1'); // Reset to page 1
+        window.location.href = window.location.pathname + '?' + params.toString();
     }
+
+    function clearProductFilters() {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('search');
+        params.delete('category_filter');
+        params.set('page', '1');
+        window.location.href = window.location.pathname + '?' + params.toString();
+    }
+
+    function filterProducts() {}
 
     // เปิด Modal เพิ่มสินค้า (Clear ข้อมูลเดิม)
     function openAddProductModal() {

@@ -409,4 +409,132 @@ function send_custom_reply($conn, $to_email, $to_name, $original_subject, $reply
         return "PHPMailer error: " . $mail->ErrorInfo;
     }
 }
+
+function send_direct_custom_email($conn, $to_email, $to_name, $subject, $body_content, $attachments = [], $promo_image = null, $coupon_data = null) {
+    // 1. ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
+    $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
+    $smtp_user = getenv('SMTP_USER') ?: ($shop['smtp_user'] ?? '');
+    $smtp_pass = getenv('SMTP_PASS') ?: ($shop['smtp_pass'] ?? '');
+    if (empty($smtp_user) || empty($smtp_pass)) {
+        return "กรุณาตั้งค่าระบบอีเมล SMTP ในเมนูตั้งค่าร้านค้าก่อนส่งอีเมล";
+    }
+
+    $mail = new PHPMailer(true);
+
+    try {
+        // Server settings
+        $mail->CharSet = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Timeout    = 15; // 15 วินาทีเพื่อป้องกันระบบค้างเนื่องจากมีไฟล์แนบ
+        $mail->Host       = getenv('SMTP_HOST') ?: ($shop['smtp_host'] ?? '');
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $smtp_user;
+        $mail->Password   = str_replace(' ', '', $smtp_pass);
+        
+        $secure = strtolower(getenv('SMTP_SECURE') ?: ($shop['smtp_secure'] ?? 'tls'));
+        if ($secure === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($secure === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mail->SMTPAutoTLS = false;
+            $mail->SMTPSecure = '';
+        }
+        
+        $mail->Port       = getenv('SMTP_PORT') !== false ? intval(getenv('SMTP_PORT')) : intval($shop['smtp_port'] ?? 587);
+
+        // Recipients
+        $mail->setFrom($smtp_user, $shop['shop_name'] ?? 'Shop');
+        $mail->addAddress($to_email, $to_name);
+
+        // Attachments
+        if (!empty($attachments)) {
+            foreach ($attachments as $att) {
+                if (isset($att['tmp_name']) && file_exists($att['tmp_name'])) {
+                    $mail->addAttachment($att['tmp_name'], $att['name']);
+                }
+            }
+        }
+
+        // Promo Image Embedding (Content-ID inline image)
+        if ($promo_image !== null && isset($promo_image['tmp_name']) && file_exists($promo_image['tmp_name'])) {
+            $mail->addEmbeddedImage($promo_image['tmp_name'], 'promo_image', $promo_image['name']);
+        }
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        
+        // HTML Body template
+        $promo_img_html = '';
+        if ($promo_image !== null) {
+            $promo_img_html = "
+            <div style='text-align: center; border-bottom: 1px solid #e2e8f0; line-height: 0;'>
+                <img src='cid:promo_image' style='max-width: 100%; height: auto; display: block;' alt='Promotion Banner'>
+            </div>";
+        }
+
+        // Coupon Box HTML
+        $coupon_html = '';
+        if ($coupon_data !== null) {
+            $code = htmlspecialchars($coupon_data['code']);
+            
+            $desc = ($coupon_data['discount_type'] === 'percentage') 
+                ? "ส่วนลดพิเศษ " . floatval($coupon_data['discount_value']) . "%"
+                : "ส่วนลดพิเศษ ฿" . number_format($coupon_data['discount_value']);
+                
+            if ($coupon_data['min_spend'] > 0) {
+                $desc .= " เมื่อช้อปขั้นต่ำ ฿" . number_format($coupon_data['min_spend']);
+            }
+            
+            if ($coupon_data['max_discount'] > 0 && $coupon_data['discount_type'] === 'percentage') {
+                $desc .= " (ลดสูงสุด ฿" . number_format($coupon_data['max_discount']) . ")";
+            }
+            
+            $exp_text = ($coupon_data['expiry_date']) 
+                ? "หมดเขต: " . date('d/m/Y', strtotime($coupon_data['expiry_date']))
+                : "ไม่มีวันหมดอายุ";
+                
+            $coupon_html = "
+            <div style='margin: 25px 0; padding: 25px; text-align: center; border: 2px dashed #7FB5FF; background-color: #f0f7ff; border-radius: 16px;'>
+                <div style='font-size: 0.8rem; color: #7FB5FF; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;'>คูปองส่วนลดพิเศษสำหรับคุณ</div>
+                <div style='font-size: 2rem; color: #1d4ed8; font-weight: 800; letter-spacing: 2px; line-height: 1.2; margin-bottom: 8px;'>$code</div>
+                <div style='font-size: 0.95rem; color: #475569; font-weight: 600; margin-bottom: 4px;'>$desc</div>
+                <div style='font-size: 0.8rem; color: #94a3b8;'>$exp_text</div>
+            </div>";
+        }
+
+        $mail_body = "
+        <div style='font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 20px; color: #1e293b; line-height: 1.6;'>
+            <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 30px rgba(174, 226, 255, 0.15); border: 1px solid #e2e8f0; overflow: hidden;'>
+                <!-- Header -->
+                <div style='background: linear-gradient(135deg, #AEE2FF 0%, #7FB5FF 100%); padding: 30px; text-align: center; color: #ffffff;'>
+                    <h2 style='margin: 0; font-size: 1.5rem; font-weight: 800;'>" . htmlspecialchars($shop['shop_name'] ?? 'Shop') . "</h2>
+                </div>
+                
+                $promo_img_html
+                
+                <div style='padding: 30px;'>
+                    <p style='font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: #1e293b;'>สวัสดีคุณ {$to_name},</p>
+                    
+                    <div style='margin: 25px 0; color: #475569; font-size: 1rem; line-height: 1.6; white-space: pre-wrap;'>" . nl2br(htmlspecialchars($body_content)) . "</div>
+                    
+                    $coupon_html
+                    
+                    <!-- Footer Note -->
+                    <div style='text-align: center; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 25px; margin-top: 30px;'>
+                        <p style='margin: 0 0 5px 0;'>เบอร์โทรติดต่อ: " . htmlspecialchars($shop['phone'] ?? '-') . " • อีเมล: " . htmlspecialchars($shop['shop_email'] ?? '-') . "</p>
+                        <p style='margin: 0;'>ขอแสดงความนับถือ, " . htmlspecialchars($shop['shop_name'] ?? 'Shop') . "</p>
+                    </div>
+                </div>
+            </div>
+        </div>";
+
+        $mail->Body = $mail_body;
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return "PHPMailer error: " . $mail->ErrorInfo;
+    }
+}
 ?>

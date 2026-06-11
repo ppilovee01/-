@@ -241,6 +241,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a class="nav-link <?= $current_page == 'admin_flash_sale.php' ? 'active' : '' ?>" href="admin_flash_sale.php"><i class="bi bi-lightning-charge-fill"></i> จัดการ Flash Sale</a>
         <a class="nav-link <?= $current_page == 'admin_banners.php' ? 'active' : '' ?>" href="admin_banners.php"><i class="bi bi-images"></i> จัดการแบนเนอร์</a>
         <a class="nav-link <?= $current_page == 'admin_users.php' ? 'active' : '' ?>" href="admin_users.php"><i class="bi bi-people-fill"></i> จัดการสมาชิก</a>
+        <a class="nav-link <?= $current_page == 'admin_send_mail.php' ? 'active' : '' ?>" href="admin_send_mail.php"><i class="bi bi-send me-2"></i> ส่งอีเมลหาลูกค้า</a>
         <a class="nav-link <?= $current_page == 'admin_settings.php' ? 'active' : '' ?>" href="admin_settings.php"><i class="bi bi-gear-fill"></i> ตั้งค่าร้านค้า</a>
         <a class="nav-link <?= $current_page == 'admin_logs.php' ? 'active' : '' ?>" href="admin_logs.php"><i class="bi bi-clock-history"></i> ประวัติการทำงาน</a>
         <a class="nav-link <?= $current_page == 'admin_reviews.php' ? 'active' : '' ?>" href="admin_reviews.php"><i class="bi bi-chat-square-quote me-2"></i> รีวิวสินค้า</a>
@@ -831,6 +832,53 @@ if (isset($conn)) {
             const ctx = new AudioContext();
             const now = ctx.currentTime;
             
+            if (soundType === 'custom') {
+                let audioUrl = '';
+                const hasUploadedFile = <?php
+                    $uploaded_sounds = glob("uploads/custom_alarm.*");
+                    echo (!empty($uploaded_sounds) && file_exists($uploaded_sounds[0])) ? 'true' : 'false';
+                ?>;
+                if (hasUploadedFile) {
+                    audioUrl = '<?php
+                        $uploaded_sounds = glob("uploads/custom_alarm.*");
+                        echo !empty($uploaded_sounds) ? $uploaded_sounds[0] : '';
+                    ?>?v=' + Date.now();
+                } else {
+                    const customSoundUrl = <?= json_encode(getenv('CUSTOM_SOUND_URL') ?: '') ?>;
+                    if (customSoundUrl) {
+                        audioUrl = customSoundUrl;
+                    }
+                }
+                if (audioUrl) {
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(err => console.warn('Custom audio playback failed:', err));
+                } else {
+                    // Fallback to chime
+                    const osc1 = ctx.createOscillator();
+                    const gain1 = ctx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(659.25, now);
+                    gain1.gain.setValueAtTime(0.1, now);
+                    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+                    osc1.connect(gain1);
+                    gain1.connect(ctx.destination);
+                    osc1.start(now);
+                    osc1.stop(now + 0.5);
+                    
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(880.00, now + 0.1);
+                    gain2.gain.setValueAtTime(0.15, now + 0.1);
+                    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start(now + 0.1);
+                    osc2.stop(now + 0.7);
+                }
+                return;
+            }
+            
             if (soundType === 'chime') {
                 const osc1 = ctx.createOscillator();
                 const gain1 = ctx.createGain();
@@ -1193,5 +1241,26 @@ if (isset($conn)) {
         setInterval(pollNewNotifications, 10000);
     });
 })();
+
+function changePageLimit(el) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('limit', el.value);
+    urlParams.set('page', '1');
+    const newUrl = window.location.pathname + '?' + urlParams.toString();
+    
+    // Update hidden input fields for limit if present in filter forms
+    const limitInput = document.getElementById('limit_input');
+    if (limitInput) limitInput.value = el.value;
+    
+    if (typeof fetchLogs === 'function') {
+        history.pushState(null, '', newUrl);
+        fetchLogs(newUrl);
+    } else if (typeof fetchOrdersFiltered === 'function') {
+        // fetchOrdersFiltered handles limit reading inside it, so we just call it
+        fetchOrdersFiltered(false, '1');
+    } else {
+        window.location.href = newUrl;
+    }
+}
 </script>
 

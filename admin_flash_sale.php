@@ -398,12 +398,23 @@ while ($p = mysqli_fetch_assoc($p_res)) {
 $settings_res = mysqli_query($conn, "SELECT auto_flash_sale, auto_flash_discount, auto_flash_duration, auto_flash_type, auto_flash_min_discount, auto_flash_max_discount, auto_flash_selection_rule, auto_flash_count, auto_flash_stock FROM shop_settings WHERE id = 1");
 $shop_s = mysqli_fetch_assoc($settings_res);
 
-// Fetch flash sale campaigns
+// Fetch flash sale campaigns (พร้อมระบบแบ่งหน้า)
+$limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
+$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM flash_sales fs JOIN products p ON fs.product_id = p.id");
+$total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+$total_pages = ceil($total_rows / $limit);
+if ($total_pages > 0 && $page > $total_pages) {
+    $page = $total_pages;
+}
+$offset = ($page - 1) * $limit;
+
 $campaigns = [];
 $sql_c = "SELECT fs.*, p.name as product_name, p.image as product_image, p.price as original_price 
           FROM flash_sales fs 
           JOIN products p ON fs.product_id = p.id 
-          ORDER BY fs.id DESC";
+          ORDER BY fs.id DESC LIMIT $limit OFFSET $offset";
 $c_res = mysqli_query($conn, $sql_c);
 while ($c = mysqli_fetch_assoc($c_res)) {
     $campaigns[] = $c;
@@ -889,6 +900,8 @@ while ($c = mysqli_fetch_assoc($c_res)) {
                             }
                             ?>
                         </div>
+                        <!-- การแบ่งหน้า (Pagination) -->
+                        <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
                     </div>
                 </div>
             </div>

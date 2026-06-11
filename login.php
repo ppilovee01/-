@@ -63,6 +63,7 @@ if (isset($_POST['login'])) {
         $_SESSION['user_id'] = $u['id'];
         $_SESSION['fullname'] = $u['fullname'];
         $_SESSION['role'] = $u['role'];
+        mysqli_query($conn, "UPDATE users SET last_login = NOW() WHERE id = " . intval($u['id']));
         log_admin_action($conn, 'เข้าสู่ระบบ', "ลูกค้าเข้าสู่ระบบสำเร็จ ชื่อผู้ใช้: {$u['username']}", $u['id'], $u['fullname']);
         header("Location: index.php");
         exit();

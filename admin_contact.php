@@ -245,6 +245,17 @@ if ($filter_status === 'unread') {
     $where_clause .= " AND reply_message IS NULL";
 }
 
+$limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+
+$count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM contact_messages WHERE $where_clause");
+$total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+$total_pages = ceil($total_rows / $limit);
+if ($total_pages > 0 && $page > $total_pages) {
+    $page = $total_pages;
+}
+$offset = ($page - 1) * $limit;
+
 // คำนวณสถิติ
 $total_messages = intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM contact_messages"))['c'] ?? 0);
 $unread_messages = intval(mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as c FROM contact_messages WHERE status='unread'"))['c'] ?? 0);
@@ -485,7 +496,7 @@ $smtp_configured = (!empty($smtp_user) && !empty($smtp_host)) ? 1 : 0;
                                 </thead>
                                 <tbody>
                                     <?php
-                                    $res = mysqli_query($conn, "SELECT * FROM contact_messages WHERE $where_clause ORDER BY id DESC");
+                                    $res = mysqli_query($conn, "SELECT * FROM contact_messages WHERE $where_clause ORDER BY id DESC LIMIT $limit OFFSET $offset");
                                     if (mysqli_num_rows($res) > 0):
                                         while($row = mysqli_fetch_assoc($res)):
                                             $is_new = ($row['status'] == 'unread');
@@ -598,6 +609,8 @@ $smtp_configured = (!empty($smtp_user) && !empty($smtp_host)) ? 1 : 0;
                                 </tbody>
                             </table>
                         </div>
+                        <!-- การแบ่งหน้า (Pagination) -->
+                        <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
                     </div>
                 </div>
 

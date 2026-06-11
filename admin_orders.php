@@ -392,8 +392,19 @@ if (isset($_POST['save_note'])) {
                 $where_sql = "WHERE " . implode(" AND ", $where_clauses);
             }
 
-            // 3. ดึงรายการออเดอร์ตามเงื่อนไขค้นหา
-            $res = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id $where_sql ORDER BY o.id DESC");
+            // 3. ดึงรายการออเดอร์ตามเงื่อนไขค้นหา (พร้อมระบบแบ่งหน้า)
+            $limit = isset($_GET['limit']) ? max(10, min(100, intval($_GET['limit']))) : 20;
+            $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+            
+            $count_query = mysqli_query($conn, "SELECT COUNT(*) as total FROM orders o LEFT JOIN users u ON o.user_id = u.id $where_sql");
+            $total_rows = mysqli_fetch_assoc($count_query)['total'] ?? 0;
+            $total_pages = ceil($total_rows / $limit);
+            if ($total_pages > 0 && $page > $total_pages) {
+                $page = $total_pages;
+            }
+            $offset = ($page - 1) * $limit;
+
+            $res = mysqli_query($conn, "SELECT o.*, u.fullname FROM orders o LEFT JOIN users u ON o.user_id = u.id $where_sql ORDER BY o.id DESC LIMIT $limit OFFSET $offset");
             ?>
 
             <!-- Stats Dashboard Cards -->
@@ -698,6 +709,8 @@ if (isset($_POST['save_note'])) {
                     <button type="button" onclick="clearFilters()" class="btn btn-sm btn-primary rounded-pill mt-3 px-4">ดูรายการทั้งหมด</button>
                 </div>
             <?php endif; ?>
+            <!-- การแบ่งหน้า (Pagination) -->
+            <?= render_pagination_controls($total_rows, $limit, $page, $offset) ?>
             </div>
             <?php 
             if ($ajax_fetch) {
@@ -1204,18 +1217,29 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
-function fetchOrdersFiltered(silent = false) {
+function fetchOrdersFiltered(silent = false, page = null) {
     const filterForm = document.getElementById('filter-form');
     if (!filterForm) return;
     
     const search = filterForm.querySelector('input[name="search"]').value;
     const status_filter = filterForm.querySelector('select[name="status_filter"]').value;
     
+    // Read limit from dropdown, if not present read from URL, default to 20
+    const limitEl = document.getElementById('page-limit-select');
+    const limit = limitEl ? limitEl.value : (new URLSearchParams(window.location.search).get('limit') || '20');
+    
+    if (page === null) {
+        // Reset to page 1 on filter changes, unless it is a silent check
+        page = silent ? (new URLSearchParams(window.location.search).get('page') || '1') : '1';
+    }
+    
     // Update URL query parameters in browser without reload
     if (!silent) {
         const url = new URL(window.location.href);
         url.searchParams.set('search', search);
         url.searchParams.set('status_filter', status_filter);
+        url.searchParams.set('limit', limit);
+        url.searchParams.set('page', page);
         window.history.pushState(null, '', url.toString());
     }
     
@@ -1223,7 +1247,7 @@ function fetchOrdersFiltered(silent = false) {
     const wrapper = document.getElementById('orders-list-wrapper');
     if (wrapper && !silent) wrapper.style.opacity = '0.5';
     
-    fetch(window.location.pathname + `?search=${encodeURIComponent(search)}&status_filter=${encodeURIComponent(status_filter)}&ajax_fetch=1`)
+    fetch(window.location.pathname + `?search=${encodeURIComponent(search)}&status_filter=${encodeURIComponent(status_filter)}&limit=${limit}&page=${page}&ajax_fetch=1`)
     .then(res => res.json())
     .then(data => {
         if (wrapper) {
@@ -1231,6 +1255,7 @@ function fetchOrdersFiltered(silent = false) {
             if (data.status === 'success') {
                 wrapper.innerHTML = data.html;
                 updateDashboardStats(data.stats);
+                bindPaginationClicks();
                 
                 // Re-initialize tooltips if any
                 var tooltipTriggerList = [].slice.call(wrapper.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -1255,6 +1280,44 @@ function fetchOrdersFiltered(silent = false) {
         console.error(err);
     });
 }
+
+function bindPaginationClicks() {
+    const wrapper = document.getElementById('orders-list-wrapper');
+    if (!wrapper) return;
+    
+    const links = wrapper.querySelectorAll('.pagination .page-link');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.getAttribute('href');
+            if (href && href !== '#') {
+                const url = new URL(href, window.location.origin + window.location.pathname);
+                const page = url.searchParams.get('page') || '1';
+                fetchOrdersFiltered(false, page);
+            }
+        });
+    });
+}
+
+// Bind load event to initialize AJAX pagination click listeners
+document.addEventListener('DOMContentLoaded', function() {
+    bindPaginationClicks();
+});
+
+// Bind popstate to support browser Back/Forward navigation
+window.addEventListener('popstate', function() {
+    const url = new URL(window.location.href);
+    const search = url.searchParams.get('search') || '';
+    const status_filter = url.searchParams.get('status_filter') || '';
+    const page = url.searchParams.get('page') || '1';
+    
+    const filterForm = document.getElementById('filter-form');
+    if (filterForm) {
+        filterForm.querySelector('input[name="search"]').value = search;
+        filterForm.querySelector('select[name="status_filter"]').value = status_filter;
+    }
+    fetchOrdersFiltered(true, page);
+});
 
 function clearFilters() {
     const filterForm = document.getElementById('filter-form');
