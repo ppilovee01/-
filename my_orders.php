@@ -403,7 +403,7 @@ date_default_timezone_set('Asia/Bangkok');
                         while($item = mysqli_fetch_assoc($items_res)):
                         ?>
                         <div class="product-item">
-                            <a href="product_detail.php?id=<?= $item['product_id'] ?>" class="text-decoration-none d-flex align-items-center" style="flex:1; min-width:0; color:inherit;">
+                            <a href="product_detail.php?name=<?= urlencode($item['name']) ?>" class="text-decoration-none d-flex align-items-center" style="flex:1; min-width:0; color:inherit;">
                                 <img src="<?= htmlspecialchars($item['image'], ENT_QUOTES, 'UTF-8') ?>" class="product-img" alt="<?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?>">
                                 <div style="flex:1; min-width:0;">
                                     <div class="fw-bold text-dark text-truncate small"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></div>

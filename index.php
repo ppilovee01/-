@@ -358,7 +358,7 @@ if (!empty($active_flash_sales)):
                             </div>
                             
                             <div class="product-img-wrapper" style="height: 180px; overflow: hidden; position: relative;">
-                                <a href="product_detail.php?id=<?= $fs['product_id'] ?>" class="text-decoration-none">
+                                <a href="product_detail.php?name=<?= urlencode($fs['name']) ?>" class="text-decoration-none">
                                     <img src="<?= htmlspecialchars($fs['image']) ?>" class="w-100 h-100" style="object-fit: cover; transition: transform 0.5s ease;" alt="<?= htmlspecialchars($fs['name']) ?>" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                                 </a>
                             </div>
@@ -381,7 +381,7 @@ if (!empty($active_flash_sales)):
                                         <div class="progress-bar bg-danger rounded-5" role="progressbar" style="width: <?= $pct ?>%"></div>
                                     </div>
                                     
-                                    <a href="product_detail.php?id=<?= $fs['product_id'] ?>" class="btn btn-danger w-100 rounded-pill btn-sm fw-semibold py-2">ช้อปโปรนี้ <i class="bi bi-chevron-right"></i></a>
+                                    <a href="product_detail.php?name=<?= urlencode($fs['name']) ?>" class="btn btn-danger w-100 rounded-pill btn-sm fw-semibold py-2">ช้อปโปรนี้ <i class="bi bi-chevron-right"></i></a>
                                 </div>
                             </div>
                         </div>
@@ -513,7 +513,19 @@ if (!empty($upcoming_by_round)):
 <section id="shop" class="container py-5">
     <?php 
     $search = isset($_GET['q']) ? mysqli_real_escape_string($conn, $_GET['q']) : '';
-    $cat_id = isset($_GET['cat']) ? mysqli_real_escape_string($conn, $_GET['cat']) : '';
+    $cat_param = isset($_GET['cat']) ? mysqli_real_escape_string($conn, $_GET['cat']) : '';
+    $cat_id = 0;
+    if (!empty($cat_param)) {
+        if (is_numeric($cat_param)) {
+            $cat_id = intval($cat_param);
+        } else {
+            // Find category ID by name
+            $cat_lookup_q = mysqli_query($conn, "SELECT id FROM categories WHERE name = '$cat_param'");
+            if ($cat_lookup_q && mysqli_num_rows($cat_lookup_q) > 0) {
+                $cat_id = intval(mysqli_fetch_assoc($cat_lookup_q)['id']);
+            }
+        }
+    }
     $min_price = isset($_GET['min_price']) && $_GET['min_price'] !== '' ? floatval($_GET['min_price']) : null;
     $max_price = isset($_GET['max_price']) && $_GET['max_price'] !== '' ? floatval($_GET['max_price']) : null;
     $in_stock = isset($_GET['in_stock']) ? intval($_GET['in_stock']) : 0;
@@ -569,9 +581,9 @@ if (!empty($upcoming_by_round)):
             <h2 class="fw-bold mb-0 text-dark">สินค้าทั้งหมด <span style="color:var(--blue-hover)">🛒</span></h2>
         </div>
         <div class="scroll-menu" id="categoryMenu">
-            <a href="<?= buildFilterUrl(['cat' => null]) ?>" class="cat-btn <?= !isset($_GET['cat']) ? 'active' : '' ?>">ทั้งหมด</a>
+            <a href="<?= buildFilterUrl(['cat' => null]) ?>" class="cat-btn <?= (!isset($_GET['cat']) || $_GET['cat'] === '') ? 'active' : '' ?>">ทั้งหมด</a>
             <?php foreach($categories as $c): ?>
-                <a href="<?= buildFilterUrl(['cat' => $c['id']]) ?>" class="cat-btn <?= (isset($_GET['cat']) && $_GET['cat'] == $c['id']) ? 'active' : '' ?>"><?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?></a>
+                <a href="<?= buildFilterUrl(['cat' => $c['name']]) ?>" class="cat-btn <?= (isset($_GET['cat']) && ($_GET['cat'] == $c['id'] || $_GET['cat'] == $c['name'])) ? 'active' : '' ?>"><?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?></a>
             <?php endforeach; ?>
         </div>
     </div>
@@ -637,7 +649,7 @@ if (!empty($upcoming_by_round)):
                             นำไปใช้
                         </button>
                         <?php if (($min_price !== null) || ($max_price !== null) || $in_stock): ?>
-                            <a href="index.php?<?= $cat_id ? 'cat='.urlencode($cat_id) : '' ?><?= $search ? '&q='.urlencode($search) : '' ?>#shop" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center justify-content-center" style="border-color: #E2E8F0; width: 38px; height: 38px; padding: 0;" title="ล้างตัวกรอง">
+                            <a href="index.php?<?= !empty($cat_param) ? 'cat='.urlencode($cat_param) : '' ?><?= $search ? '&q='.urlencode($search) : '' ?>#shop" class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center justify-content-center" style="border-color: #E2E8F0; width: 38px; height: 38px; padding: 0;" title="ล้างตัวกรอง">
                                 <i class="bi bi-trash3"></i>
                             </a>
                         <?php endif; ?>
@@ -665,7 +677,7 @@ if (!empty($upcoming_by_round)):
                 </button>
                 <?php $active_fs = getActiveFlashSale($conn, $p['id']); ?>
                 <div class="product-img-wrapper">
-                    <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-block w-100 h-100">
+                    <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="text-decoration-none d-block w-100 h-100">
                         <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>">
                         <?php if($active_fs !== null): ?>
                             <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.75rem; box-shadow: 0 2px 6px rgba(220,53,69,0.3);">⚡ FLASH</div>
@@ -678,7 +690,7 @@ if (!empty($upcoming_by_round)):
                 
                 <div class="card-body d-flex flex-column text-center pt-0">
                     <h6 class="fw-bold mb-1 text-truncate mt-3">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name stretched-link">
+                        <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="product-name stretched-link">
                             <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                         </a>
                     </h6>
@@ -785,7 +797,7 @@ if (!empty($recently_viewed)):
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
                     <div class="product-img-wrapper" style="height: 180px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
+                        <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($is_out): ?>
                                 <div class="out-stock-overlay"><span class="badge bg-danger rounded-pill px-2 py-1">สินค้าหมด</span></div>
@@ -794,7 +806,7 @@ if (!empty($recently_viewed)):
                     </div>
                     <div class="card-body d-flex flex-column text-center p-3">
                         <h6 class="fw-bold mb-1 text-truncate mt-1">
-                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
+                            <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
                                 <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         </h6>

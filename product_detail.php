@@ -3,14 +3,32 @@ ob_start();
 session_start();
 include 'db.php';
 
-if (!isset($_GET['id'])) { header("Location: index.php"); exit(); }
-$id = intval($_GET['id']);
+$product = null;
+$id = 0;
 
-$sql = "SELECT * FROM products WHERE id = '$id'";
-$result = mysqli_query($conn, $sql);
-$product = mysqli_fetch_assoc($result);
+if (isset($_GET['name']) && !empty($_GET['name'])) {
+    $prod_name = mysqli_real_escape_string($conn, $_GET['name']);
+    $result = mysqli_query($conn, "SELECT * FROM products WHERE name = '$prod_name'");
+    if ($result && mysqli_num_rows($result) > 0) {
+        $product = mysqli_fetch_assoc($result);
+        $id = intval($product['id']);
+    }
+} elseif (isset($_GET['id']) && !empty($_GET['id'])) {
+    $id_param = mysqli_real_escape_string($conn, $_GET['id']);
+    if (is_numeric($id_param)) {
+        $id = intval($id_param);
+        $result = mysqli_query($conn, "SELECT * FROM products WHERE id = '$id'");
+    } else {
+        $result = mysqli_query($conn, "SELECT * FROM products WHERE name = '$id_param'");
+    }
+    if ($result && mysqli_num_rows($result) > 0) {
+        $product = mysqli_fetch_assoc($result);
+        $id = intval($product['id']);
+    }
+}
 
 if (!$product) { header("Location: index.php"); exit(); }
+$product_name_url = urlencode($product['name']);
 
 // --- Logic Recently Viewed Products ---
 $recently_viewed = [];
@@ -63,12 +81,12 @@ if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
             $allowed_mimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             if (!in_array($mime, $allowed_mimes)) {
                 $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ประเภทไฟล์ไม่ถูกต้อง อนุญาตเฉพาะรูปภาพเท่านั้น', 'icon'=>'error'];
-                header('Location: product_detail.php?id=' . intval($_GET['id'])); exit();
+                header('Location: product_detail.php?name=' . $product_name_url); exit();
             }
             // Validate file size — จำกัดขนาดไฟล์สูงสุด 5MB
             if ($_FILES['review_image']['size'] > 5 * 1024 * 1024) {
                 $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'ไฟล์รูปภาพมีขนาดใหญ่เกินไป (สูงสุด 5MB)', 'icon'=>'error'];
-                header('Location: product_detail.php?id=' . intval($_GET['id'])); exit();
+                header('Location: product_detail.php?name=' . $product_name_url); exit();
             }
             $newFileName = 'review_' . uniqid() . '.' . $fileExtension;
             $uploadFileDir = 'uploads/';
@@ -103,7 +121,7 @@ if (isset($_POST['submit_review']) && isset($_SESSION['user_id'])) {
     } else {
          $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกรีวิว', 'icon'=>'error'];
     }
-    header("Location: product_detail.php?id=$id"); exit();
+    header('Location: product_detail.php?name=' . $product_name_url); exit();
 }
 
 $can_review = false;
@@ -553,7 +571,7 @@ if (!empty($recommended_products)):
                     </button>
                     <?php $rec_fs = getActiveFlashSale($conn, $p['id']); ?>
                     <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
+                        <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php if($rec_fs !== null): ?>
                                 <div class="position-absolute top-0 start-0 m-2 bg-danger text-white px-2 py-1 rounded-3 fw-bold small z-3" style="font-size: 0.65rem;">⚡ FLASH</div>
@@ -566,7 +584,7 @@ if (!empty($recommended_products)):
                     
                     <div class="card-body d-flex flex-column text-center p-3 pt-2">
                         <h6 class="fw-bold mb-1 text-truncate mt-1">
-                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
+                            <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
                                 <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         </h6>
@@ -586,7 +604,7 @@ if (!empty($recommended_products)):
                             <?php if($is_out): ?>
                                 <button class="btn btn-secondary w-100 btn-sm rounded-pill py-1" style="font-size: 0.82rem;" disabled>สินค้าหมด</button>
                             <?php else: ?>
-                                <a href="product_detail.php?id=<?= $p['id'] ?>" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative" style="z-index:2; padding: 6px 12px !important; font-size: 0.82rem;">
+                                <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="btn btn-gradient w-100 btn-sm shadow-sm position-relative" style="z-index:2; padding: 6px 12px !important; font-size: 0.82rem;">
                                     <i class="bi bi-cart-plus"></i> เลือก
                                 </a>
                             <?php endif; ?>
@@ -655,7 +673,7 @@ if (!empty($display_recently_viewed)):
                         <i class="bi <?= $fav_icon ?>"></i>
                     </button>
                     <div class="product-img-wrapper" style="height: 160px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(226, 232, 240, 0.4);">
-                        <a href="product_detail.php?id=<?= $p['id'] ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
+                        <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="text-decoration-none d-flex align-items-center justify-content-center w-100 h-100">
                             <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                             <?php $rv_fs = getActiveFlashSale($conn, $p['id']); ?>
                             <?php if($rv_fs !== null): ?>
@@ -668,7 +686,7 @@ if (!empty($display_recently_viewed)):
                     </div>
                     <div class="card-body d-flex flex-column text-center p-3">
                         <h6 class="fw-bold mb-1 text-truncate mt-1">
-                            <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
+                            <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="product-name text-decoration-none text-dark" style="font-size: 0.9rem; font-weight: 600;">
                                 <?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>
                             </a>
                         </h6>

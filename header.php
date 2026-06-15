@@ -749,7 +749,7 @@ if (!isset($page_title)) $page_title = "Por Mae Bet Taled | ร้านค้�
                 let html = '';
                 data.forEach(item => {
                     html += `
-                        <a href="product_detail.php?id=${item.id}" class="suggest-item">
+                        <a href="product_detail.php?name=${encodeURIComponent(item.name)}" class="suggest-item">
                             <img src="${item.image}" class="suggest-img" alt="${item.name}">
                             <div class="suggest-details">
                                 <div class="suggest-name">${item.name}</div>

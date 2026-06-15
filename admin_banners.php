@@ -243,7 +243,7 @@ if (isset($_GET['delete'])) {
                         <!-- Link URL -->
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">ลิงก์ปลายทาง (เมื่อกดคลิกแบนเนอร์)</label>
-                            <input type="url" name="link_url" class="form-control" placeholder="เช่น https://... หรือ product_detail.php?id=5">
+                            <input type="url" name="link_url" class="form-control" placeholder="เช่น https://... หรือ product_detail.php?name=ชื่อสินค้า">
                         </div>
 
                         <!-- Sort Order -->
@@ -382,7 +382,7 @@ if (isset($_GET['delete'])) {
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">ลิงก์ปลายทาง (URL)</label>
-                        <input type="url" name="link_url" id="edit_link_url" class="form-control" placeholder="เช่น https://... หรือ product_detail.php?id=5">
+                        <input type="url" name="link_url" id="edit_link_url" class="form-control" placeholder="เช่น https://... หรือ product_detail.php?name=ชื่อสินค้า">
                     </div>
 
                     <div class="row">

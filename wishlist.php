@@ -39,13 +39,13 @@ include 'header.php';
                         <div class="card card-product">
                             <button onclick="toggleFeature('toggle_wishlist', <?= $p['id'] ?>, this); this.closest('.col-6').remove();" class="wishlist-tag liked"><i class="bi bi-heart-fill"></i></button>
                             <div class="product-img-wrapper">
-                                <a href="product_detail.php?id=<?= $p['id'] ?>">
+                                <a href="product_detail.php?name=<?= urlencode($p['name']) ?>">
                                     <img src="<?= htmlspecialchars($p['image'], ENT_QUOTES, 'UTF-8') ?>" class="wishlist-img" alt="<?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?>">
                                 </a>
                             </div>
                             <div class="card-body d-flex flex-column text-center mt-2 p-3 pt-0">
                                 <h6 class="fw-bold mb-2 text-truncate">
-                                    <a href="product_detail.php?id=<?= $p['id'] ?>" class="product-name stretched-link"><?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?></a>
+                                    <a href="product_detail.php?name=<?= urlencode($p['name']) ?>" class="product-name stretched-link"><?= htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8') ?></a>
                                 </h6>
                                 <div class="mb-3">
                                     <span class="fw-bold" style="color:var(--blue-dark); font-size:1.2rem;">฿<?= number_format($p['price']) ?></span>
