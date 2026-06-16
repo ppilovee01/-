@@ -440,7 +440,13 @@ elseif ($action == 'toggle_wishlist') {
 
 // 4.2 ติดต่อเรา (Contact Messages Submissions)
 elseif ($action == 'send_contact') {
+    if (!verifyTurnstile()) {
+        $response = ['status' => 'error', 'message' => 'การตรวจสอบสิทธิ์ล้มเหลว (Turnstile CAPTCHA Invalid)'];
+        echo json_encode($response);
+        exit();
+    }
     $name = mysqli_real_escape_string($conn, $_POST['name']);
+
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $subject = mysqli_real_escape_string($conn, $_POST['subject']);
     $message = mysqli_real_escape_string($conn, $_POST['message']);

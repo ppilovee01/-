@@ -331,6 +331,85 @@ function send_password_reset_email($conn, $email, $otp) {
     }
 }
 
+function send_admin_2fa_otp($conn, $email, $fullname, $otp) {
+    // 1. ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
+    $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));
+    $smtp_user = getenv('SMTP_USER') ?: ($shop['smtp_user'] ?? '');
+    $smtp_pass = getenv('SMTP_PASS') ?: ($shop['smtp_pass'] ?? '');
+    if (empty($smtp_user) || empty($smtp_pass)) {
+        return false;
+    }
+
+    $mail = new PHPMailer(true);
+
+    try {
+        // Server settings
+        $mail->CharSet = 'UTF-8';
+        $mail->isSMTP();
+        $mail->Timeout    = 5;
+        $mail->Host       = getenv('SMTP_HOST') ?: ($shop['smtp_host'] ?? '');
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $smtp_user;
+        $mail->Password   = str_replace(' ', '', $smtp_pass);
+        
+        $secure = strtolower(getenv('SMTP_SECURE') ?: ($shop['smtp_secure'] ?? 'tls'));
+        if ($secure === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($secure === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        } else {
+            $mail->SMTPAutoTLS = false;
+            $mail->SMTPSecure = '';
+        }
+        
+        $mail->Port       = getenv('SMTP_PORT') !== false ? intval(getenv('SMTP_PORT')) : intval($shop['smtp_port'] ?? 587);
+
+        // Recipients
+        $mail->setFrom($smtp_user, $shop['shop_name'] ?? 'Shop');
+        $mail->addAddress($email, $fullname);
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = "🛡️ รหัสยืนยันตน 2FA (OTP) สำหรับเข้าสู่ระบบแอดมิน - " . $shop['shop_name'];
+        
+        $mail_body = "
+        <div style='font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 20px; color: #1e293b; line-height: 1.6;'>
+            <div style='max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 30px rgba(133, 209, 255, 0.15); border: 1px solid #e2e8f0; overflow: hidden;'>
+                <!-- Header -->
+                <div style='background: linear-gradient(135deg, #85D1FF 0%, #6BBEFF 100%); padding: 30px; text-align: center; color: #ffffff;'>
+                    <h2 style='margin: 0; font-size: 1.4rem; font-weight: 800;'>ยืนยันตนเข้าสู่ระบบแอดมิน</h2>
+                    <p style='margin: 5px 0 0 0; font-size: 0.9rem; opacity: 0.9;'>{$shop['shop_name']}</p>
+                </div>
+                
+                <div style='padding: 30px; text-align: center;'>
+                    <p style='font-size: 1rem; color: #475569; text-align: left;'>สวัสดีคุณ <b>{$fullname}</b> (แอดมิน),</p>
+                    <p style='font-size: 0.95rem; color: #64748b; text-align: left; margin-bottom: 25px;'>มีการตรวจพบการพยายามเข้าสู่ระบบจัดการร้านค้าหลังบ้านของคุณผ่านอุปกรณ์ใหม่ กรุณาใช้รหัส OTP ด้านล่างเพื่อยืนยันตน:</p>
+                    
+                    <!-- OTP Display Block -->
+                    <div style='background-color: #f0f8ff; border: 2px dashed #85D1FF; border-radius: 16px; padding: 20px; margin-bottom: 25px; display: inline-block; min-width: 200px;'>
+                        <div style='font-size: 0.8rem; color: #6BBEFF; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;'>รหัสยืนยัน OTP (เข้าสู่ระบบ)</div>
+                        <div style='font-size: 2.2rem; color: #0284c7; font-weight: 800; letter-spacing: 4px; line-height: 1;'>{$otp}</div>
+                    </div>
+                    
+                    <p style='font-size: 0.8rem; color: #94a3b8; margin-bottom: 30px;'>* รหัสยืนยันตัวตนนี้จะมีอายุการใช้งาน 5 นาที หากคุณไม่ได้ลงชื่อเข้าใช้ด้วยตัวเอง โปรดเปลี่ยนรหัสผ่านทันทีเพื่อความปลอดภัย</p>
+                    
+                    <!-- Footer Note -->
+                    <div style='text-align: center; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px;'>
+                        <p style='margin: 0;'>หากมีข้อสงสัย ติดต่อเจ้าหน้าที่: {$shop['shop_email']}</p>
+                    </div>
+                </div>
+            </div>
+        </div>";
+
+        $mail->Body = $mail_body;
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("PHPMailer error (Admin 2FA OTP): " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
 function send_custom_reply($conn, $to_email, $to_name, $original_subject, $reply_content) {
     // 1. ดึงข้อมูลตั้งค่าร้านค้า (SMTP Credentials)
     $shop = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM shop_settings WHERE id = 1"));

@@ -60,6 +60,11 @@ $instagram_url = !empty($shop['instagram_url']) ? $shop['instagram_url'] : '#';
                                 <label class="form-label small text-muted">ข้อความ</label>
                                 <textarea name="message" class="form-control" rows="4" required></textarea>
                             </div>
+                            <?php if (hasEnvValue('TURNSTILE_SITE_KEY')): ?>
+                            <div class="mb-3 d-flex justify-content-center">
+                                <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(getEnvValue('TURNSTILE_SITE_KEY'), ENT_QUOTES, 'UTF-8') ?>" data-theme="light"></div>
+                            </div>
+                            <?php endif; ?>
                             <button type="submit" class="btn btn-gradient w-100 rounded-pill">ส่งข้อความ</button>
                         </form>
                     </div>
@@ -70,6 +75,10 @@ $instagram_url = !empty($shop['instagram_url']) ? $shop['instagram_url'] : '#';
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<?php if (hasEnvValue('TURNSTILE_SITE_KEY')): ?>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<?php endif; ?>
+
 <script>
 let isContactSubmitting = false;
 function sendContact() {
@@ -96,8 +105,10 @@ function sendContact() {
         if(data.status === 'success') {
             Swal.fire({icon: 'success', title: 'ส่งเรียบร้อย', text: data.message});
             document.getElementById('contactForm').reset();
+            if (typeof turnstile !== 'undefined') turnstile.reset();
         } else {
             Swal.fire({icon: 'error', title: 'ผิดพลาด', text: data.message});
+            if (typeof turnstile !== 'undefined') turnstile.reset();
         }
     })
     .catch(err => {
@@ -106,6 +117,7 @@ function sendContact() {
             submitBtn.disabled = false;
             submitBtn.innerHTML = 'ส่งข้อความ';
         }
+        if (typeof turnstile !== 'undefined') turnstile.reset();
         console.error(err);
     });
 }

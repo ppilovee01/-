@@ -6,6 +6,12 @@ if (isset($_POST['register'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
+    if (!verifyTurnstile()) {
+        $_SESSION['swal'] = ['title' => 'ความปลอดภัย', 'text' => 'การตรวจสอบสิทธิ์ล้มเหลว (Turnstile CAPTCHA Invalid)', 'icon' => 'error'];
+        $_SESSION['active_tab'] = 'register';
+        header('Location: login.php');
+        exit();
+    }
     // Security: ตรวจสอบความยาวรหัสผ่านฝั่ง Server
     if (strlen($_POST['password']) < 6) {
         $_SESSION['swal'] = ['title'=>'แจ้งเตือน', 'text'=>'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'icon'=>'error'];
@@ -13,25 +19,44 @@ if (isset($_POST['register'])) {
         header('Location: login.php');
         exit();
     }
-    $user = mysqli_real_escape_string($conn, $_POST['username']);
-    $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $name = mysqli_real_escape_string($conn, $_POST['fullname']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $user = trim($_POST['username'] ?? '');
+    $pass = password_hash($_POST['password'] ?? '', PASSWORD_DEFAULT);
+    $name = trim($_POST['fullname'] ?? '');
+    $email = trim($_POST['email'] ?? '');
 
-    $check = mysqli_query($conn, "SELECT id FROM users WHERE username='$user' OR email='$email'");
+    $user_exists = false;
+    $stmt_check = mysqli_prepare($conn, "SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1");
+    if ($stmt_check) {
+        mysqli_stmt_bind_param($stmt_check, "ss", $user, $email);
+        mysqli_stmt_execute($stmt_check);
+        mysqli_stmt_store_result($stmt_check);
+        if (mysqli_stmt_num_rows($stmt_check) > 0) {
+            $user_exists = true;
+        }
+        mysqli_stmt_close($stmt_check);
+    }
     
-    if(mysqli_num_rows($check) > 0) {
+    if($user_exists) {
         $_SESSION['swal'] = ['title'=>'แจ้งเตือน', 'text'=>'ชื่อผู้ใช้ หรือ อีเมลนี้ มีคนใช้แล้ว!', 'icon'=>'error'];
         $_SESSION['active_tab'] = 'register';
     } else {
-        $sql = "INSERT INTO users (username, password, fullname, email, role, created_at) VALUES ('$user', '$pass', '$name', '$email', 'user', NOW())";
-        if(mysqli_query($conn, $sql)){
-            $new_user_id = mysqli_insert_id($conn);
+        $stmt_ins = mysqli_prepare($conn, "INSERT INTO users (username, password, fullname, email, role, created_at) VALUES (?, ?, ?, ?, 'user', NOW())");
+        $reg_ok = false;
+        $new_user_id = 0;
+        if ($stmt_ins) {
+            mysqli_stmt_bind_param($stmt_ins, "ssss", $user, $pass, $name, $email);
+            if (mysqli_stmt_execute($stmt_ins)) {
+                $reg_ok = true;
+                $new_user_id = mysqli_insert_id($conn);
+            }
+            mysqli_stmt_close($stmt_ins);
+        }
+
+        if($reg_ok){
             log_admin_action($conn, 'สมัครสมาชิก', "ลูกค้าสมัครสมาชิกใหม่ ชื่อผู้ใช้: $user, อีเมล: $email", $new_user_id, $name);
             $_SESSION['swal'] = ['title'=>'สำเร็จ', 'text'=>'สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ', 'icon'=>'success'];
             $_SESSION['active_tab'] = 'login';
         } else {
-            error_log('Registration SQL Error: ' . mysqli_error($conn));
             $_SESSION['swal'] = ['title'=>'ผิดพลาด', 'text'=>'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่', 'icon'=>'error'];
             $_SESSION['active_tab'] = 'register';
         }
@@ -44,6 +69,12 @@ if (isset($_POST['login'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
+    if (!verifyTurnstile()) {
+        $_SESSION['swal'] = ['title' => 'ความปลอดภัย', 'text' => 'การตรวจสอบสิทธิ์ล้มเหลว (Turnstile CAPTCHA Invalid)', 'icon' => 'error'];
+        $_SESSION['active_tab'] = 'login';
+        header('Location: login.php');
+        exit();
+    }
     // Rate limiting: ป้องกัน Brute-force Attack
     $rate_key = 'login_attempts_' . ($_SERVER['REMOTE_ADDR'] ?? '');
     if (!isset($_SESSION[$rate_key])) $_SESSION[$rate_key] = ['count' => 0, 'first_attempt' => time()];
@@ -53,17 +84,37 @@ if (isset($_POST['login'])) {
         $_SESSION['active_tab'] = 'login';
         header('Location: login.php'); exit();
     }
-    $user = mysqli_real_escape_string($conn, $_POST['username']);
-    $pass = $_POST['password'];
-    $res = mysqli_query($conn, "SELECT * FROM users WHERE username='$user'");
-    $u = mysqli_fetch_assoc($res);
+
+    $user = trim($_POST['username'] ?? '');
+    $pass = $_POST['password'] ?? '';
+    
+    $u = null;
+    $stmt_login = mysqli_prepare($conn, "SELECT * FROM users WHERE username = ? LIMIT 1");
+    if ($stmt_login) {
+        mysqli_stmt_bind_param($stmt_login, "s", $user);
+        mysqli_stmt_execute($stmt_login);
+        $res = mysqli_stmt_get_result($stmt_login);
+        if ($res) {
+            $u = mysqli_fetch_assoc($res);
+        }
+        mysqli_stmt_close($stmt_login);
+    }
+
     if ($u && password_verify($pass, $u['password'])) {
         session_regenerate_id(true);
         unset($_SESSION[$rate_key]); // Reset rate limit on successful login
         $_SESSION['user_id'] = $u['id'];
         $_SESSION['fullname'] = $u['fullname'];
         $_SESSION['role'] = $u['role'];
-        mysqli_query($conn, "UPDATE users SET last_login = NOW() WHERE id = " . intval($u['id']));
+        
+        $stmt_upd = mysqli_prepare($conn, "UPDATE users SET last_login = NOW() WHERE id = ?");
+        if ($stmt_upd) {
+            $uid = intval($u['id']);
+            mysqli_stmt_bind_param($stmt_upd, "i", $uid);
+            mysqli_stmt_execute($stmt_upd);
+            mysqli_stmt_close($stmt_upd);
+        }
+
         log_admin_action($conn, 'เข้าสู่ระบบ', "ลูกค้าเข้าสู่ระบบสำเร็จ ชื่อผู้ใช้: {$u['username']}", $u['id'], $u['fullname']);
         header("Location: index.php");
         exit();
@@ -90,6 +141,10 @@ unset($_SESSION['active_tab']);
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <?php if (hasEnvValue('TURNSTILE_SITE_KEY')): ?>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <?php endif; ?>
+
     <style>
         :root { --blue-main: #85D1FF; --blue-hover: #6BBEFF; --bg-light: #f8f9fa; }
         body { font-family: 'Kanit', sans-serif; height: 100vh; overflow: hidden; background: #fff; }
@@ -151,7 +206,13 @@ unset($_SESSION['active_tab']);
                                 </div>
                             </div>
                             <div class="text-end mb-3"><a href="forgot_password.php" class="text-decoration-none small text-muted">ลืมรหัสผ่าน?</a></div>
+                            <?php if (hasEnvValue('TURNSTILE_SITE_KEY')): ?>
+                            <div class="mb-3 d-flex justify-content-center">
+                                <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(getEnvValue('TURNSTILE_SITE_KEY'), ENT_QUOTES, 'UTF-8') ?>" data-theme="light"></div>
+                            </div>
+                            <?php endif; ?>
                             <button type="submit" name="login" class="btn btn-auth mb-3">เข้าสู่ระบบ <i class="bi bi-arrow-right-short"></i></button>
+
                         </form>
                     </div>
 
@@ -171,7 +232,13 @@ unset($_SESSION['active_tab']);
                                     </div>
                                 </div>
                             </div>
+                            <?php if (hasEnvValue('TURNSTILE_SITE_KEY')): ?>
+                            <div class="mb-3 d-flex justify-content-center">
+                                <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(getEnvValue('TURNSTILE_SITE_KEY'), ENT_QUOTES, 'UTF-8') ?>" data-theme="light"></div>
+                            </div>
+                            <?php endif; ?>
                             <button type="submit" name="register" class="btn btn-auth mb-3">สมัครสมาชิก</button>
+
                         </form>
                     </div>
                 </div>

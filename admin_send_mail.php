@@ -47,12 +47,25 @@ if ($admin_id > 0) {
 }
 
 // ระบบประมวลผลการส่งฟอร์ม (POST)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['send_mail']) || isset($_POST['send_test']))) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $log_data = "=== " . date('Y-m-d H:i:s') . " ===\n" . print_r($_POST, true) . "=====================\n\n";
+    @file_put_contents(__DIR__ . '/logs/debug_post.log', $log_data, FILE_APPEND);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['send_mail']) || isset($_POST['send_test']) || !empty($_POST['submit_type']))) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         die("Error: Invalid CSRF Token. (คำขอไม่ถูกต้องหรือไม่ปลอดภัย)");
     }
 
     $is_test = isset($_POST['send_test']);
+    if (isset($_POST['submit_type'])) {
+        if ($_POST['submit_type'] === 'send_test') {
+            $is_test = true;
+        } elseif ($_POST['submit_type'] === 'send_mail') {
+            $is_test = false;
+        }
+    }
+
     $to_email = trim($_POST['to_email'] ?? '');
     $to_name = trim($_POST['to_name'] ?? '');
     
@@ -566,6 +579,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['send_mail']) || isse
                     <div class="card card-modern p-4 border-0">
                         <form method="POST" id="email-composer-form" enctype="multipart/form-data">
                             <?= get_csrf_input() ?>
+                            <input type="hidden" name="submit_type" id="submit_type" value="">
                             
                             <!-- Recipient Selection Toggle -->
                             <div class="mb-4">
@@ -1245,32 +1259,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['send_mail']) || isse
 
         // ดักจับฟอร์ม submit เพื่อแสดง spinner และป้องกันการคลิกเบิ้ล
         const composerForm = document.getElementById('email-composer-form');
+        const submitTypeInput = document.getElementById('submit_type');
+        const btnMail = document.querySelector('button[name="send_mail"]');
+        const btnTest = document.querySelector('button[name="send_test"]');
+
+        if (btnMail && submitTypeInput) {
+            btnMail.addEventListener('click', function() {
+                submitTypeInput.value = 'send_mail';
+            });
+        }
+        if (btnTest && submitTypeInput) {
+            btnTest.addEventListener('click', function() {
+                submitTypeInput.value = 'send_test';
+            });
+        }
+
         if (composerForm) {
             composerForm.addEventListener('submit', function(e) {
-                const submitter = e.submitter;
-                if (submitter) {
-                    // สร้าง input แฝงส่งชื่อปุ่มที่กดเพื่อให้ PHP ประมวลผลได้ถูกต้อง
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = submitter.name;
-                    hiddenInput.value = '1';
-                    this.appendChild(hiddenInput);
-
-                    // ดึงปุ่มทั้งหมดมา disabled เพื่อป้องกันการส่งซ้ำซ้อน
-                    const btnMail = this.querySelector('button[name="send_mail"]');
-                    const btnTest = this.querySelector('button[name="send_test"]');
-                    
-                    if (btnMail) {
-                        btnMail.disabled = true;
-                        if (submitter.name === 'send_mail') {
-                            btnMail.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังส่งข้อมูล...';
-                        }
+                let action = submitTypeInput.value;
+                if (!action) {
+                    if (e.submitter) {
+                        action = e.submitter.name;
+                    } else {
+                        action = 'send_test';
                     }
-                    if (btnTest) {
-                        btnTest.disabled = true;
-                        if (submitter.name === 'send_test') {
-                            btnTest.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังส่งข้อมูล...';
-                        }
+                    submitTypeInput.value = action;
+                }
+
+                // ดึงปุ่มทั้งหมดมา disabled เพื่อป้องกันการส่งซ้ำซ้อน
+                if (btnMail) {
+                    btnMail.disabled = true;
+                    if (action === 'send_mail') {
+                        btnMail.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังส่งข้อมูล...';
+                    }
+                }
+                if (btnTest) {
+                    btnTest.disabled = true;
+                    if (action === 'send_test') {
+                        btnTest.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังส่งข้อมูล...';
                     }
                 }
             });
